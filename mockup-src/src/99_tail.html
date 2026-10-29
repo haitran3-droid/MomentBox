@@ -1,0 +1,79 @@
+<script>
+(function(){
+function rng(seed){let a=seed>>>0||1;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+
+/* ---------- placeholder artwork (SVG, no external images) ---------- */
+function grad(id,c1,c2){return `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>`}
+function pines(r,y0,n,color,x0=0,x1=200,hmin=10,hmax=22){let s='';for(let i=0;i<n;i++){const x=x0+(x1-x0)*(i+r()*.6)/n,h=hmin+r()*(hmax-hmin),w=h*.45,y=y0+r()*6;s+=`<path d="M${x} ${y-h} L${x+w/2} ${y} L${x-w/2} ${y}Z" fill="${color}"/>`}return s}
+const ARTS=[
+r=>`<defs>${grad('g','#FFB38A','#F2789F')}</defs><rect width="200" height="150" fill="url(#g)"/><circle cx="138" cy="60" r="20" fill="#FFE3A3"/><path d="M0 108 L38 70 L66 92 L104 52 L148 98 L174 78 L200 92 V150 H0Z" fill="#9A5FA3" opacity=".85"/><path d="M0 124 L32 104 L66 118 L102 94 L140 124 L172 108 L200 118 V150 H0Z" fill="#5B3F7A"/>`,
+r=>`<defs>${grad('g','#9FD3F5','#EAF6FF')}${grad('w','#7FB8D9','#5B97BD')}</defs><rect width="200" height="150" fill="url(#g)"/><path d="M0 92 L45 48 L80 80 L120 40 L165 85 L200 62 V115 H0Z" fill="#8DB8A0"/><path d="M0 104 L40 80 L90 98 L140 78 L200 98 V115 H0Z" fill="#4C7F63"/>${pines(r,112,14,'#2F5D46')}<rect y="112" width="200" height="38" fill="url(#w)"/><rect x="30" y="122" width="50" height="1.5" fill="#fff" opacity=".5"/><rect x="110" y="132" width="60" height="1.5" fill="#fff" opacity=".45"/>`,
+r=>{let b='',x=0;while(x<200){const w=14+r()*20,h=40+r()*60;b+=`<rect x="${x}" y="${150-h}" width="${w}" height="${h}" fill="#17143A"/>`;for(let wy=150-h+6;wy<146;wy+=8)for(let wx=x+3;wx<x+w-4;wx+=6)if(r()>.55)b+=`<rect x="${wx}" y="${wy}" width="2.6" height="3.4" fill="#FFD66B" opacity="${.6+r()*.4}"/>`;x+=w+1.5}let st='';for(let i=0;i<30;i++)st+=`<circle cx="${r()*200}" cy="${r()*70}" r="${.4+r()*.8}" fill="#fff" opacity="${.4+r()*.6}"/>`;return `<defs>${grad('g','#1E1B4B','#6B4FB0')}</defs><rect width="200" height="150" fill="url(#g)"/>${st}<circle cx="150" cy="34" r="12" fill="#FDF4C4"/><circle cx="156" cy="30" r="11" fill="#2E2766"/>${b}`},
+r=>`<defs>${grad('g','#FFC79A','#FF8C6B')}${grad('s','#3AA6B9','#23798F')}</defs><rect width="200" height="150" fill="url(#g)"/><circle cx="100" cy="96" r="26" fill="#FFF0C4"/><rect y="96" width="200" height="34" fill="url(#s)"/><rect x="70" y="102" width="60" height="2" fill="#FFE2B0" opacity=".7"/><rect x="82" y="110" width="36" height="2" fill="#FFE2B0" opacity=".55"/><rect x="90" y="118" width="20" height="1.6" fill="#FFE2B0" opacity=".45"/><path d="M0 128 Q60 120 120 128 T200 126 V150 H0Z" fill="#F3D3A0"/><path d="M152 124 q6 -40 2 -74 M154 50 q-14 -2 -22 6 M154 50 q14 -4 22 4 M154 50 q-6 -10 -16 -10 M154 50 q8 -10 18 -8" stroke="#4A2F2A" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+r=>`<defs>${grad('g','#FCE3C0','#F9B98B')}</defs><rect width="200" height="150" fill="url(#g)"/><circle cx="52" cy="50" r="16" fill="#FFF3D6"/><path d="M0 100 Q50 70 110 96 T200 88 V150 H0Z" fill="#EBA06C"/><path d="M0 122 Q70 96 140 120 T200 116 V150 H0Z" fill="#CF6F3F"/>`,
+r=>`<defs>${grad('g','#D7ECE2','#F7F3E8')}</defs><rect width="200" height="150" fill="url(#g)"/><circle cx="150" cy="42" r="14" fill="#FFF7DA"/><path d="M0 84 Q50 56 100 78 T200 70 V150 H0Z" fill="#9CCBB0"/>${pines(r,84,10,'#6FA88A',0,200,8,16)}<rect y="88" width="200" height="10" fill="#fff" opacity=".45"/><path d="M0 104 Q60 82 120 102 T200 96 V150 H0Z" fill="#3E8E63"/>${pines(r,106,12,'#2F6F4F',0,200,12,24)}<path d="M0 128 Q70 112 140 126 T200 122 V150 H0Z" fill="#2B5E44"/>`,
+r=>`<rect width="200" height="150" fill="#E7D3BE"/><rect width="200" height="150" fill="#D9BC9C" opacity=".35"/><circle cx="92" cy="78" r="44" fill="#FBF7F2"/><circle cx="92" cy="78" r="30" fill="#fff" stroke="#EADFD3" stroke-width="2"/><circle cx="92" cy="78" r="24" fill="#6F4E37"/><path d="M92 90 C78 80 82 66 92 74 C102 66 106 80 92 90Z" fill="#EBD3B5"/><rect x="128" y="74" width="20" height="8" rx="4" fill="#fff"/><path d="M150 30 q20 10 30 0 q-6 18 -30 0Z" fill="#7BA05B"/><circle cx="160" cy="120" r="10" fill="#C98A4B"/><circle cx="176" cy="126" r="7" fill="#B9763B"/>`,
+r=>{let f='';const cs=['#FF8FB1','#FFB4A2','#F06595','#FFC2D1'];for(let i=0;i<7;i++){const cx=15+r()*170,cy=20+r()*115,s=8+r()*10,c=cs[i%4];let p='';for(let k=0;k<5;k++){const a=k*72*Math.PI/180;p+=`<circle cx="${cx+Math.cos(a)*s*.8}" cy="${cy+Math.sin(a)*s*.8}" r="${s*.62}" fill="${c}"/>`}f+=`<path d="M${cx} ${cy} q${-s} ${s*1.5} ${-s*.5} ${s*3}" stroke="#6BAA75" stroke-width="2" fill="none"/>`+p+`<circle cx="${cx}" cy="${cy}" r="${s*.35}" fill="#FFD54F"/>`}return `<defs>${grad('g','#FFF0F4','#FAD3E0')}</defs><rect width="200" height="150" fill="url(#g)"/>${f}`},
+r=>`<defs>${grad('g','#BFD9F2','#EEF5FC')}</defs><rect width="200" height="150" fill="url(#g)"/><path d="M0 110 L50 40 L80 76 L120 26 L170 88 L200 66 V150 H0Z" fill="#8FA9C6"/><path d="M50 40 L62 57 L54 54 L46 60 L40 54Z M120 26 L136 49 L126 45 L118 52 L110 46 L106 44Z" fill="#fff"/><path d="M0 120 L40 96 L90 116 L150 92 L200 112 V150 H0Z" fill="#5E7C9C"/>${pines(r,140,16,'#2F4A63',0,200,10,20)}`,
+r=>`<defs><radialGradient id="a" cx=".2" cy=".2" r=".9"><stop offset="0" stop-color="#8B7CF6"/><stop offset="1" stop-color="#8B7CF6" stop-opacity="0"/></radialGradient><radialGradient id="b" cx=".9" cy=".8" r=".9"><stop offset="0" stop-color="#FF8A65"/><stop offset="1" stop-color="#FF8A65" stop-opacity="0"/></radialGradient></defs><rect width="200" height="150" fill="#F3B6D6"/><rect width="200" height="150" fill="url(#a)"/><rect width="200" height="150" fill="url(#b)"/>`
+];
+function artURI(i,seed){const r=rng(seed||i*977+13);const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice">${ARTS[i%ARTS.length](r)}</svg>`;return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`}
+
+/* ---------- system bars ---------- */
+document.querySelectorAll('.screen').forEach(sc=>{
+  if(!sc.hasAttribute('data-nosb')){const sb=document.createElement('div');sb.className='sb';sb.innerHTML=`<span>${sc.dataset.time||'21:42'}</span><span class="ic"><span class="ms f">signal_cellular_alt</span><span class="ms f">wifi</span><span class="ms f">battery_full</span></span>`;if(sc.hasAttribute('data-sbo')){sb.style.cssText='position:absolute;left:0;right:0;top:0'}sc.prepend(sb)}
+  if(!sc.hasAttribute('data-nogb')){const gb=document.createElement('div');gb.className='gb';if(sc.hasAttribute('data-gbo')){gb.style.cssText='position:absolute;left:0;right:0;bottom:0'}sc.append(gb)}
+});
+
+/* ---------- bottom navigation ---------- */
+const NAV=[['feed','home','Bảng tin'],['journal','auto_stories','Nhật ký'],['create'],['chat','chat_bubble','Tin nhắn'],['me','person','Cá nhân']];
+document.querySelectorAll('.bn[data-on]').forEach(bn=>{const on=bn.dataset.on;let h='';NAV.forEach(([k,ic,lb])=>{if(k==='create'){h+=`<div class="create"${bn.dataset.nc?` data-n="${bn.dataset.nc}"`:''}><span class="ms s28">add</span></div>`;return}const o=k===on;h+=`<div class="it${o?' on':''}"><div class="pill"><span class="ms${o?' f':''}">${ic}</span>${k==='chat'?'<span class="badge">3</span>':''}</div>${lb}</div>`});bn.innerHTML=h;if(bn.dataset.nn){bn.setAttribute("data-n",bn.dataset.nn);bn.setAttribute("data-p","i")}});
+
+/* ---------- art / waveform / calendar ---------- */
+document.querySelectorAll('[data-art]').forEach(el=>{el.style.backgroundImage=artURI(+el.dataset.art,+el.dataset.seed||0)});
+document.querySelectorAll('.wave').forEach((el,idx)=>{const n=+el.dataset.bars||40,pl=+(el.dataset.played||0),h=+(el.dataset.h||32),bw=el.dataset.bw,seed=+(el.dataset.seed||idx+1),r=rng(seed*31+7);let s='';for(let i=0;i<n;i++){const env=.3+.7*Math.abs(Math.sin(i*.27+seed))*(.5+.5*r());s+=`<i class="${i/n<pl?'p':''}" style="height:${Math.max(3,Math.round(h*env))}px${bw?`;width:${bw}px`:''}"></i>`}el.innerHTML=s});
+const MOOD=['',['#C9F2D6','#15803D'],['#E2F5B8','#4D7C0F'],['#FDF0B0','#7A5D00'],['#CFE3FF','#1D4ED8'],['#FFD3D3','#B91C1C']];
+document.querySelectorAll('.cal[data-y]').forEach(c=>{const y=+c.dataset.y,m=+c.dataset.m,today=+c.dataset.today,moods=(c.dataset.moods||'').split(','),off=(new Date(y,m-1,1).getDay()+6)%7,days=new Date(y,m,0).getDate();let h='';['T2','T3','T4','T5','T6','T7','CN'].forEach(d=>h+=`<div class="wd">${d}</div>`);for(let i=0;i<off;i++)h+='<div></div>';for(let d=1;d<=days;d++){const mo=+moods[d-1]||0,fu=d>today;h+=`<div class="d${fu?' fu':''}${d===today?' td':''}"><span style="${mo&&!fu?`background:${MOOD[mo][0]};color:${MOOD[mo][1]}`:''}">${d}</span></div>`}c.innerHTML=h});
+
+/* ---------- screens drawn over another screen (sheet / dialog) ---------- */
+document.querySelectorAll('[data-bg]').forEach(sc=>{const src=document.getElementById(sc.dataset.bg),cl=document.createElement('div');cl.className='bgclone';cl.style.cssText='position:absolute;top:28px;bottom:20px;left:0;right:0;display:flex;flex-direction:column';[...src.children].forEach(ch=>{if(!ch.classList.contains('sb')&&!ch.classList.contains('gb'))cl.appendChild(ch.cloneNode(true))});cl.querySelectorAll('[data-n]').forEach(e=>e.removeAttribute('data-n'));sc.prepend(cl);sc.style.background=getComputedStyle(src).background});
+
+/* ---------- render modes: #S04 | #S04,ann | #board=2,cols=4 ---------- */
+const GROUPS={'1':'Khởi động & Xác thực','2':'Bảng tin & Bài viết','3':'Nhật ký cá nhân','4':'Tạo nội dung & Media','5':'Chat realtime','6':'Service · Thông báo · Nhắc nhở','7':'Cá nhân & Cài đặt'};
+const parts=decodeURIComponent(location.hash.slice(1)).split(',').filter(Boolean);
+if(parts.includes('ann'))document.body.classList.add('ann');
+const kv=Object.fromEntries(parts.filter(p=>p.includes('=')).map(p=>p.split('=')));
+if(kv.board){
+  const g=kv.board,cols=+kv.cols||4,scs=[...document.querySelectorAll('.screen')].filter(s=>g==='all'||s.dataset.g===g);
+  const b=document.createElement('div');b.className='board';
+  b.innerHTML=`<div class="bh"><div class="k">MomentBox · Dự án đào tạo Android Fresher</div><h1>${g==='all'?'Toàn bộ màn hình':'Nhóm '+g+' — '+GROUPS[g]}</h1><p>${scs.length} màn hình · Mockup v1.0 · 21/10/2026</p></div><div class="grid" style="grid-template-columns:repeat(${cols},376px)"></div>`;
+  const grid=b.querySelector('.grid');
+  scs.forEach(s=>{const c=document.createElement('div');c.className='cell';if(s.classList.contains('land'))c.style.gridColumn='span 2';c.innerHTML=`<div class="lb"><b>${s.id}</b>${s.dataset.t}</div><div class="dev"></div>`;c.querySelector('.dev').appendChild(s);grid.appendChild(c)});
+  document.body.innerHTML='';document.body.appendChild(b);
+}else if(kv.pair){
+  const s=document.getElementById(kv.pair),land=s.classList.contains('land'),a=s.cloneNode(true);
+  const w=document.createElement('div');w.className='pair'+(land?' land':'');
+  w.innerHTML='<div class="pc"><div class="pl">Thiết kế</div><div class="slot"></div></div><div class="pc ann"><div class="pl">Đánh số — xem bảng mô tả</div><div class="slot"></div></div>';
+  const slots=w.querySelectorAll('.slot');slots[0].appendChild(s);slots[1].appendChild(a);
+  document.body.innerHTML='';document.body.appendChild(w);
+}else if(parts[0]&&document.getElementById(parts[0])){
+  document.body.classList.add('single');document.getElementById(parts[0]).classList.add('target');
+}
+/* ---------- keep every annotation badge inside its clipping box ---------- */
+function placeBadges(){
+  document.querySelectorAll('.ann [data-n]').forEach(el=>{
+    const r=el.getBoundingClientRect();
+    const clipOf=self=>{let c={l:-1e9,t:-1e9,r:1e9,b:1e9};for(let a=self?el:el.parentElement;a&&a!==document.body;a=a.parentElement){const cs=getComputedStyle(a);if(cs.overflowX!=='visible'||cs.overflowY!=='visible'){const b=a.getBoundingClientRect();c={l:Math.max(c.l,b.left),t:Math.max(c.t,b.top),r:Math.min(c.r,b.right),b:Math.min(c.b,b.bottom)}}if(a.classList.contains('screen'))break}return c};
+    const outer=clipOf(true),inner=clipOf(false);
+    const pos={'':[r.left-12,r.top-12,outer],'r':[r.right-7,r.top-12,outer],'b':[r.left-12,r.bottom-7,outer],'i':[r.left+4,r.top+4,inner],'ir':[r.right-23,r.top+4,inner]};
+    const fits=k=>{const [x,y,c]=pos[k];return x>=c.l+1&&y>=c.t+1&&x+19<=c.r-1&&y+19<=c.b-1};
+    const want=el.getAttribute('data-p')||'';
+    const pick=[want,'','r','i','ir','b'].find(k=>pos[k]&&fits(k));
+    if(pick!==undefined&&pick!==want){pick?el.setAttribute('data-p',pick):el.removeAttribute('data-p')}
+  });
+}
+(document.fonts?document.fonts.ready:Promise.resolve()).then(placeBadges);
+})();
+</script>
+</body>
+</html>

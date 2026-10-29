@@ -1,0 +1,47 @@
+# CodeGraph
+.codegraph/
+.codegraph*
+
+# Node / JS dependencies and artifacts
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Mock server & mockup build artifacts
+mock-server/uploads/
+mock-server/.chrome-profile*/
+mockup-src/.chrome-profile*/
+mockup-src/mockups.html
+mockup-src/screens.json
+
+# Android / Gradle artifacts
+.gradle/
+**/.gradle/
+build/
+**/build/
+captures/
+**/captures/
+*.iml
+**/*.iml
+.externalNativeBuild/
+**/.externalNativeBuild/
+.cxx/
+**/.cxx/
+local.properties
+**/local.properties
+
+# IDE & Editor files
+.idea/
+**/.idea/
+*.ipr
+*.iws
+.vscode/
+**/.vscode/
+*.swp
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db

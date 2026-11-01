@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    Giao diện Trang Onboarding 1 (item_onboarding_page1):
+    - ScrollView với android:fillViewport="true": Chống vỡ layout trên các thiết bị màn hình ngắn hoặc khi xoay ngang.
+    - artContainer: Khung hình minh họa native 330dp gồm thẻ ảnh Polaroid xoay nghiêng, sóng âm audio (pillAudio) và ảnh vẽ vector Đà Lạt (art_onboarding_dalat).
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true"
+    android:paddingStart="24dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <!-- Illustration Canvas Container (height 330dp, corner 32dp) -->
+        <com.example.momentbox_app.core.ui.OnboardingArtLayout
+            android:id="@+id/artContainer"
+            android:layout_width="match_parent"
+            android:layout_height="330dp"
+            android:background="@drawable/bg_onboarding_art_gradient"
+            android:clipToOutline="true"
+            android:clipToPadding="false">
+
+            <!-- Top Left Audio Pill -->
+            <LinearLayout
+                android:id="@+id/pillAudio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="22dp"
+                android:layout_marginTop="24dp"
+                android:background="@drawable/bg_pill"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:elevation="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:outlineAmbientShadowColor="#303C288C"
+                android:outlineSpotShadowColor="#303C288C"
+                android:paddingStart="12dp"
+                android:paddingTop="7dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="7dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_mic"
+                    app:tint="@color/primary" />
+
+                <ImageView
+                    android:layout_width="70dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/art_onboarding_wave" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
+                    android:text="@string/onboarding_art_audio_time"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:fontFamily="@font/be_vietnam_pro_semibold"
+                    app:lineHeight="15.6sp" />
+            </LinearLayout>
+
+            <!-- Top Right Mood Pill -->
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/pillMood"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="30dp"
+                android:layout_marginEnd="22dp"
+                android:background="@drawable/bg_pill"
+                android:elevation="4dp"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:includeFontPadding="false"
+                android:outlineAmbientShadowColor="#303C288C"
+                android:outlineSpotShadowColor="#303C288C"
+                android:paddingStart="12dp"
+                android:paddingTop="7dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="7dp"
+                android:text="@string/onboarding_art_mood_great"
+                android:textColor="@color/text_primary"
+                android:textSize="12.5sp"
+                app:fontFamily="@font/be_vietnam_pro_semibold"
+                app:layout_constraintEnd_toEndOf="parent"
+
+                app:layout_constraintTop_toTopOf="parent"
+                app:lineHeight="16.25sp" />
+
+            <!-- Polaroid Card 1 (Left, rotated -9 deg) -->
+            <LinearLayout
+                android:id="@+id/cardDalat"
+                android:layout_width="160dp"
+                android:layout_height="196dp"
+                android:layout_marginStart="34dp"
+                android:layout_marginTop="62dp"
+                android:background="@drawable/bg_polaroid"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:elevation="10dp"
+                android:orientation="vertical"
+                android:paddingStart="9dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="9dp"
+                android:rotation="-9"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <!-- Photo illustration inner -->
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="150dp"
+                    android:background="@drawable/bg_photo_clip"
+                    android:clipToOutline="true"
+                    android:contentDescription="@string/onboarding_art_tag_dalat"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/art_onboarding_dalat" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
+                    android:text="@string/onboarding_art_tag_dalat"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp"
+                    app:fontFamily="@font/be_vietnam_pro_semibold"
+                    app:lineHeight="14.3sp" />
+            </LinearLayout>
+
+            <!-- Polaroid Card 2 (Right, rotated 7 deg) -->
+            <LinearLayout
+                android:id="@+id/cardMykhe"
+                android:layout_width="150dp"
+                android:layout_height="184dp"
+                android:layout_marginTop="96dp"
+                android:layout_marginEnd="26dp"
+                android:background="@drawable/bg_polaroid"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:elevation="12dp"
+                android:orientation="vertical"
+                android:paddingStart="9dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="9dp"
+                android:rotation="7"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <!-- Photo illustration inner -->
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="140dp"
+                    android:background="@drawable/bg_photo_clip"
+                    android:clipToOutline="true"
+                    android:contentDescription="@string/onboarding_art_tag_mykhe"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/art_onboarding_mykhe" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
+                    android:text="@string/onboarding_art_tag_mykhe"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp"
+                    app:fontFamily="@font/be_vietnam_pro_semibold"
+                    app:lineHeight="14.3sp" />
+            </LinearLayout>
+
+            <!-- Heart Floating Button -->
+            <FrameLayout
+                android:id="@+id/btnHeart"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="120dp"
+                android:layout_marginBottom="22dp"
+                android:background="@drawable/bg_heart"
+                android:elevation="14dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_favorite"
+                    app:tint="@color/white" />
+            </FrameLayout>
+
+        </com.example.momentbox_app.core.ui.OnboardingArtLayout>
+
+        <!-- Page Title -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/tvOnboardingTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.02"
+            android:text="@string/onboarding_title_1"
+            android:textColor="@color/text_primary"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            app:fontFamily="@font/be_vietnam_pro"
+            app:lineHeight="32.5sp" />
+
+        <!-- Page Subtitle -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/tvOnboardingDesc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:includeFontPadding="false"
+            android:text="@string/onboarding_desc_1"
+            android:textColor="@color/text_secondary"
+            android:textSize="15sp"
+            app:fontFamily="@font/be_vietnam_pro"
+            app:lineHeight="23.25sp" />
+
+    </LinearLayout>
+</ScrollView>

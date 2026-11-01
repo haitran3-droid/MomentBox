@@ -1,0 +1,577 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/authRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface">
+
+    <!-- Top Bar with API Source Chip (Debug only) -->
+    <LinearLayout
+        android:id="@+id/topBarAuth"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="end"
+        android:paddingStart="16dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:id="@+id/chipApiSource"
+            android:layout_width="wrap_content"
+            android:layout_height="26dp"
+            android:background="@drawable/bg_chip_api_mock"
+            android:clickable="true"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="9dp"
+            android:paddingEnd="9dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_dns"
+                app:tint="@color/chip_api_mock_text" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tvApiSourceChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:includeFontPadding="false"
+                android:text="@string/api_mock_chip"
+                android:textColor="@color/chip_api_mock_text"
+                android:textSize="12sp"
+                app:fontFamily="@font/be_vietnam_pro_semibold"
+                app:lineHeight="15.6sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/scrollAuthContent"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/topBarAuth">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="22dp">
+
+            <!-- Brand Logo 52x52dp, rounded 16dp -->
+            <FrameLayout
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_logo_camera_gradient">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/ic_photo_camera"
+                    app:tint="@color/white" />
+            </FrameLayout>
+
+            <!-- Headline -->
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tvWelcome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:fontFamily="@font/be_vietnam_pro"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.02"
+                android:text="@string/login_welcome"
+                android:textColor="@color/text_primary"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                app:fontFamily="@font/be_vietnam_pro"
+                app:lineHeight="33.8sp" />
+
+            <!-- Subtitle -->
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tvSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:fontFamily="@font/be_vietnam_pro"
+                android:includeFontPadding="false"
+                android:text="@string/login_subtitle"
+                android:textColor="@color/text_secondary"
+                android:textSize="14.5sp"
+                app:fontFamily="@font/be_vietnam_pro"
+                app:lineHeight="18.85sp" />
+
+            <!-- Email Container -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="26dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:orientation="vertical">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tvEmailLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="7dp"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
+                    android:text="@string/login_email_label"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    app:fontFamily="@font/be_vietnam_pro_semibold"
+                    app:lineHeight="16.9sp" />
+
+                <!-- Field row -->
+                <LinearLayout
+                    android:id="@+id/layoutEmailField"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_field_selector"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp">
+
+                    <ImageView
+                        android:id="@+id/ivEmailIcon"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_mail"
+                        app:tint="@color/text_tertiary" />
+
+                    <EditText
+                        android:id="@+id/etEmail"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="10dp"
+                        android:background="@null"
+                        android:fontFamily="@font/be_vietnam_pro"
+                        android:hint="@string/login_email_hint"
+                        android:imeOptions="actionNext"
+                        android:importantForAutofill="no"
+                        android:includeFontPadding="false"
+                        android:inputType="textEmailAddress"
+                        android:maxLines="1"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_tertiary"
+                        android:textSize="15sp"
+                        app:fontFamily="@font/be_vietnam_pro" />
+                </LinearLayout>
+
+                <!-- Error line -->
+                <LinearLayout
+                    android:id="@+id/layoutEmailError"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_error"
+                        app:tint="@color/error" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/tvEmailError"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:fontFamily="@font/be_vietnam_pro"
+                        android:includeFontPadding="false"
+                        android:text="@string/login_email_error_invalid"
+                        android:textColor="@color/error"
+                        android:textSize="12sp"
+                        app:fontFamily="@font/be_vietnam_pro"
+                        app:lineHeight="15.6sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Password Container -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:orientation="vertical">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tvPasswordLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="7dp"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
+                    android:text="@string/login_password_label"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    app:fontFamily="@font/be_vietnam_pro_semibold"
+                    app:lineHeight="16.9sp" />
+
+                <!-- Field row -->
+                <LinearLayout
+                    android:id="@+id/layoutPasswordField"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_field_selector"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp">
+
+                    <ImageView
+                        android:id="@+id/ivPasswordIcon"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_lock"
+                        app:tint="@color/primary" />
+
+                    <EditText
+                        android:id="@+id/etPassword"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:background="@null"
+                        android:fontFamily="@font/be_vietnam_pro"
+                        android:hint="@string/login_password_hint"
+                        android:imeOptions="actionDone"
+                        android:importantForAutofill="no"
+                        android:includeFontPadding="false"
+                        android:inputType="textPassword"
+                        android:maxLines="1"
+                        android:saveEnabled="false"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_tertiary"
+                        android:textSize="15sp"
+                        app:fontFamily="@font/be_vietnam_pro" />
+
+                    <ImageView
+                        android:id="@+id/btnTogglePassword"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/login_password_label"
+                        android:src="@drawable/ic_visibility_off"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
+                <!-- Error line -->
+                <LinearLayout
+                    android:id="@+id/layoutPasswordError"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_error"
+                        app:tint="@color/error" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/tvPasswordError"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:fontFamily="@font/be_vietnam_pro"
+                        android:includeFontPadding="false"
+                        android:text="@string/login_password_error_length"
+                        android:textColor="@color/error"
+                        android:textSize="12sp"
+                        app:fontFamily="@font/be_vietnam_pro"
+                        app:lineHeight="15.6sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Row: Remember Me & Forgot Password -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <LinearLayout
+                    android:id="@+id/layoutRememberMe"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="2dp">
+
+                    <CheckBox
+                        android:id="@+id/cbRememberMe"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:button="@drawable/bg_checkbox"
+                        android:buttonTint="@null"
+                        android:checked="true"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:padding="0dp"
+                        app:buttonTint="@null" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/be_vietnam_pro"
+                        android:includeFontPadding="false"
+                        android:text="@string/login_remember_me"
+                        android:textColor="@color/text_primary"
+                        android:textSize="13.5sp"
+                        app:fontFamily="@font/be_vietnam_pro"
+                        app:lineHeight="17.55sp" />
+                </LinearLayout>
+
+                <!-- Flow giữ hai đầu ở cỡ chữ chuẩn và xuống hàng khi chữ lớn/màn hình hẹp. -->
+                <androidx.constraintlayout.helper.widget.Flow
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    app:constraint_referenced_ids="layoutRememberMe,btnForgotPassword"
+                    app:flow_horizontalGap="8dp"
+                    app:flow_horizontalStyle="spread_inside"
+                    app:flow_verticalGap="8dp"
+                    app:flow_wrapMode="chain"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/btnForgotPassword"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
+                    android:padding="2dp"
+                    android:text="@string/login_forgot_password"
+                    android:textColor="@color/primary"
+                    android:textSize="13.5sp"
+                    app:fontFamily="@font/be_vietnam_pro_semibold"
+                    app:lineHeight="17.55sp" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Login Button -->
+            <FrameLayout
+                android:id="@+id/btnLogin"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="24dp"
+                android:background="@drawable/bg_btn_primary"
+                android:clickable="true"
+                android:elevation="8dp"
+                android:focusable="true"
+                android:outlineAmbientShadowColor="#5B4BDB"
+                android:outlineSpotShadowColor="#5B4BDB">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tvBtnLogin"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
+                    android:text="@string/login_button"
+                    android:textColor="@color/white"
+                    android:textSize="15sp"
+                    app:fontFamily="@font/be_vietnam_pro_semibold"
+                    app:lineHeight="19.5sp" />
+
+                <ProgressBar
+                    android:id="@+id/pbLoginLoading"
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:indeterminate="true"
+                    android:indeterminateTint="@color/white"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+            </FrameLayout>
+
+            <!-- Or Separator -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:layout_marginBottom="18dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="@color/divider" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="12dp"
+                    android:fontFamily="@font/be_vietnam_pro"
+                    android:includeFontPadding="false"
+                    android:text="@string/login_or"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="12.5sp"
+                    app:fontFamily="@font/be_vietnam_pro"
+                    app:lineHeight="16.25sp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="@color/divider" />
+            </LinearLayout>
+
+            <!-- Demo Account Button -->
+            <LinearLayout
+                android:id="@+id/btnDemoAccount"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:background="@drawable/bg_btn_outline"
+                android:clickable="true"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_bolt"
+                    app:tint="@color/warning" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
+                    android:text="@string/login_demo_button"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
+                    app:fontFamily="@font/be_vietnam_pro_semibold"
+                    app:lineHeight="19.5sp" />
+            </LinearLayout>
+
+            <!-- Spacer to push footer down -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:minHeight="20dp" />
+
+            <!-- Register Footer -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="0dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingStart="6dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="6dp"
+                android:paddingBottom="2dp">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tvNoAccount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/be_vietnam_pro"
+                    android:includeFontPadding="false"
+                    android:text="@string/login_no_account"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    app:fontFamily="@font/be_vietnam_pro"
+                    app:lineHeight="18.2sp" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tvSignUp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
+                    android:text="@string/login_register_action"
+                    android:textColor="@color/primary"
+                    android:textSize="14sp"
+                    app:fontFamily="@font/be_vietnam_pro_semibold"
+                    app:lineHeight="18.2sp" />
+
+                <!-- Hai phần text được xuống dòng cùng nhóm khi bản dịch/font lớn vượt chiều rộng. -->
+                <androidx.constraintlayout.helper.widget.Flow
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    app:constraint_referenced_ids="tvNoAccount,tvSignUp"
+                    app:flow_horizontalBias="0.5"
+                    app:flow_horizontalGap="4dp"
+                    app:flow_horizontalStyle="packed"
+                    app:flow_verticalGap="4dp"
+                    app:flow_wrapMode="chain"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

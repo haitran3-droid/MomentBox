@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    values-ja/strings.xml - Tài nguyên chuỗi tiếng Nhật (Japanese Localization).
+
+    [Dành cho Android Intern]:
+    - Khi thiết bị hoặc người dùng chọn ngôn ngữ là tiếng Nhật (`ja`), hệ điều hành sẽ tự động
+      tìm kiếm các chuỗi trong thư mục `values-ja/` để nạp vào giao diện thay thế cho `values/strings.xml`.
+    - Mọi khóa `<string name="...">` phải khớp chính xác 100% với file gốc trong `values/strings.xml`.
+-->
+<resources>
+    <string name="app_name">MomentBox</string>
+
+    <!-- S01 Splash -->
+    <string name="splash_slogan">すべての瞬間を永遠に</string>
+    <string name="splash_version_format">バージョン %1$s (%2$d) · debug</string>
+    <string name="splash_version_release">バージョン %1$s (%2$d)</string>
+    <string name="splash_update_required_title">アップデートが必要です</string>
+    <string name="splash_update_required_message">アプリのバージョンが古くなっています。最新バージョンにアップデートしてください。</string>
+    <string name="splash_update_button">今すぐアップデート</string>
+
+    <!-- S02 Onboarding -->
+    <string name="onboarding_language_vi">日本語</string>
+    <string name="onboarding_skip">スキップ</string>
+    <string name="onboarding_next">次へ</string>
+    <string name="onboarding_start">始める</string>
+    <string name="onboarding_title_1">自分だけの方法で\nすべての瞬間を記録する</string>
+    <string name="onboarding_desc_1">写真、動画、音声、日記 — すべてをひとつのアプリで記録します。</string>
+    <string name="onboarding_title_2">毎日の感情\n日記</string>
+    <string name="onboarding_desc_2">気分を記録し、大切な考えと思い出を毎日残しましょう。</string>
+    <string name="onboarding_title_3">友達と共有＆\nチャット</string>
+    <string name="onboarding_desc_3">大切な人とつながり、瞬間を共有し、リアルタイムでチャットを楽しもう。</string>
+    <string name="onboarding_art_tag_dalat">ダラット · 10/2026</string>
+    <string name="onboarding_art_tag_mykhe">ミーケー ☀️</string>
+    <string name="onboarding_art_mood_great">😄 素晴らしい</string>
+    <string name="onboarding_art_audio_time">0:42</string>
+
+    <!-- S03 Login -->
+    <string name="api_mock_chip">API: Mock</string>
+    <string name="login_welcome">おかえりなさい 👋</string>
+    <string name="login_subtitle">ログインして瞬間を記録し続けましょう</string>
+    <string name="login_email_label">メールアドレス</string>
+    <string name="login_email_hint">minhanh@gmail</string>
+    <string name="login_email_error_empty">メールアドレスを入力してください</string>
+    <string name="login_email_error_invalid">メールアドレスの形式が正しくありません</string>
+    <string name="login_password_label">パスワード</string>
+    <string name="login_password_hint">••••••••</string>
+    <string name="login_password_error_length">パスワードは6文字以上で入力してください</string>
+    <string name="login_remember_me">ログイン状態を保持する</string>
+    <string name="login_forgot_password">パスワードをお忘れですか？</string>
+    <string name="login_button">ログイン</string>
+    <string name="login_or">または</string>
+    <string name="login_demo_button">デモアカウントを使用</string>
+    <string name="login_no_account">アカウントをお持ちでないですか？</string>
+    <string name="login_register_action">新規登録</string>
+    <string name="feature_in_development">この機能は開発中です</string>
+    <string name="network_error_retry">ネットワークエラーが発生しました。再試行してください</string>
+    <string name="retry">再試行</string>
+
+    <!-- S22b Language Dialog -->
+    <string name="language_dialog_title">アプリの言語</string>
+    <string name="language_vi">Tiếng Việt</string>
+    <string name="language_en">English</string>
+    <string name="language_ja">日本語</string>
+    <string name="language_dialog_note">アプリを再起動することなく、すぐに適用されます。</string>
+    <string name="cancel">キャンセル</string>
+    <string name="apply">適用</string>
+
+    <!-- Main Host -->
+    <string name="main_title">MomentBox Home</string>
+    <string name="main_welcome_user">ようこそ、%1$s！</string>
+    <string name="main_user_email">%1$s</string>
+    <string name="main_logout">ログアウト</string>
+    <string name="main_trigger_401">401エラーのシミュレーション（リフレッシュトークン検証）</string>
+    <string name="main_refresh_success">トークンのリフレッシュと再試行に成功しました！</string>
+    <string name="main_session_expired">セッションの有効期限が切れました。再度ログインしてください。</string>
+    <string name="main_session_valid">有効なセッション (Token OK)</string>
+    <string name="main_session_refreshed">401エラー後にトークンが自動更新されました</string>
+    <string name="onboarding_art_journal_date">2026年10月26日</string>
+    <string name="onboarding_art_chat_incoming">今日はいい天気！☀️</string>
+    <string name="onboarding_art_chat_outgoing">カフェで写真を撮ろう？📸</string>
+    <string name="main_debug_refresh_request">401 → トークン更新 → 再試行を確認中…</string>
+</resources>

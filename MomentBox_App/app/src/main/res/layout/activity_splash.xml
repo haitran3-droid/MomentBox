@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    Giao diện màn hình khởi động tùy chỉnh (Custom Splash S01):
+    - Root View: SplashBackdropLayout tự vẽ 3 lớp Gradient Canvas theo thiết kế mockup.
+    - ID splashRoot: Được SplashActivity sử dụng để gắn listener lề thanh hệ thống (Window Insets).
+-->
+<com.example.momentbox_app.core.ui.SplashBackdropLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/splashRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_splash_gradient">
+
+    <!-- Khối trung tâm: Logo Camera + Tên ứng dụng MomentBox + Slogan -->
+    <LinearLayout
+        android:id="@+id/centerContent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@+id/bottomContent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="spread_inside">
+
+        <!-- Logo Icon Container (104x104dp, radius 30dp) -->
+        <ImageView
+            android:id="@+id/ivSplashLogo"
+            android:layout_width="104dp"
+            android:layout_height="104dp"
+            android:background="@drawable/bg_splash_logo"
+            android:contentDescription="@string/app_name"
+            android:elevation="18dp"
+            android:src="@drawable/ic_splash_logo" />
+
+        <!-- App Name -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/tvAppName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.02"
+            android:text="@string/app_name"
+            android:textColor="@color/white"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            app:fontFamily="@font/be_vietnam_pro"
+            app:lineHeight="41.6sp" />
+
+        <!-- Tagline -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/tvTagline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:alpha="0.85"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:includeFontPadding="false"
+            android:text="@string/splash_slogan"
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            app:fontFamily="@font/be_vietnam_pro"
+            app:lineHeight="19.5sp" />
+    </LinearLayout>
+
+    <!-- Bottom Content: Loading Spinner + Version Label -->
+    <LinearLayout
+        android:id="@+id/bottomContent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="36dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Spinner (shows after 300ms if not ready) -->
+        <ProgressBar
+            android:id="@+id/pbSplashLoading"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:indeterminate="true"
+            android:indeterminateDrawable="@drawable/progress_splash_spinner"
+            android:indeterminateDuration="1000"
+            android:indeterminateTint="@color/white"
+            android:visibility="invisible"
+            tools:visibility="visible" />
+
+        <!-- Version Label -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/tvSplashVersion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:alpha="0.75"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:includeFontPadding="false"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            app:fontFamily="@font/be_vietnam_pro"
+            app:lineHeight="15.6sp"
+            tools:text="Phiên bản 1.0.0 (12) · debug" />
+    </LinearLayout>
+
+</com.example.momentbox_app.core.ui.SplashBackdropLayout>

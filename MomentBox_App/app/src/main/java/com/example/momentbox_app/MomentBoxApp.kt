@@ -4,6 +4,8 @@ import android.app.Application
 import com.example.momentbox_app.core.coroutines.DefaultDispatcherProvider
 import com.example.momentbox_app.core.coroutines.DispatcherProvider
 import com.example.momentbox_app.core.network.NetworkModule
+import com.example.momentbox_app.core.realtime.SocketManager
+import com.example.momentbox_app.data.local.db.AppDatabase
 import com.example.momentbox_app.data.local.prefs.SettingsDataStore
 import com.example.momentbox_app.data.local.prefs.TokenStore
 import com.example.momentbox_app.data.remote.api.AuthApi
@@ -17,14 +19,17 @@ import com.example.momentbox_app.data.repository.ConfigRepository
 import com.example.momentbox_app.data.repository.ConfigRepositoryImpl
 import com.example.momentbox_app.data.repository.FeedRepository
 import com.example.momentbox_app.data.repository.FeedRepositoryImpl
+import com.ntq.training.momentbox.BuildConfig
 
 class MomentBoxApp : Application() {
     lateinit var tokenStore: TokenStore
         private set
     lateinit var settingsDataStore: SettingsDataStore
         private set
+    lateinit var database: AppDatabase private set
     lateinit var dispatcherProvider: DispatcherProvider
         private set
+    lateinit var socketManager: SocketManager private set
     lateinit var configRepository: ConfigRepository private set
     lateinit var authRepository: AuthRepository private set
     lateinit var feedRepository: FeedRepository private set
@@ -36,7 +41,14 @@ class MomentBoxApp : Application() {
         // 1. Khởi tạo tầng lưu trữ cục bộ (Local Storage) và Threading
         tokenStore = TokenStore(this)
         settingsDataStore = SettingsDataStore(this)
+        database = AppDatabase.getInstance(this)
         dispatcherProvider = DefaultDispatcherProvider()
+        socketManager = SocketManager(
+            tokenStore = tokenStore,
+            settingsStorage = settingsDataStore,
+            notificationDao = database.notificationDao(),
+            baseUrlProvider = { BuildConfig.BASE_URL}
+        )
 
         // 2. Khởi tạo OkHttpClient thông qua NetworkModule:
         // - authenticatedClient: Có gắn AuthInterceptor, TokenAuthenticator phục vụ các API cần xác thực

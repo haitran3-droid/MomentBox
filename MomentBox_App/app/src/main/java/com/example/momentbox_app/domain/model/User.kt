@@ -11,5 +11,7 @@ data class User(
     val location: String? = null,
     val postCount: Int = 0,
     val followerCount: Int = 0,
-    val followingCount: Int = 0
+    val followingCount: Int = 0,
+    val isFollowing: Boolean = false,
+    val mutualCount: Int = 0
 )

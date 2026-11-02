@@ -3,6 +3,7 @@ package com.example.momentbox_app.core.network
 import android.content.Context
 import com.example.momentbox_app.data.local.prefs.SettingsDataStore
 import com.example.momentbox_app.data.local.prefs.TokenStore
+import com.example.momentbox_app.data.remote.dto.RawFeedItemDto
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.ntq.training.momentbox.BuildConfig
@@ -14,7 +15,7 @@ import java.util.concurrent.TimeUnit
 object NetworkModule {
 
     private val gson: Gson = GsonBuilder()
-        .setLenient()
+        .registerTypeAdapter(RawFeedItemDto::class.java, RawFeedItemDeserializer())
         .create()
 
     /** Cung cấp đối tượng Gson dùng chung để phân tích cú pháp JSON */

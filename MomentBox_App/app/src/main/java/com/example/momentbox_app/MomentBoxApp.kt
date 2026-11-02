@@ -9,11 +9,14 @@ import com.example.momentbox_app.data.local.prefs.TokenStore
 import com.example.momentbox_app.data.remote.api.AuthApi
 import com.example.momentbox_app.data.remote.api.ConfigApi
 import com.example.momentbox_app.data.remote.api.DummyJsonApi
+import com.example.momentbox_app.data.remote.api.FeedApi
 import com.example.momentbox_app.data.remote.api.UserApi
 import com.example.momentbox_app.data.repository.AuthRepository
 import com.example.momentbox_app.data.repository.AuthRepositoryImpl
 import com.example.momentbox_app.data.repository.ConfigRepository
 import com.example.momentbox_app.data.repository.ConfigRepositoryImpl
+import com.example.momentbox_app.data.repository.FeedRepository
+import com.example.momentbox_app.data.repository.FeedRepositoryImpl
 
 class MomentBoxApp : Application() {
     lateinit var tokenStore: TokenStore
@@ -24,6 +27,7 @@ class MomentBoxApp : Application() {
         private set
     lateinit var configRepository: ConfigRepository private set
     lateinit var authRepository: AuthRepository private set
+    lateinit var feedRepository: FeedRepository private set
     override fun onCreate() {
         super.onCreate()
         // Lưu lại tham chiếu tĩnh để truy cập nhanh khi cần ApplicationContext
@@ -50,6 +54,7 @@ class MomentBoxApp : Application() {
         val authApi = mainRetrofit.create(AuthApi::class.java)
         val dummyJsonApi = dummyJsonRetrofit.create(DummyJsonApi::class.java)
         val userApi = mainRetrofit.create(UserApi::class.java)
+        val feedApi = mainRetrofit.create(FeedApi::class.java)
 
         // 5. Khởi tạo Repositories, inject API và Local Storage tương ứng
         configRepository =
@@ -60,6 +65,13 @@ class MomentBoxApp : Application() {
             dummyJsonApi = dummyJsonApi,
             tokenStore = tokenStore,
             settingsDataStore = settingsDataStore,
+            dispatcher = dispatcherProvider.io
+        )
+        feedRepository = FeedRepositoryImpl(
+            feedApi = feedApi,
+            dummyJsonApi = dummyJsonApi,
+            settingsDataStore = settingsDataStore,
+            tokenStore = tokenStore,
             dispatcher = dispatcherProvider.io
         )
     }

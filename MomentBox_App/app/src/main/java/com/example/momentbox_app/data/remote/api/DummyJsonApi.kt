@@ -1,9 +1,11 @@
 package com.example.momentbox_app.data.remote.api
 
 import com.example.momentbox_app.core.network.SessionRequest
+import com.example.momentbox_app.data.remote.dto.DummyJsonCommentsResponse
 import com.example.momentbox_app.data.remote.dto.DummyJsonLoginRequest
 import com.example.momentbox_app.data.remote.dto.DummyJsonLoginResponse
 import com.example.momentbox_app.data.remote.dto.DummyJsonMeResponse
+import com.example.momentbox_app.data.remote.dto.DummyJsonPostsResponse
 import com.example.momentbox_app.data.remote.dto.DummyJsonRefreshRequest
 import com.example.momentbox_app.data.remote.dto.DummyJsonRefreshResponse
 import retrofit2.Response
@@ -11,6 +13,8 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
 import retrofit2.http.Tag
 
 interface DummyJsonApi {
@@ -32,4 +36,17 @@ interface DummyJsonApi {
     suspend fun refresh(
         @Body request: DummyJsonRefreshRequest
     ): Response<DummyJsonRefreshResponse>
+
+    @GET("posts")
+    suspend fun getPosts(
+        @Query("limit") limit: Int,
+        @Query("skip") skip: Int,
+        @Query("sortBy") sortBy: String = "id",
+        @Query("order") order: String = "desc"
+    ): Response<DummyJsonPostsResponse>
+
+    @GET("posts/{id}/comments")
+    suspend fun getPostComments(
+        @Path("id") id: Long
+    ): Response<DummyJsonCommentsResponse>
 }

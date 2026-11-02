@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 interface SettingsStorage {
@@ -15,6 +16,7 @@ interface SettingsStorage {
     val debugDelayMsFlow: Flow<Int>
     val debugForce401Flow: Flow<Boolean>
     val configCacheFlow: Flow<String?>
+    val autoplayVideoFlow: Flow<String> get() = flowOf("wifi")
 
     suspend fun setOnboardingDone(done: Boolean)
     suspend fun isOnboardingDone(): Boolean
@@ -35,6 +37,8 @@ interface SettingsStorage {
 
     suspend fun setSavedUserJson(json: String?)
     suspend fun getSavedUserJson(): String?
+    suspend fun setAutoplayVideo(mode: String){}
+    suspend fun getAutoplayVideo(): String = "wifi"
 }
 
 class SettingsDataStore(private val context: Context) : SettingsStorage {
@@ -52,6 +56,12 @@ class SettingsDataStore(private val context: Context) : SettingsStorage {
         val KEY_DEBUG_DELAY_MS = intPreferencesKey("debug_delay_ms")
         val KEY_DEBUG_FORCE_401 = booleanPreferencesKey("debug_force_401")
         val KEY_SAVED_USER_JSON = stringPreferencesKey("saved_user_json")
+        val KEY_AUTOPLAY_VIDEO = stringPreferencesKey("autoplay_video")
+
+
+        const val AUTOPLAY_ALWAYS = "ALWAYS"
+        const val AUTOPLAY_WIFI_ONLY = "WIFI_ONLY"
+        const val AUTOPLAY_NEVER = "NEVER"
 
         /** Nguồn 1: Máy chủ chính MomentBox Mock Server */
         const val SOURCE_MB_SERVER = "MB_SERVER"
@@ -79,6 +89,10 @@ class SettingsDataStore(private val context: Context) : SettingsStorage {
 
     override val configCacheFlow: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[KEY_CONFIG_CACHE]
+    }
+
+    override val autoplayVideoFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_AUTOPLAY_VIDEO] ?: AUTOPLAY_WIFI_ONLY
     }
 
     override suspend fun setOnboardingDone(done: Boolean) {
@@ -153,5 +167,15 @@ class SettingsDataStore(private val context: Context) : SettingsStorage {
 
     override suspend fun getSavedUserJson(): String? {
         return context.dataStore.data.map { it[KEY_SAVED_USER_JSON] }.first()
+    }
+
+    override suspend fun setAutoplayVideo(mode: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_AUTOPLAY_VIDEO] = mode
+        }
+    }
+
+    override suspend fun getAutoplayVideo(): String {
+        return autoplayVideoFlow.first()
     }
 }

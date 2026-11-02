@@ -19,7 +19,9 @@ class UserMapper : Mapper<UserDto, User> {
             location = input.location,
             postCount = input.postCount ?: 0,
             followerCount = input.followerCount ?: 0,
-            followingCount = input.followingCount ?: 0
+            followingCount = input.followingCount ?: 0,
+            isFollowing = input.isFollowing ?: false,
+            mutualCount = input.mutualCount ?: 0
         )
     }
 

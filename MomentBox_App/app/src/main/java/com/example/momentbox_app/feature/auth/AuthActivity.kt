@@ -1,5 +1,6 @@
 package com.example.momentbox_app.feature.auth
 import android.content.Intent
+import com.example.momentbox_app.feature.postdetail.PostDetailActivity
 import android.os.Bundle
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
@@ -226,12 +227,23 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
                 binding.pbLoginLoading.isGone = true
                 binding.tvBtnLogin.isInvisible = false
 
-                // Navigate to MainActivity, clear auth task so Back cannot return to Login
-                val intent = Intent(this, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                val redirectPostId = intent.getLongExtra("EXTRA_REDIRECT_POST_ID", 0L)
+                if(redirectPostId > 0L){
+                    val mainIntent = Intent(this, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
+                    val detailIntent = Intent(this, PostDetailActivity::class.java).apply {
+                        putExtra(PostDetailActivity.EXTRA_POST_ID, redirectPostId)
+                    }
+                    startActivities(arrayOf(mainIntent, detailIntent))
+                    finish()
+                }else{
+                    val intent = Intent(this, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
+                    startActivity(intent)
+                    finish()
                 }
-                startActivity(intent)
-                finish()
             }
             is LoginUiState.Error -> {
                 binding.pbLoginLoading.isGone = true

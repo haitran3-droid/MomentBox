@@ -21,4 +21,12 @@
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.MomentBox</item>
     </style>
+
+    <!-- Theme cho Trình phát Video toàn màn hình S06 (Dark theme) -->
+    <style name="Theme.MomentBox.VideoPlayer" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="android:windowBackground">@color/video_dark_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>

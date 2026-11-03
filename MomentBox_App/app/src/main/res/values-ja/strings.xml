@@ -79,4 +79,58 @@
     <string name="onboarding_art_chat_incoming">今日はいい天気！☀️</string>
     <string name="onboarding_art_chat_outgoing">カフェで写真を撮ろう？📸</string>
     <string name="main_debug_refresh_request">401 → トークン更新 → 再試行を確認中…</string>
+
+    <!-- M2 Navigation -->
+    <string name="nav_feed">フィード</string>
+    <string name="nav_journal">日記</string>
+    <string name="nav_create">作成</string>
+    <string name="nav_chat">チャット</string>
+    <string name="nav_profile">プロフィール</string>
+
+    <!-- M2 Stories -->
+    <string name="my_story">あなたのストーリー</string>
+
+    <!-- M2 Post & Feed -->
+    <string name="post_public">公開</string>
+    <string name="post_friends">友達</string>
+    <string name="post_just_now">たった今</string>
+    <string name="post_read_more">もっと見る</string>
+    <string name="post_collapse">折りたたむ</string>
+    <string name="new_posts_chip">%1$d件の新着投稿</string>
+    <string name="suggestions_title">おすすめのユーザー</string>
+    <string name="see_all">すべて見る</string>
+    <string name="follow">フォロー</string>
+    <string name="following">フォロー中</string>
+    <string name="feed_error">フィードの読み込みに失敗しました</string>
+
+    <!-- M2 Comments & Detail -->
+    <string name="comments_count_title">コメント (%1$d)</string>
+    <string name="sort_top">人気順</string>
+    <string name="sort_newest">最新順</string>
+    <string name="comment_sending">送信中…</string>
+    <string name="comment_send_failed">送信失敗 (再試行)</string>
+    <string name="comment_input_hint">コメントを入力…</string>
+    <string name="reply_to">%1$sに返信</string>
+    <string name="hide_replies">%1$d件の返信を非表示</string>
+    <string name="show_replies">%1$d件の返信を表示</string>
+    <string name="comments_error">コメントの読み込みに失敗しました</string>
+
+    <!-- M2 Menu & Actions -->
+    <string name="menu_post_options">投稿のオプション</string>
+    <string name="menu_post_save">投稿を保存</string>
+    <string name="menu_post_copy_link">リンクをコピー</string>
+    <string name="menu_post_report">投稿を通報</string>
+    <string name="menu_post_delete">投稿を削除</string>
+    <string name="action_like">いいね</string>
+    <string name="action_comment">コメント</string>
+    <string name="action_share">シェア</string>
+    <string name="action_search">検索</string>
+    <string name="action_notifications">通知</string>
+    <string name="audio_speed_format">速度: %1$sx</string>
+    <string name="screen_locked">操作がロックされました</string>
+    <string name="screen_unlocked">ロックが解除されました</string>
+    <string name="sound_muted">消音</string>
+    <string name="sound_unmuted">音声を再生</string>
+    <string name="create_post_coming_soon">投稿機能は近日公開予定です (Milestone M4)</string>
+    <string name="suggestion_mutual_count">共通の友達 %1$d人</string>
 </resources>

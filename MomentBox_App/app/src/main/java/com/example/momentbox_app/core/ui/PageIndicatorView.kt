@@ -18,11 +18,12 @@ class PageIndicatorView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private val density = resources.displayMetrics.density
-    private val dotHeight = 8f * density
-    private val inactiveWidth = 8f * density
-    private val activeWidth = 24f * density
-    private val dotSpacing = 6f * density
-    private val cornerRadius = dotHeight / 2f
+    private var isAlbumMode: Boolean = false
+    private var dotHeight = 8f * density
+    private var inactiveWidth = 8f * density
+    private var activeWidth = 24f * density
+    private var dotSpacing = 6f * density
+    private var cornerRadius = dotHeight / 2f
 
     private var pageCount: Int = 3
     private var currentPosition: Int = 0
@@ -39,6 +40,30 @@ class PageIndicatorView @JvmOverloads constructor(
     }
 
     private val rectF = RectF()
+
+    init {
+        if(attrs != null){
+            val a = context.obtainStyledAttributes(attrs, R.styleable.PageIndicatorView)
+            val mode = a.getInt(R.styleable.PageIndicatorView_indicatorMode, 0)
+            a.recycle()
+            if(mode == 1){
+                applyAlbumMode()
+            }
+        }
+    }
+
+    fun applyAlbumMode() {
+        isAlbumMode = true
+        dotHeight = 6f * density
+        inactiveWidth = 6f * density
+        activeWidth = 6f * density
+        dotSpacing = 6f * density
+        cornerRadius = dotHeight / 2f
+        activePaint.color = 0xFFFFFFFF.toInt()
+        inactivePaint.color = 0x80FFFFFF.toInt()
+        requestLayout()
+        invalidate()
+    }
 
     fun setPageCount(count: Int) {
         if (pageCount != count) {

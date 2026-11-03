@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    Giao diện màn hình Giới thiệu tính năng (Onboarding Screen - S02):
+    - onboardingRoot: Layout gốc sử dụng để áp dụng lề WindowInsets (Status bar & Navigation bar).
+    - chipLanguage: Chip hiển thị ngôn ngữ hiện hành và mở LanguageDialogFragment khi click.
+    - btnSkip: Nút "Bỏ qua" đưa người dùng thẳng đến màn hình Đăng nhập (ẩn ở trang 3).
+    - viewPagerOnboarding: ViewPager cổ điển chứa 3 trang trượt ngang.
+    - pageIndicator: PageIndicatorView tự vẽ các chấm chỉ báo viên nang co giãn.
+    - btnNext: Nút hành động chính (đổi chữ thành "Bắt đầu khám phá" ở trang cuối).
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/onboardingRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface">
+
+    <!-- Thanh công cụ phía trên: Chip đổi ngôn ngữ và Nút Bỏ qua -->
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="6dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Language Chip -->
+        <LinearLayout
+            android:id="@+id/chipLanguage"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:background="@drawable/bg_chip"
+            android:clickable="true"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:contentDescription="@string/language_dialog_title"
+                android:src="@drawable/ic_language"
+                app:tint="@color/text_secondary" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tvCurrentLanguage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:fontFamily="@font/be_vietnam_pro_medium"
+                android:includeFontPadding="false"
+                android:text="@string/onboarding_language_vi"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp"
+                app:fontFamily="@font/be_vietnam_pro_medium"
+                app:lineHeight="16.9sp" />
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginStart="2dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_expand_more"
+                app:tint="@color/text_secondary" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- Skip Button -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/btnSkip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:fontFamily="@font/be_vietnam_pro_semibold"
+            android:includeFontPadding="false"
+            android:paddingStart="6dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="8dp"
+            android:text="@string/onboarding_skip"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            app:fontFamily="@font/be_vietnam_pro_semibold"
+            app:lineHeight="18.2sp" />
+    </LinearLayout>
+
+    <!-- Main ViewPager -->
+    <androidx.viewpager.widget.ViewPager
+        android:id="@+id/viewPagerOnboarding"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@+id/bottomBar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/topBar" />
+
+    <!-- Bottom Bar: PageIndicatorView & Action Button -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="26dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Page Indicator Custom View -->
+        <com.example.momentbox_app.core.ui.PageIndicatorView
+            android:id="@+id/pageIndicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="6dp"
+            app:layout_constraintBottom_toBottomOf="@+id/btnNext"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/btnNext" />
+
+        <!-- Next / Get Started Button -->
+        <LinearLayout
+            android:id="@+id/btnNext"
+            android:layout_width="wrap_content"
+            android:layout_height="50dp"
+            android:background="@drawable/bg_btn_primary"
+            android:clickable="true"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:elevation="8dp"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:outlineAmbientShadowColor="#5B4BDB"
+            android:outlineSpotShadowColor="#5B4BDB"
+            android:paddingStart="22dp"
+            android:paddingEnd="22dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tvBtnNextText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:includeFontPadding="false"
+                android:text="@string/onboarding_next"
+                android:textColor="@color/white"
+                android:textSize="15sp"
+                app:fontFamily="@font/be_vietnam_pro_semibold"
+                app:lineHeight="19.5sp" />
+
+            <ImageView
+                android:id="@+id/ivBtnNextIcon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="8dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_arrow_forward"
+                app:tint="@color/white" />
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    values-v31/themes.xml - Cấu hình theme khởi động Splash Screen chuẩn trên Android 12+ (API 31+).
+
+    [Dành cho Android Intern]:
+    - Từ Android 12, Google chuẩn hóa toàn diện màn hình khởi động của hệ thống (System SplashScreen).
+    - Các thuộc tính `windowSplashScreenBackground` và `windowSplashScreenAnimatedIcon` được Window Manager
+      của hệ điều hành trực tiếp đọc và vẽ ngay khi tiến trình ứng dụng bắt đầu khởi động (Zygote fork),
+      trước cả khi hàm Application.onCreate() hoặc Activity.onCreate() được gọi.
+    - `postSplashScreenTheme`: Chỉ định theme mà Activity sẽ áp dụng sau khi SplashScreen của OS kết thúc.
+    - Ở đây, SplashActivity sau đó sẽ dựng layout riêng (SplashBackdropLayout) nhằm đảm bảo hiển thị
+      gradient nền, slogan và loading indicator theo bộ mockup trong repo và lựa chọn custom Splash của người dùng.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.MomentBox.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/primary</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.MomentBox</item>
+    </style>
+</resources>

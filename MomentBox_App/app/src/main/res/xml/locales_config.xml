@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    locales_config.xml - Cấu hình danh sách ngôn ngữ hỗ trợ cho ứng dụng (Per-App Language Preferences).
+
+    [Dành cho Android Intern]:
+    - Từ Android 13 (API 33), hệ điều hành hỗ trợ tính năng chọn ngôn ngữ riêng cho từng ứng dụng
+      trong Cài đặt hệ thống (Settings -> Apps -> Language).
+    - File XML này khai báo cho hệ điều hành biết ứng dụng hỗ trợ những ngôn ngữ nào:
+      * vi: Tiếng Việt (ngôn ngữ mặc định/chính của người dùng trong app)
+      * en: Tiếng Anh (English)
+      * ja: Tiếng Nhật (Japanese)
+    - Được liên kết trong AndroidManifest.xml thông qua thuộc tính:
+      `android:localeConfig="@xml/locales_config"` tại thẻ <application>.
+    - Khi dùng AppCompatDelegate.setApplicationLocales(), hệ thống và thư viện androidx.appcompat
+      sẽ tự động đồng bộ ngôn ngữ được chọn với menu cài đặt của hệ điều hành.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="vi" />
+    <locale android:name="en" />
+    <locale android:name="ja" />
+</locale-config>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Cấu hình An toàn Mạng cho bản Release / Production:
+    - cleartextTrafficPermitted="false": Nghiêm cấm hoàn toàn giao thức HTTP không mã hóa (chỉ cho phép HTTPS).
+    - trust-anchors src="system": Chỉ tin cậy các chứng chỉ CA do hệ điều hành Android công nhận chính thức,
+      ngăn chặn việc can thiệp hoặc nghe lén qua chứng chỉ người dùng cài thủ công.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

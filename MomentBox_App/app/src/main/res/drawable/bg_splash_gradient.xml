@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- Nền dự phòng; SplashBackdropLayout vẽ gradient góc 165 độ bằng Canvas trên mọi API. -->
+    <solid android:color="@color/primary" />
+</shape>

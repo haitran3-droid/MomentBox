@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Screen paddings & margins -->
+    <dimen name="screen_margin">16dp</dimen>
+    <dimen name="screen_margin_auth">24dp</dimen>
+    <dimen name="spacing_tiny">4dp</dimen>
+    <dimen name="spacing_small">8dp</dimen>
+    <dimen name="spacing_medium">12dp</dimen>
+    <dimen name="spacing_regular">16dp</dimen>
+    <dimen name="spacing_large">24dp</dimen>
+    <dimen name="spacing_xlarge">32dp</dimen>
+
+    <!-- Component heights & sizes -->
+    <dimen name="app_bar_height">56dp</dimen>
+    <dimen name="bottom_nav_height">68dp</dimen>
+    <dimen name="btn_height">50dp</dimen>
+    <dimen name="btn_height_sm">36dp</dimen>
+    <dimen name="btn_height_xs">30dp</dimen>
+    <dimen name="field_height">52dp</dimen>
+    <dimen name="chip_height">32dp</dimen>
+    <dimen name="chip_height_sm">26dp</dimen>
+
+    <!-- Corner Radii -->
+    <dimen name="radius_small">6dp</dimen>
+    <dimen name="radius_chip">16dp</dimen>
+    <dimen name="radius_chip_sm">13dp</dimen>
+    <dimen name="radius_btn">14dp</dimen>
+    <dimen name="radius_btn_sm">12dp</dimen>
+    <dimen name="radius_btn_xs">10dp</dimen>
+    <dimen name="radius_field">14dp</dimen>
+    <dimen name="radius_card">18dp</dimen>
+    <dimen name="radius_card_inner">14dp</dimen>
+    <dimen name="radius_dialog">26dp</dimen>
+    <dimen name="radius_sheet">26dp</dimen>
+    <dimen name="radius_logo">30dp</dimen>
+    <dimen name="radius_logo_sm">16dp</dimen>
+
+    <!-- Page Indicator -->
+    <dimen name="indicator_dot_size">8dp</dimen>
+    <dimen name="indicator_dot_active_width">24dp</dimen>
+    <dimen name="indicator_dot_spacing">6dp</dimen>
+
+    <!-- Typography Text Sizes -->
+    <dimen name="text_splash_title">32sp</dimen>
+    <dimen name="text_headline_large">26sp</dimen>
+    <dimen name="text_headline_medium">22sp</dimen>
+    <dimen name="text_title_large">19sp</dimen>
+    <dimen name="text_title_medium">16sp</dimen>
+    <dimen name="text_body_large">15sp</dimen>
+    <dimen name="text_body_medium">14sp</dimen>
+    <dimen name="text_body_small">13.5sp</dimen>
+    <dimen name="text_label">13sp</dimen>
+    <dimen name="text_caption">12sp</dimen>
+    <dimen name="text_caption_small">10.5sp</dimen>
+</resources>

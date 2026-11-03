@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    Giao diện Trang Onboarding 2 (item_onboarding_page2):
+    - Minh họa nhật ký cảm xúc; không đại diện cho tính năng AI đã triển khai.
+    - artContainer2: Trực quan hóa thẻ bài viết (Journal Card), huy hiệu AI (ic_auto_awesome) và tranh vector bãi biển Mỹ Khê (art_onboarding_mykhe).
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true"
+    android:paddingStart="24dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <!-- Illustration Canvas Container -->
+        <com.example.momentbox_app.core.ui.OnboardingArtLayout
+            android:id="@+id/artContainer2"
+            android:layout_width="match_parent"
+            android:layout_height="330dp"
+            android:background="@drawable/bg_onboarding_art_gradient"
+            android:clipToOutline="true"
+            android:clipToPadding="false">
+
+            <!-- Journal Card in center -->
+            <LinearLayout
+                android:layout_width="240dp"
+                android:layout_height="220dp"
+                android:background="@drawable/bg_dialog"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:elevation="8dp"
+                android:orientation="vertical"
+                android:padding="16dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/be_vietnam_pro_semibold"
+                        android:includeFontPadding="false"
+                        android:text="@string/onboarding_art_journal_date"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        app:fontFamily="@font/be_vietnam_pro_semibold"
+                        app:lineHeight="18.2sp" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_pill"
+                        android:includeFontPadding="false"
+                        android:paddingStart="8dp"
+                        android:paddingTop="3dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="3dp"
+                        android:text="@string/onboarding_art_mood_great"
+                        android:textColor="@color/text_primary"
+                        android:textSize="11sp"
+                        app:lineHeight="14.3sp" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@color/divider" />
+
+                <View
+                    android:layout_width="160dp"
+                    android:layout_height="10dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@color/primary_container" />
+
+                <View
+                    android:layout_width="200dp"
+                    android:layout_height="10dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@color/surface_variant" />
+
+                <View
+                    android:layout_width="140dp"
+                    android:layout_height="10dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@color/surface_variant" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:includeFontPadding="false"
+                        android:text="😄"
+                        android:textSize="24sp"
+                        app:lineHeight="31.2sp" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:includeFontPadding="false"
+                        android:text="😊"
+                        android:textSize="24sp"
+                        app:lineHeight="31.2sp" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:includeFontPadding="false"
+                        android:text="😐"
+                        android:textSize="24sp"
+                        app:lineHeight="31.2sp" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:text="🌧️"
+                        android:textSize="24sp"
+                        app:lineHeight="31.2sp" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.example.momentbox_app.core.ui.OnboardingArtLayout>
+
+        <!-- Page Title -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/tvOnboardingTitle2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.02"
+            android:text="@string/onboarding_title_2"
+            android:textColor="@color/text_primary"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            app:fontFamily="@font/be_vietnam_pro"
+            app:lineHeight="32.5sp" />
+
+        <!-- Page Subtitle -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/tvOnboardingDesc2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:includeFontPadding="false"
+            android:text="@string/onboarding_desc_2"
+            android:textColor="@color/text_secondary"
+            android:textSize="15sp"
+            app:fontFamily="@font/be_vietnam_pro"
+            app:lineHeight="23.25sp" />
+
+    </LinearLayout>
+</ScrollView>

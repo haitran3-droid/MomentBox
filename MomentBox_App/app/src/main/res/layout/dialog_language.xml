@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    Giao diện Hộp thoại Chọn Ngôn ngữ (Language Selection Dialog S22b):
+    - Background bg_dialog: Bo góc 26dp; ScrollView giữ nút hành động truy cập được khi màn hình thấp/font lớn.
+    - itemLanguageVi / itemLanguageEn / itemLanguageJa: 3 mục chọn với hiệu ứng viền đổi màu động.
+    - ivRadioVi / ivRadioEn / ivRadioJa: Radio indicator hiển thị chấm tròn khi được chọn.
+    - btnCancelLanguage: Nút "Hủy" đóng hộp thoại mà không lưu.
+    - btnApplyLanguage: Nút "Áp dụng" kích hoạt đổi ngôn ngữ toàn ứng dụng.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_dialog"
+    android:clipToOutline="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="22dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="14dp">
+
+        <!-- Header: Icon & Title -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <!-- Icon container 44x44dp, radius 14dp, bg primary_container -->
+            <FrameLayout
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_btn_tonal">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/language_dialog_title"
+                    android:src="@drawable/ic_translate"
+                    app:tint="@color/primary" />
+            </FrameLayout>
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tvLanguageTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="@font/be_vietnam_pro_bold"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:includeFontPadding="false"
+                android:text="@string/language_dialog_title"
+                android:textColor="@color/text_primary"
+                android:textSize="19sp"
+                app:fontFamily="@font/be_vietnam_pro_bold"
+                app:lineHeight="24.7sp" />
+        </LinearLayout>
+
+        <!-- Language Options List -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical">
+
+            <!-- Vietnamese Item -->
+            <LinearLayout
+                android:id="@+id/itemLanguageVi"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_language_item_selected"
+                android:clickable="true"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="VN"
+                    android:textSize="22sp"
+                    app:lineHeight="28.6sp" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tvLanguageVi"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
+                    android:text="@string/language_vi"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14.5sp"
+                    app:fontFamily="@font/be_vietnam_pro_semibold"
+                    app:lineHeight="18.85sp" />
+
+                <ImageView
+                    android:id="@+id/ivRadioVi"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/bg_radio_selected" />
+            </LinearLayout>
+
+            <!-- English Item -->
+            <LinearLayout
+                android:id="@+id/itemLanguageEn"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_language_item_unselected"
+                android:clickable="true"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="GB"
+                    android:textSize="22sp"
+                    app:lineHeight="28.6sp" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tvLanguageEn"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/be_vietnam_pro"
+                    android:includeFontPadding="false"
+                    android:text="@string/language_en"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14.5sp"
+                    app:fontFamily="@font/be_vietnam_pro"
+                    app:lineHeight="18.85sp" />
+
+                <ImageView
+                    android:id="@+id/ivRadioEn"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/bg_radio_unselected" />
+            </LinearLayout>
+
+            <!-- Japanese Item -->
+            <LinearLayout
+                android:id="@+id/itemLanguageJa"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_language_item_unselected"
+                android:clickable="true"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="JP"
+                    android:textSize="22sp"
+                    app:lineHeight="28.6sp" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tvLanguageJa"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/be_vietnam_pro"
+                    android:includeFontPadding="false"
+                    android:text="@string/language_ja"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14.5sp"
+                    app:fontFamily="@font/be_vietnam_pro"
+                    app:lineHeight="18.85sp" />
+
+                <ImageView
+                    android:id="@+id/ivRadioJa"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/bg_radio_unselected" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Information Note -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:gravity="top"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginTop="1dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_info"
+                app:tint="@color/primary" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tvLanguageNote"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:fontFamily="@font/be_vietnam_pro"
+                android:includeFontPadding="false"
+                android:text="@string/language_dialog_note"
+                android:textColor="@color/text_secondary"
+                android:textSize="12.5sp"
+                app:fontFamily="@font/be_vietnam_pro"
+                app:lineHeight="18.125sp" />
+        </LinearLayout>
+
+        <!-- Action Buttons: Cancel / Apply -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <!-- Cancel Button -->
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/btnCancelLanguage"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="@string/cancel"
+                android:textColor="@color/primary"
+                android:textSize="13sp"
+                app:fontFamily="@font/be_vietnam_pro_semibold"
+                app:lineHeight="16.9sp" />
+
+            <!-- Apply Button -->
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/btnApplyLanguage"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_btn_small_primary"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="@string/apply"
+                android:textColor="@color/white"
+                android:textSize="13sp"
+                app:fontFamily="@font/be_vietnam_pro_semibold"
+                app:lineHeight="16.9sp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

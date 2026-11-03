@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    Giao diện Trang Onboarding 3 (item_onboarding_page3):
+    - Tính năng: Chia sẻ album khoảnh khắc với gia đình và bạn bè.
+    - artContainer3: Bong bóng hội thoại tương tác (Chat Bubble), biểu tượng trái tim (bg_heart) và album chung.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true"
+    android:paddingStart="24dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <!-- Illustration Canvas Container -->
+        <com.example.momentbox_app.core.ui.OnboardingArtLayout
+            android:id="@+id/artContainer3"
+            android:layout_width="match_parent"
+            android:layout_height="330dp"
+            android:background="@drawable/bg_onboarding_art_gradient"
+            android:clipToOutline="true"
+            android:clipToPadding="false">
+
+            <!-- Chat Bubble Left -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="50dp"
+                android:background="@drawable/bg_dialog"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:elevation="4dp"
+                android:orientation="vertical"
+                android:outlineAmbientShadowColor="#303C288C"
+                android:outlineSpotShadowColor="#303C288C"
+                android:padding="12dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/be_vietnam_pro"
+                    android:includeFontPadding="false"
+                    android:text="@string/onboarding_art_chat_incoming"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13.5sp"
+                    app:fontFamily="@font/be_vietnam_pro"
+                    app:lineHeight="17.55sp" />
+            </LinearLayout>
+
+            <!-- Chat Bubble Right (Outgoing Primary) -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="120dp"
+                android:layout_marginEnd="24dp"
+                android:background="@drawable/bg_btn_primary"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:elevation="8dp"
+                android:orientation="vertical"
+                android:outlineAmbientShadowColor="#485B4BDB"
+
+                android:outlineSpotShadowColor="#485B4BDB"
+                android:padding="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/be_vietnam_pro"
+                    android:includeFontPadding="false"
+                    android:text="@string/onboarding_art_chat_outgoing"
+                    android:textColor="@color/white"
+                    android:textSize="13.5sp"
+                    app:fontFamily="@font/be_vietnam_pro"
+                    app:lineHeight="17.55sp" />
+            </LinearLayout>
+
+            <!-- Bottom Voice Waveform Message -->
+            <LinearLayout
+                android:layout_width="220dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="30dp"
+                android:layout_marginBottom="40dp"
+                android:background="@drawable/bg_dialog"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:elevation="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:outlineAmbientShadowColor="#303C288C"
+                android:outlineSpotShadowColor="#303C288C"
+                android:paddingStart="12dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="8dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_mic"
+                    app:tint="@color/primary" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="12dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:background="@color/primary_container" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/be_vietnam_pro"
+                    android:includeFontPadding="false"
+                    android:text="0:15"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp"
+                    app:fontFamily="@font/be_vietnam_pro"
+                    app:lineHeight="14.95sp" />
+            </LinearLayout>
+
+        </com.example.momentbox_app.core.ui.OnboardingArtLayout>
+
+        <!-- Page Title -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/tvOnboardingTitle3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.02"
+            android:text="@string/onboarding_title_3"
+            android:textColor="@color/text_primary"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            app:fontFamily="@font/be_vietnam_pro"
+            app:lineHeight="32.5sp" />
+
+        <!-- Page Subtitle -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/tvOnboardingDesc3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:includeFontPadding="false"
+            android:text="@string/onboarding_desc_3"
+            android:textColor="@color/text_secondary"
+            android:textSize="15sp"
+            app:fontFamily="@font/be_vietnam_pro"
+            app:lineHeight="23.25sp" />
+
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,28 @@
+<resources>
+    <!-- Nhãn của bảng tin và thời gian tương đối; Android chọn bản dịch theo locale. -->
+    <string name="feed_like">Like</string>
+    <string name="feed_comment">Comment</string>
+    <string name="feed_share">Share</string>
+    <string name="feed_verified">Verified</string>
+    <string name="feed_toggle_mute">Toggle sound</string>
+    <string name="feed_play">Play</string>
+    <string name="feed_load_more_error">Unable to load more posts</string>
+    <string name="feed_see_all">See all</string>
+    <string name="feed_dismiss_suggestion">Dismiss suggestion</string>
+    <string name="feed_nearby">Near you</string>
+    <string name="feed_mutual_count">%1$d mutual friends</string>
+    <string name="feed_avatar_of">Avatar of %1$s</string>
+    <plurals name="post_minutes_ago"><item quantity="one">%d minute ago</item><item quantity="other">%d minutes ago</item></plurals>
+    <plurals name="post_hours_ago"><item quantity="one">%d hour ago</item><item quantity="other">%d hours ago</item></plurals>
+    <plurals name="post_days_ago"><item quantity="one">%d day ago</item><item quantity="other">%d days ago</item></plurals>
+    <string name="feed_voice_error_retry">Unable to play voice. Retry</string>
+    <string name="feed_caption_expanded">Expanded</string>
+    <string name="feed_caption_collapsed">Collapsed</string>
+    <string name="feed_pause">Pause</string>
+    <string name="feed_like_failed">Unable to update like</string>
+    <string name="feed_bookmark_failed">Unable to update saved post</string>
+    <string name="feed_follow_failed">Unable to update follow</string>
+    <string name="feed_post_deleted">Post deleted</string>
+    <string name="feed_delete_failed">Unable to delete post</string>
+    <string name="post_private">Only me</string>
+</resources>

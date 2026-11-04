@@ -22,5 +22,9 @@ data class NotificationEntity(
     val createdAt: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "is_read")
-    val isRead: Boolean = false
+    val isRead: Boolean = false,
+    @ColumnInfo(name="owner_id", defaultValue = "''")
+    val ownerId: String = "",
+    @ColumnInfo(name = "source", defaultValue = "''")
+    val source: String = ""
 )

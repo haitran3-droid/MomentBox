@@ -9,6 +9,14 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NotificationDao {
+    @Query("SELECT COUNT(*) FROM notifications WHERE is_read = 0 AND owner_id = :ownerId AND source = :source")
+    fun unreadCountForScopeFlow(ownerId: String, source: String): Flow<Int>
+
+    @Query("SELECT * FROM notifications WHERE owner_id = :ownerId AND source = :source ORDER BY created_at DESC")
+    suspend fun getNotificationsForScope(ownerId: String, source: String): List<NotificationEntity>
+
+    @Query("DELETE FROM notifications WHERE id = :id AND owner_id = :ownerId AND source = :source")
+    suspend fun deleteForScope(id: Long, ownerId: String, source: String): Int
     @Query("Select count(*) from notifications where is_read = 0")
     fun unreadCountFlow(): Flow<Int>
 

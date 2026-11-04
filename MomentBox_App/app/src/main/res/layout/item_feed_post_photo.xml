@@ -118,7 +118,7 @@
         </LinearLayout>
 
         <!-- Dải chấm chỉ báo chuyển ảnh trắng nhỏ 6dp nổi trên ảnh (.dots.w) -->
-        <com.example.momentbox_app.core.ui.PageIndicatorView
+        <com.ntq.training.momentbox.core.ui.PageIndicatorView
             android:id="@+id/photoIndicator"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

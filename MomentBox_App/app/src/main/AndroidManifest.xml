@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:name="com.example.momentbox_app.MomentBoxApp"
+        android:name="com.ntq.training.momentbox.MomentBoxApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -27,26 +27,34 @@
         </service>
 
         <activity
-            android:name="com.example.momentbox_app.feature.splash.SplashActivity"
+            android:name="com.ntq.training.momentbox.feature.splash.SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.MomentBox.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
-            android:name="com.example.momentbox_app.feature.onboarding.OnboardingActivity"
+            android:name="com.ntq.training.momentbox.feature.onboarding.OnboardingActivity"
             android:exported="false" />
-
         <activity
-            android:name="com.example.momentbox_app.feature.auth.AuthActivity"
+            android:name="com.ntq.training.momentbox.feature.auth.AuthActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
-            android:name="com.example.momentbox_app.MainActivity"
+            android:name="com.ntq.training.momentbox.MainActivity"
             android:exported="false"
             android:launchMode="singleTask" />
+        <activity
+            android:name="com.ntq.training.momentbox.feature.postdetail.PostDetailActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name="com.ntq.training.momentbox.feature.videoplayer.VideoPlayerActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>

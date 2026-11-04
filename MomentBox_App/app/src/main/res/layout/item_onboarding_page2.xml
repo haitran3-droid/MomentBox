@@ -17,7 +17,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
         <!-- Illustration Canvas Container -->
-        <com.example.momentbox_app.core.ui.OnboardingArtLayout
+        <com.ntq.training.momentbox.core.ui.OnboardingArtLayout
             android:id="@+id/artContainer2"
             android:layout_width="match_parent"
             android:layout_height="330dp"
@@ -150,7 +150,7 @@
 
             </LinearLayout>
 
-        </com.example.momentbox_app.core.ui.OnboardingArtLayout>
+        </com.ntq.training.momentbox.core.ui.OnboardingArtLayout>
 
         <!-- Page Title -->
         <com.google.android.material.textview.MaterialTextView

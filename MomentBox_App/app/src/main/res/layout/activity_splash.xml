@@ -3,7 +3,7 @@
     - Root View: SplashBackdropLayout tự vẽ 3 lớp Gradient Canvas theo thiết kế mockup.
     - ID splashRoot: Được SplashActivity sử dụng để gắn listener lề thanh hệ thống (Window Insets).
 -->
-<com.example.momentbox_app.core.ui.SplashBackdropLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.ntq.training.momentbox.core.ui.SplashBackdropLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/splashRoot"
@@ -115,4 +115,4 @@
             tools:text="Phiên bản 1.0.0 (12) · debug" />
     </LinearLayout>
 
-</com.example.momentbox_app.core.ui.SplashBackdropLayout>
+</com.ntq.training.momentbox.core.ui.SplashBackdropLayout>

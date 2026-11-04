@@ -120,7 +120,7 @@
         </FrameLayout>
 
         <!-- Custom Waveform View -->
-        <com.example.momentbox_app.core.ui.WaveformView
+        <com.ntq.training.momentbox.core.ui.WaveformView
             android:id="@+id/waveformView"
             android:layout_width="0dp"
             android:layout_height="32dp"

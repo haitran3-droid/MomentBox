@@ -1,13 +1,6 @@
 package com.ntq.training.momentbox.core.media
 
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
-import android.media.MediaPlayer
-import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,303 +15,168 @@ data class VoicePlaybackState(
     val errorMessage: String? = null
 ) {
     val progress: Float
-        get() = if (durationMs > 0) currentPositionMs.toFloat() / durationMs.toFloat() else 0f
+        get() = if (durationMs > 0) currentPositionMs.toFloat() / durationMs else 0f
 }
 
-class VoicePlayerManager(private val context: Context) {
-    private var mediaPlayer: MediaPlayer? = null
-    private var audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    private var audioFocusRequest: AudioFocusRequest? = null
+/** Một player cho Feed; engine và bộ hẹn giờ có thể thay thế trong unit test. */
+class VoicePlayerManager internal constructor(
+    private val createEngine: () -> VoiceEngine,
+    private val audio: PlaybackAudio,
+    private val scheduler: VoiceProgressScheduler
+) {
+    constructor(context: Context) : this({ AndroidVoiceEngine() }, AndroidPlaybackAudio.get(context), AndroidVoiceProgressScheduler())
 
     private val _playbackState = MutableStateFlow(VoicePlaybackState())
     val playbackState: StateFlow<VoicePlaybackState> = _playbackState.asStateFlow()
-
-    private val handler = Handler(Looper.getMainLooper())
+    private var engine: VoiceEngine? = null
     private var currentPostId: Long? = null
-    private var currentSpeed: Float = 1.0f
-    private var expectedDurationMs: Int = 0
+    private var audioUrl: String = ""
+    private var prepared = false
+    private var generation = 0L
+    private var userIntendedPlay = false
+    private var currentSpeed = 1f
+    private var expectedDurationMs = 0
 
-    private var currentGeneration: Long = 0L
-    private var userIntendedPlay: Boolean = false
-
-    private val updateProgressRunnable = object : Runnable {
+    private val updateProgress = object : Runnable {
         override fun run() {
-            mediaPlayer?.let { player ->
-                if (player.isPlaying) {
-                    val current = player.currentPosition
-                    val duration = if (player.duration > 0) player.duration else expectedDurationMs
-                    _playbackState.value = VoicePlaybackState(
-                        postId = currentPostId,
-                        isPlaying = true,
-                        isLoading = false,
-                        currentPositionMs = current,
-                        durationMs = duration,
-                        speed = currentSpeed
-                    )
-                    handler.postDelayed(this, 50)
+            val player = engine ?: return
+            runCatching {
+                if (prepared && player.isPlaying) {
+                    _playbackState.value = _playbackState.value.copy(currentPositionMs = player.position)
+                    scheduler.schedule(this)
                 }
-            }
+            }.onFailure { fail(it.message ?: "Lỗi đọc tiến trình âm thanh") }
         }
     }
 
-    /**
-     * Bắt đầu phát hoặc tiếp tục phát voice note của bài viết.
-     */
     fun playVoice(postId: Long, audioUrl: String, durationSec: Int = 0) {
-        expectedDurationMs = durationSec * 1000
-        if (currentPostId == postId && mediaPlayer != null) {
-            resumeVoice()
+        if (currentPostId == postId && engine != null) {
+            if (prepared) resumeVoice()
             return
         }
-        currentGeneration++
-        val requestGen = currentGeneration
-        userIntendedPlay = true
-
-        stopVoiceInternal(resetState = false)
+        generation++
+        val request = generation
+        disposeEngine()
         currentPostId = postId
-        currentSpeed = 1.0f
-        _playbackState.value = VoicePlaybackState(
-            postId = postId,
-            isPlaying = false,
-            isLoading = true,
-            durationMs = expectedDurationMs,
-            speed = currentSpeed
-        )
-        requestAudioFocus()
-        var player: MediaPlayer? = null
+        this.audioUrl = audioUrl
+        expectedDurationMs = durationSec * 1000
+        currentSpeed = 1f
+        userIntendedPlay = true
+        _playbackState.value = VoicePlaybackState(postId = postId, isLoading = true, durationMs = expectedDurationMs)
+        if (!audio.acquire(this, { pauseVoice() }, kind = AudioPlaybackKind.VOICE)) {
+            fail("Không thể giành quyền phát âm thanh")
+            return
+        }
         try {
-            player = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-                )
-                setDataSource(audioUrl)
-                setOnPreparedListener { mp ->
-                    if (requestGen != currentGeneration || !userIntendedPlay || currentPostId != postId) {
-                        try {
-                            mp.stop()
-                            mp.release()
-                        } catch (_: Exception) {
-                        }
-                        return@setOnPreparedListener
+            // Giữ reference ngay sau cấp phát, trước mọi thao tác có thể ném lỗi setup.
+            val candidate = createEngine()
+            engine = candidate
+            run {
+                candidate.onPrepared = {
+                    if (request == generation && engine === candidate && userIntendedPlay) {
+                        prepared = true
+                        runCatching {
+                            candidate.start()
+                            candidate.setSpeed(currentSpeed)
+                            _playbackState.value = _playbackState.value.copy(isPlaying = true, isLoading = false,
+                                errorMessage = null, durationMs = candidate.duration.takeIf { it > 0 } ?: expectedDurationMs)
+                            scheduler.schedule(updateProgress)
+                        }.onFailure { fail(it.message ?: "Lỗi phát âm thanh") }
                     }
-                    applySpeed(currentSpeed)
-                    mp.start()
-                    val totalDuration = if (mp.duration > 0) mp.duration else expectedDurationMs
-                    _playbackState.value = VoicePlaybackState(
-                        postId = currentPostId,
-                        isPlaying = true,
-                        isLoading = false,
-                        currentPositionMs = 0,
-                        durationMs = totalDuration,
-                        speed = currentSpeed
-                    )
-                    handler.post(updateProgressRunnable)
                 }
-                setOnCompletionListener {
-                    onPlaybackCompleted()
+                candidate.onError = { message ->
+                    if (request == generation && engine === candidate) fail(message)
                 }
-                setOnErrorListener { _, what, extra ->
-                    if(requestGen == currentGeneration){
-                        stopVoiceInternal(resetState = false)
-                        _playbackState.value = VoicePlaybackState(
-                            postId = postId,
-                            isPlaying = false,
-                            isLoading = false,
-                            errorMessage = "Lỗi phát âm thanh ($what, $extra)"
-                        )
+                candidate.onCompleted = {
+                    if (request == generation && engine === candidate) {
+                        userIntendedPlay = false
+                        disposeEngine()
+                        audio.release(this)
+                        _playbackState.value = _playbackState.value.copy(isPlaying = false, isLoading = false, currentPositionMs = 0)
                     }
-                    true
                 }
-                prepareAsync()
+                candidate.prepare(audioUrl)
             }
-            mediaPlayer = player
-        }catch (e: Exception){
-            try{
-                player?.release()
-            }catch (_: Exception){}
-            mediaPlayer = null
-            _playbackState.value = VoicePlaybackState(
-                postId = postId,
-                isPlaying = false,
-                isLoading = false,
-                errorMessage = e.message ?: "Không thể mở tệp âm thanh"
-            )
+        } catch (error: Exception) {
+            fail(error.message ?: "Không thể mở tệp âm thanh")
         }
     }
 
-    /**Tạm dừng phát âm thanh*/
     fun pauseVoice() {
         userIntendedPlay = false
-        handler.removeCallbacks(updateProgressRunnable)
-        mediaPlayer?.let { player ->
-            try {
-                if (player.isPlaying) {
-                    player.pause()
-                }
-            } catch (_: Exception) {
-            }
+        scheduler.cancel(updateProgress)
+        // MediaPlayer đang preparing không thể pause. Hủy phiên và tạo mới khi người dùng bấm lại.
+        if (!prepared) {
+            generation++
+            disposeEngine()
+        } else {
+            runCatching { if (engine?.isPlaying == true) engine?.pause() }
+                .onFailure { fail(it.message ?: "Lỗi tạm dừng âm thanh") }
         }
+        audio.release(this)
         _playbackState.value = _playbackState.value.copy(isPlaying = false, isLoading = false)
     }
 
-    /**
-     * Tiếp tục phát âm thanh đang tạm dừng.
-     */
     fun resumeVoice() {
+        val postId = currentPostId ?: return
+        if (engine == null) {
+            playVoice(postId, audioUrl, expectedDurationMs / 1000)
+            return
+        }
+        if (!prepared) return
         userIntendedPlay = true
-        requestAudioFocus()
-        mediaPlayer?.let { player ->
-            try {
-                player.start()
-                handler.post(updateProgressRunnable)
-                _playbackState.value =
-                    _playbackState.value.copy(isPlaying = true, isLoading = false)
-            } catch (e: Exception) {
-                _playbackState.value = _playbackState.value.copy(
-                    isPlaying = false,
-                    isLoading = false,
-                    errorMessage = e.message ?: "Lỗi tiếp tục phát"
-                )
-            }
-        } ?: run {
-            _playbackState.value = _playbackState.value.copy(isPlaying = false, isLoading = false)
+        if (!audio.acquire(this, { pauseVoice() }, kind = AudioPlaybackKind.VOICE)) {
+            fail("Không thể giành quyền phát âm thanh")
+            return
         }
+        runCatching {
+            engine?.start()
+            engine?.setSpeed(currentSpeed)
+            _playbackState.value = _playbackState.value.copy(isPlaying = true, isLoading = false, errorMessage = null)
+            scheduler.schedule(updateProgress)
+        }.onFailure { fail(it.message ?: "Lỗi tiếp tục phát") }
     }
 
-    /**
-     * Tua âm thanh đến vị trí tỉ lệ phần trăm [progressRatio] (0.0f .. 1.0f).
-     */
     fun seekTo(postId: Long, progressRatio: Float) {
-        if (currentPostId != postId) return
-        val duration = _playbackState.value.durationMs
-        if (duration <= 0) return
-        val targetMs = (duration * progressRatio.coerceIn(0f, 1f)).toInt()
-
-        mediaPlayer?.let { player ->
-            try {
-                player.seekTo(targetMs)
-            } catch (_: Exception) {
-            }
-        }
-        _playbackState.value = _playbackState.value.copy(currentPositionMs = targetMs)
+        if (currentPostId != postId || !prepared) return
+        val position = (_playbackState.value.durationMs * progressRatio.coerceIn(0f, 1f)).toInt()
+        runCatching { engine?.seekTo(position) }
+        _playbackState.value = _playbackState.value.copy(currentPositionMs = position)
     }
 
-    /**
-     * Chuyển đổi vòng lặp tốc độ phát: 1.0x -> 1.5x -> 2.0x -> 1.0x.
-     */
     fun cycleSpeed(postId: Long): Float {
-        if (currentPostId != postId) return 1.0f
-        val nextSpeed = when (currentSpeed) {
-            1.0f -> 1.5f
-            1.5f -> 2.0f
-            else -> 1.0f
-        }
-        currentSpeed = nextSpeed
-        applySpeed(nextSpeed)
-        _playbackState.value = _playbackState.value.copy(speed = nextSpeed)
-        return nextSpeed
+        if (currentPostId != postId) return 1f
+        currentSpeed = when (currentSpeed) { 1f -> 1.5f; 1.5f -> 2f; else -> 1f }
+        // PlaybackParams có thể tự start MediaPlayer; chỉ áp dụng lúc đang phát.
+        if (_playbackState.value.isPlaying) runCatching { engine?.setSpeed(currentSpeed) }
+        _playbackState.value = _playbackState.value.copy(speed = currentSpeed)
+        return currentSpeed
     }
 
-    private fun applySpeed(speed: Float) {
-        mediaPlayer?.let { player ->
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    val params = player.playbackParams
-                    params.speed = speed
-                    player.playbackParams = params
-                }
-            } catch (e: Exception) {
-            }
-        }
+    private fun disposeEngine() {
+        scheduler.cancel(updateProgress)
+        val old = engine
+        engine = null
+        prepared = false
+        runCatching { old?.release() }
     }
 
-    private fun onPlaybackCompleted() {
-        handler.removeCallbacks(updateProgressRunnable)
-        _playbackState.value = _playbackState.value.copy(
-            isPlaying = false,
-            isLoading = false,
-            currentPositionMs = 0
-        )
-        abandonAudioFocus()
-    }
-
-    /**
-     * Dừng phát hoàn toàn và giải phóng phiên hiện tại.
-     */
-    fun stopVoice() {
-        currentGeneration++
+    private fun fail(message: String) {
+        generation++
         userIntendedPlay = false
-        stopVoiceInternal(resetState = true)
+        disposeEngine()
+        audio.release(this)
+        _playbackState.value = _playbackState.value.copy(isPlaying = false, isLoading = false, errorMessage = message)
     }
 
-    private fun stopVoiceInternal(resetState: Boolean) {
-        handler.removeCallbacks(updateProgressRunnable)
-        mediaPlayer?.let { player ->
-            try {
-                if (player.isPlaying) player.stop()
-                player.release()
-            } catch (e: Exception) {
-            }
-        }
-        mediaPlayer = null
+    fun stopVoice() {
+        generation++
+        userIntendedPlay = false
+        disposeEngine()
         currentPostId = null
-        if (resetState) {
-            _playbackState.value = VoicePlaybackState()
-            abandonAudioFocus()
-        }
+        audioUrl = ""
+        audio.release(this)
+        _playbackState.value = VoicePlaybackState()
     }
-
-    private fun requestAudioFocus() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-                )
-                .setOnAudioFocusChangeListener { focusChange ->
-                    if (focusChange == AudioManager.AUDIOFOCUS_LOSS ||
-                        focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
-                    ) {
-                        pauseVoice()
-                    }
-                }
-                .build()
-            audioFocusRequest = focusRequest
-            audioManager.requestAudioFocus(focusRequest)
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(
-                { focusChange ->
-                    if (focusChange == AudioManager.AUDIOFOCUS_LOSS ||
-                        focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
-                    ) {
-                        pauseVoice()
-                    }
-                },
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
-            )
-        }
-    }
-
-    private fun abandonAudioFocus() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.abandonAudioFocus(null)
-        }
-    }
-
-    /**
-     * Dọn dẹp tài nguyên khi Activity/Fragment bị hủy.
-     */
-    fun release() {
-        stopVoice()
-    }
+    fun release() = stopVoice()
 }

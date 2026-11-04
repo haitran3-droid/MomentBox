@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/videoPlayerRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/video_dark_bg">
+
+    <!-- Media3 PlayerView -->
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/playerViewFullscreen"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:use_controller="false" />
+
+    <!-- Lớp phủ điều khiển (Overlay Controls Container) -->
+    <FrameLayout
+        android:id="@+id/overlayControls"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#66000000">
+
+        <!-- Thanh tiêu đề trên (Top Bar) -->
+        <LinearLayout
+            android:id="@+id/topControlsBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="14dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="10dp">
+
+            <FrameLayout
+                android:id="@+id/btnBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Quay lại"
+                    android:src="@drawable/ic_arrow_back"
+                    app:tint="@color/white" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvVideoTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/be_vietnam_pro"
+                    android:maxLines="1"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="Biển Mỹ Khê lúc hoàng hôn" />
+
+                <TextView
+                    android:id="@+id/tvVideoAuthorViews"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:fontFamily="@font/be_vietnam_pro"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="12sp"
+                    tools:text="Travel VN · 1.204 lượt xem" />
+            </LinearLayout>
+
+            <!-- Chip chỉnh tốc độ phát 1.0x -->
+            <LinearLayout
+                android:id="@+id/btnPlaybackSpeed"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:background="@drawable/bg_pill_counter"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_speed"
+                    app:tint="@color/white" />
+
+                <TextView
+                    android:id="@+id/tvSpeedText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="@font/be_vietnam_pro"
+                    android:text="1.0x"
+                    android:textColor="@color/white"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Nút Khóa điều khiển -->
+            <FrameLayout
+                android:id="@+id/btnLockControls"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/ivLockIcon"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Khóa điều khiển"
+                    android:src="@drawable/ic_lock_open"
+                    app:tint="@color/white" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- Bộ điều khiển trung tâm: Replay 10s, Play/Pause 68dp, Forward 10s -->
+        <LinearLayout
+            android:id="@+id/centerControlsBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- Tua lùi 10 giây -->
+            <FrameLayout
+                android:id="@+id/btnReplay10"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Lùi 10 giây"
+                    android:src="@drawable/ic_replay_10"
+                    app:tint="@color/white" />
+            </FrameLayout>
+
+            <!-- Nút Play/Pause tròn 68dp mờ đục frosted glass -->
+            <FrameLayout
+                android:id="@+id/btnPlayPauseLarge"
+                android:layout_width="68dp"
+                android:layout_height="68dp"
+                android:layout_marginStart="36dp"
+                android:layout_marginEnd="36dp"
+                android:background="@drawable/bg_circle_frosted"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/ivPlayPauseLarge"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Phát/Tạm dừng"
+                    android:src="@drawable/ic_pause"
+                    app:tint="@color/white" />
+            </FrameLayout>
+
+            <!-- Tua tiến 10 giây -->
+            <FrameLayout
+                android:id="@+id/btnForward10"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Tiến 10 giây"
+                    android:src="@drawable/ic_forward_10"
+                    app:tint="@color/white" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- Thanh điều khiển đáy (Bottom Controls Bar) -->
+        <LinearLayout
+            android:id="@+id/bottomControlsBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="16dp">
+
+            <!-- Thời gian hiện tại -->
+            <TextView
+                android:id="@+id/tvCurrentTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/be_vietnam_pro"
+                android:textColor="@color/white"
+                android:textSize="12.5sp"
+                android:textStyle="bold"
+                tools:text="01:24" />
+
+            <!-- SeekBar tua video -->
+            <SeekBar
+                android:id="@+id/seekBarVideo"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:max="1000"
+                android:progressBackgroundTint="#4DFFFFFF"
+                android:progressTint="@color/secondary"
+                android:secondaryProgressTint="#80FFFFFF"
+                android:thumbTint="@color/white" />
+
+            <!-- Tổng thời lượng video -->
+            <TextView
+                android:id="@+id/tvTotalDuration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/be_vietnam_pro"
+                android:textColor="#CCFFFFFF"
+                android:textSize="12.5sp"
+                android:textStyle="bold"
+                tools:text="03:45" />
+
+            <!-- Nút bật/tắt tiếng -->
+            <FrameLayout
+                android:id="@+id/btnVolumeToggle"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="10dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/ivVolumeIcon"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Bật/Tắt âm thanh"
+                    android:src="@drawable/ic_volume_up"
+                    app:tint="@color/white" />
+            </FrameLayout>
+
+            <!-- Nút toàn màn hình / thu nhỏ -->
+            <FrameLayout
+                android:id="@+id/btnToggleFullscreen"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/ivFullscreenIcon"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Toàn màn hình"
+                    android:src="@drawable/ic_fullscreen_exit"
+                    app:tint="@color/white" />
+            </FrameLayout>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- Nút mở khóa (hiển thị khi đang ở chế độ Lock) -->
+    <FrameLayout
+        android:id="@+id/btnUnlockOverlay"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/bg_pill_counter"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:contentDescription="Mở khóa"
+            android:src="@drawable/ic_lock_closed"
+            app:tint="@color/white" />
+    </FrameLayout>
+</FrameLayout>

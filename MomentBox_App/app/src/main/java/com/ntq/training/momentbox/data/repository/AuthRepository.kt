@@ -45,13 +45,16 @@ class AuthRepositoryImpl(
     private val settingsDataStore: SettingsDataStore,
     private val userMapper: UserMapper = UserMapper(),
     private val gson: Gson = Gson(),
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val invalidateFeedCache:() -> Unit = {}
 ): AuthRepository{
     private val sessionMutex = Mutex()
     override suspend fun changeDataSource(source: String) = sessionMutex.withLock {
         tokenStore.clear()
+        invalidateFeedCache()
         settingsDataStore.setSavedUserJson(null)
         settingsDataStore.setDataSource(source)
+        invalidateFeedCache()
     }
 
     override suspend fun login(account: String, secret: String, rememberMe: Boolean): Result<User> = withContext(dispatcher) {
@@ -201,6 +204,7 @@ class AuthRepositoryImpl(
             val source = settingsDataStore.getDataSource()
             val old = tokenStore.snapshot()
             tokenStore.clear()
+            invalidateFeedCache()
             settingsDataStore.setSavedUserJson(null)
             old to source
         }

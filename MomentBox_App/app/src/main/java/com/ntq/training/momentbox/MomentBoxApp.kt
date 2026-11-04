@@ -1,6 +1,7 @@
 package com.ntq.training.momentbox
 
 import android.app.Application
+import com.google.gson.Gson
 import com.ntq.training.momentbox.core.coroutines.DefaultDispatcherProvider
 import com.ntq.training.momentbox.core.coroutines.DispatcherProvider
 import com.ntq.training.momentbox.core.network.NetworkModule
@@ -20,6 +21,8 @@ import com.ntq.training.momentbox.data.repository.ConfigRepositoryImpl
 import com.ntq.training.momentbox.data.repository.FeedRepository
 import com.ntq.training.momentbox.data.repository.FeedRepositoryImpl
 import com.ntq.training.momentbox.BuildConfig
+import com.ntq.training.momentbox.core.realtime.NotificationScope
+import com.ntq.training.momentbox.domain.model.User
 
 class MomentBoxApp : Application() {
     lateinit var tokenStore: TokenStore
@@ -47,7 +50,18 @@ class MomentBoxApp : Application() {
             tokenStore = tokenStore,
             settingsStorage = settingsDataStore,
             notificationDao = database.notificationDao(),
-            baseUrlProvider = { BuildConfig.BASE_URL}
+            baseUrlProvider = { BuildConfig.BASE_URL},
+            notificationScopeProvider = {
+                val json = settingsDataStore.getSavedUserJson()
+                val user = json?.let{
+                    try{
+                        Gson().fromJson(it, User::class.java)
+                    }catch (_: Exception){null}
+                }
+                user?.let {
+                    NotificationScope(it.id.toString(), settingsDataStore.getDataSource())
+                }
+            }
         )
 
         // 2. Khởi tạo OkHttpClient thông qua NetworkModule:
@@ -71,20 +85,21 @@ class MomentBoxApp : Application() {
         // 5. Khởi tạo Repositories, inject API và Local Storage tương ứng
         configRepository =
             ConfigRepositoryImpl(configApi, settingsDataStore, dispatcher = dispatcherProvider.io)
-        authRepository = AuthRepositoryImpl(
-            authApi = authApi,
-            userApi = userApi,
-            dummyJsonApi = dummyJsonApi,
-            tokenStore = tokenStore,
-            settingsDataStore = settingsDataStore,
-            dispatcher = dispatcherProvider.io
-        )
         feedRepository = FeedRepositoryImpl(
             feedApi = feedApi,
             dummyJsonApi = dummyJsonApi,
             settingsDataStore = settingsDataStore,
             tokenStore = tokenStore,
             dispatcher = dispatcherProvider.io
+        )
+        authRepository = AuthRepositoryImpl(
+            authApi = authApi,
+            userApi = userApi,
+            dummyJsonApi = dummyJsonApi,
+            tokenStore = tokenStore,
+            settingsDataStore = settingsDataStore,
+            dispatcher = dispatcherProvider.io,
+            invalidateFeedCache = { feedRepository.clearCache() }
         )
     }
 

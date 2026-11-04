@@ -42,11 +42,13 @@ interface DummyJsonApi {
         @Query("limit") limit: Int,
         @Query("skip") skip: Int,
         @Query("sortBy") sortBy: String = "id",
-        @Query("order") order: String = "desc"
+        @Query("order") order: String = "desc",
+        @Tag session: SessionRequest? = null
     ): Response<DummyJsonPostsResponse>
 
     @GET("posts/{id}/comments")
     suspend fun getPostComments(
-        @Path("id") id: Long
+        @Path("id") id: Long,
+        @Tag session: SessionRequest? = null
     ): Response<DummyJsonCommentsResponse>
 }

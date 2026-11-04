@@ -34,6 +34,16 @@ interface TokenPersistence {
 }
 
 interface TokenStorage {
+    /** Quan sát snapshot mới; callback không được chặn hoặc gọi ngược thao tác lấy mutex token. */
+    fun addSnapshotListener(listener: (TokenSnapshot) -> Unit): AutoCloseable = AutoCloseable { }
+
+    /** Chốt side effect RAM cùng khóa với đổi phiên; block phải ngắn, không suspend hoặc gọi lại TokenStore. */
+    suspend fun runIfGenerationMatches(expectedGeneration: Long, block: () -> Unit): Boolean {
+        if (getSessionGeneration() != expectedGeneration) return false
+        block()
+        return true
+    }
+
     suspend fun saveTokens(accessToken: String, refreshToken: String, rememberMe: Boolean)
     suspend fun updateTokens(accessToken: String, refreshToken: String)
     suspend fun updateTokensIfGenerationMatches(
@@ -85,6 +95,32 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
 
     /** Đánh dấu dữ liệu đã được tải từ đĩa lên RAM hay chưa */
     private var loaded = false
+    private val snapshotListeners = linkedSetOf<(TokenSnapshot) -> Unit>()
+
+    /** Listener nhận cả token refresh cùng generation; đóng subscription khi owner không còn dùng. */
+    override fun addSnapshotListener(listener: (TokenSnapshot) -> Unit): AutoCloseable {
+        synchronized(snapshotListeners) {
+            snapshotListeners.add(listener)
+            runCatching { listener(state) }
+        }
+        return AutoCloseable { synchronized(snapshotListeners) { snapshotListeners.remove(listener); Unit } }
+    }
+
+    private fun publishSnapshot(next: TokenSnapshot) = synchronized(snapshotListeners) {
+        state = next
+        // Observer lỗi không được làm transaction token đã ghi đĩa trở thành thất bại giả.
+        snapshotListeners.toList().forEach { listener -> runCatching { listener(next) } }
+    }
+
+    override suspend fun runIfGenerationMatches(
+        expectedGeneration: Long,
+        block: () -> Unit
+    ): Boolean = mutex.withLock {
+        loadLocked()
+        if (state.generation != expectedGeneration) return@withLock false
+        block()
+        true
+    }
 
     companion object {
         val KEY_ACCESS_TOKEN = stringPreferencesKey("access_token")
@@ -96,10 +132,12 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
     private suspend fun loadLocked() {
         if (!loaded) {
             val disk = persistence.read()
-            state = state.copy(
-                accessToken = disk.accessToken,
-                refreshToken = disk.refreshToken,
-                rememberMe = disk.rememberMe
+            publishSnapshot(
+                state.copy(
+                    accessToken = disk.accessToken,
+                    refreshToken = disk.refreshToken,
+                    rememberMe = disk.rememberMe
+                )
             )
             loaded = true
         }
@@ -117,7 +155,7 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
                 next.rememberMe
             )
         )
-        state = next
+        publishSnapshot(next)
         loaded = true
     }
 
@@ -196,7 +234,7 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
     override fun getSessionGeneration(): Long = state.generation
     override fun incrementSessionGeneration(): Long = runBlocking {
         mutex.withLock {
-            state = state.copy(generation = state.generation + 1)
+            publishSnapshot(state.copy(generation = state.generation + 1))
             state.generation
         }
     }

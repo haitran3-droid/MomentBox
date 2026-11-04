@@ -1,20 +1,13 @@
 package com.ntq.training.momentbox.data.repository
 
+import com.google.gson.Gson
+import com.ntq.training.momentbox.core.network.ApiResponse
 import com.ntq.training.momentbox.core.network.safeApiCall
+import com.ntq.training.momentbox.core.network.SessionRequest
 import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
-import com.ntq.training.momentbox.data.local.prefs.SettingsStorage
-import com.ntq.training.momentbox.data.local.prefs.TokenStorage
 import com.ntq.training.momentbox.data.remote.api.DummyJsonApi
 import com.ntq.training.momentbox.data.remote.api.FeedApi
-import com.ntq.training.momentbox.data.remote.dto.BookmarkResponseDto
-import com.ntq.training.momentbox.data.remote.dto.CommentDto
-import com.ntq.training.momentbox.data.remote.dto.CommentLikeResponseDto
-import com.ntq.training.momentbox.data.remote.dto.LikeResponseDto
-import com.ntq.training.momentbox.data.remote.dto.PostCommentRequest
-import com.ntq.training.momentbox.data.remote.dto.PostDto
-import com.ntq.training.momentbox.data.remote.dto.RawFeedItemDto
-import com.ntq.training.momentbox.data.remote.dto.StoryDto
-import com.ntq.training.momentbox.data.remote.dto.UserDto
+import com.ntq.training.momentbox.data.remote.dto.*
 import com.ntq.training.momentbox.domain.mapper.CommentMapper
 import com.ntq.training.momentbox.domain.mapper.PostMapper
 import com.ntq.training.momentbox.domain.mapper.StoryMapper
@@ -25,18 +18,23 @@ import com.ntq.training.momentbox.domain.model.FeedItem
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.domain.model.Story
 import com.ntq.training.momentbox.domain.model.User
-import com.google.gson.Gson
+import com.ntq.training.momentbox.data.local.prefs.SettingsStorage
+import com.ntq.training.momentbox.data.local.prefs.TokenStorage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.map as flowMap
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.ConcurrentHashMap
 
 class FeedRepositoryImpl(
     private val feedApi: FeedApi,
@@ -51,30 +49,139 @@ class FeedRepositoryImpl(
     private val gson: Gson = Gson()
 ) : FeedRepository {
 
+    /** Cache tập trung Map<postId, Post> làm nguồn chân lý duy nhất (Single Source of Truth) */
     private val _postsMap = MutableStateFlow<Map<Long, Post>>(emptyMap())
     override val postsMapFlow: StateFlow<Map<Long, Post>> = _postsMap.asStateFlow()
+    private val _followingMap = MutableStateFlow<Map<Long, Boolean>>(emptyMap())
+    override val followingMapFlow: StateFlow<Map<Long, Boolean>> = _followingMap.asStateFlow()
 
+    /** Danh sách story được lưu tạm để không phải gọi lại khi phân trang feed */
     private var cachedStories: List<Story> = emptyList()
-    private var lastRecordedGeneration: Long = tokenStore?.getSessionGeneration() ?: 0L
 
-    private fun validateSessionGeneration(): Long {
-        val currentGen = tokenStore?.getSessionGeneration() ?: 0L
-        if (currentGen != lastRecordedGeneration) {
-            clearCache()
-            lastRecordedGeneration = currentGen
+    /** Thế hệ phiên làm việc gần nhất để phát hiện phiên bị thay đổi / đăng xuất */
+    private var lastRecordedGeneration: Long = tokenStore?.getSessionGeneration() ?: 0L
+    private val cacheLock = Any()
+    private var cacheSource: String? = null
+    private var cacheEpoch = 0L
+    private var feedEpoch = 0L
+    private var cacheVersion = 0L
+    private val fieldVersions = mutableMapOf<Pair<Long, String>, Long>()
+    private val activeMutations = mutableSetOf<Pair<Long, String>>()
+    private val deletedVersions = mutableMapOf<Long, Long>()
+    private val mutationLocks = ConcurrentHashMap<String, Mutex>()
+
+    private data class Scope(
+        val generation: Long, val source: String, val epoch: Long,
+        val feedEpoch: Long?, val cacheVersion: Long
+    )
+
+    private class InvalidScope : Exception()
+
+    init {
+        // Logout/login đổi generation; callback xóa dữ liệu quan sát được ngay khi token đổi.
+        tokenStore?.addSnapshotListener { snapshot ->
+            synchronized(cacheLock) {
+                if (snapshot.generation != lastRecordedGeneration) {
+                    clearLocked()
+                    lastRecordedGeneration = snapshot.generation
+                    cacheSource = null
+                }
+            }
         }
-        return currentGen
+    }
+
+    private fun clearLocked() {
+        cacheEpoch++
+        feedEpoch++
+        _postsMap.value = emptyMap()
+        cachedStories = emptyList()
+        cacheVersion++
+        fieldVersions.clear()
+        activeMutations.clear()
+        deletedVersions.clear()
+    }
+
+    private suspend fun beginScope(page: Int?): Scope {
+        val generation = tokenStore?.snapshot()?.generation ?: 0L
+        val source = settingsDataStore.getDataSource()
+        return synchronized(cacheLock) {
+            if (tokenStore != null && tokenStore.getSessionGeneration() != generation) throw InvalidScope()
+            if (generation != lastRecordedGeneration || (cacheSource != null && cacheSource != source)) {
+                clearLocked()
+                lastRecordedGeneration = generation
+            }
+            cacheSource = source
+            if (page == 1) feedEpoch++
+            Scope(generation, source, cacheEpoch, page?.let { feedEpoch }, cacheVersion)
+        }
+    }
+
+    /** Kiểm tra và ghi cache dưới cùng mutex với đổi token, tránh race giữa kiểm tra và ghi. */
+    private suspend fun <T> commit(scope: Scope, action: () -> T): T {
+        if (settingsDataStore.getDataSource() != scope.source) throw InvalidScope()
+        var output: Any? = null
+        val write = {
+            synchronized(cacheLock) {
+                if (scope.epoch != cacheEpoch || cacheSource != scope.source ||
+                    (scope.feedEpoch != null && scope.feedEpoch != feedEpoch)
+                ) throw InvalidScope()
+                output = action()
+            }
+        }
+        if (tokenStore != null) {
+            if (!tokenStore.runIfGenerationMatches(scope.generation, write)) throw InvalidScope()
+        } else write()
+        @Suppress("UNCHECKED_CAST")
+        return output as T
+    }
+
+    private suspend fun <T> scoped(
+        page: Int? = null,
+        block: suspend (Scope) -> Result<T>
+    ): Result<T> = withContext(dispatcher) {
+        try {
+            val scope = beginScope(page)
+            val result = block(scope)
+            commit(scope) { Unit }
+            result
+        } catch (_: InvalidScope) {
+            Result.failure(CancellationException("Session invalidated"))
+        }
+    }
+
+    private fun mutationLock(scope: Scope, postId: Long, field: String): Mutex =
+        mutationLocks.getOrPut("${scope.generation}:${scope.source}:$postId:$field") { Mutex() }
+
+    private fun mutationStarted(postId: Long, field: String) {
+        val key = postId to field
+        activeMutations.add(key)
+        fieldVersions[key] = ++cacheVersion
+    }
+
+    private suspend fun mutationFinished(scope: Scope, postId: Long, field: String) {
+        withContext(NonCancellable) {
+            try {
+                commit(scope) {
+                    val key = postId to field
+                    activeMutations.remove(key)
+                    fieldVersions[key] = ++cacheVersion
+                }
+            } catch (_: InvalidScope) { /* Phiên cũ đã xóa toàn bộ trạng thái của nó. */
+            }
+        }
     }
 
     override fun observePost(postId: Long): Flow<Post?> {
         return _postsMap.flowMap { it[postId] }.distinctUntilChanged()
     }
 
-    override suspend fun getStories(): Result<List<Story>> = withContext(dispatcher) {
-        val source = settingsDataStore.getDataSource()
+    override suspend fun getStories(): Result<List<Story>> = scoped { scope ->
+        val source = scope.source
+
         if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
+            // DummyJSON không có endpoint story, sinh danh sách story giả lập mẫu
             val dummyStories = listOf(
-                storyMapper.createMyStory(Author(1, "my_user", "Tin của bạn", null, false)),
+                storyMapper.createMyStory(currentStoryAuthor()),
                 Story(
                     user = Author(
                         2,
@@ -103,19 +210,20 @@ class FeedRepositoryImpl(
                     ), hasUnseen = false
                 )
             )
-            cachedStories = dummyStories
-            return@withContext Result.success(dummyStories)
+            commit(scope) { cachedStories = dummyStories }
+            return@scoped Result.success(dummyStories)
         }
+
         val result: Result<List<StoryDto>> = safeApiCall(dispatcher = dispatcher, gson = gson) {
-            feedApi.getStories()
+            feedApi.getStories(
+                SessionRequest(scope.generation)
+            )
         }
         if (result.isSuccess) {
             val dtoList = result.getOrThrow()
-            val myStory = storyMapper.createMyStory(
-                Author(1, "me", "Tin của bạn", null, false)
-            )
+            val myStory = storyMapper.createMyStory(currentStoryAuthor())
             val mapped = listOf(myStory) + (dtoList.map { storyMapper.map(it) })
-            cachedStories = mapped
+            commit(scope) { cachedStories = mapped }
             Result.success(mapped)
         } else {
             Result.failure(result.exceptionOrNull() ?: Exception("Lỗi tải story"))
@@ -123,28 +231,32 @@ class FeedRepositoryImpl(
     }
 
     override suspend fun getFeed(page: Int, pageSize: Int): Result<List<FeedItem>> =
-        withContext(dispatcher) {
-            val source = settingsDataStore.getDataSource()
+        scoped(page) { scope ->
+            val source = scope.source
 
             if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
                 val skip = (page - 1) * pageSize
                 try {
-                    val response = dummyJsonApi.getPosts(limit = pageSize, skip = skip)
+                    val response = dummyJsonApi.getPosts(
+                        limit = pageSize,
+                        skip = skip,
+                        session = SessionRequest(scope.generation)
+                    )
                     if (response.isSuccessful && response.body() != null) {
                         val dummyPosts = response.body()?.posts ?: emptyList()
                         val mappedPosts = dummyPosts.map { postMapper.mapFromDummyJson(it) }
 
                         // Cập nhật vào cache tập trung
-                        updatePostsCache(mappedPosts)
+                        updatePostsCache(scope, mappedPosts)
 
                         val feedItems = mutableListOf<FeedItem>()
 
                         // Ở trang đầu tiên, gắn thêm StoryBar và Gợi ý theo dõi giả lập
                         if (page == 1) {
-                            if (cachedStories.isEmpty()) {
+                            if (commit(scope) { cachedStories.isEmpty() }) {
                                 getStories()
                             }
-                            feedItems.add(FeedItem.StoryBar(cachedStories))
+                            feedItems.add(FeedItem.StoryBar(commit(scope) { cachedStories }))
 
                             val dummySuggestions = listOf(
                                 User(
@@ -175,12 +287,14 @@ class FeedRepositoryImpl(
                             feedItems.add(FeedItem.PostItem(post))
                         }
 
-                        return@withContext Result.success(feedItems)
+                        return@scoped Result.success(feedItems)
                     } else {
-                        return@withContext Result.failure(Exception("DummyJSON request failed: HTTP ${response.code()}"))
+                        return@scoped Result.failure(Exception("DummyJSON request failed: HTTP ${response.code()}"))
                     }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (e: Exception) {
-                    return@withContext Result.failure(e)
+                    return@scoped Result.failure(e)
                 }
             }
 
@@ -189,7 +303,8 @@ class FeedRepositoryImpl(
                 safeApiCall(dispatcher = dispatcher, gson = gson) {
                     feedApi.getFeed(
                         page,
-                        pageSize
+                        pageSize,
+                        SessionRequest(scope.generation)
                     )
                 }
             if (feedResult.isSuccess) {
@@ -198,10 +313,10 @@ class FeedRepositoryImpl(
 
                 // Ở trang 1, chèn StoryBar lên đầu danh sách
                 if (page == 1) {
-                    if (cachedStories.isEmpty()) {
+                    if (commit(scope) { cachedStories.isEmpty() }) {
                         getStories()
                     }
-                    feedItems.add(FeedItem.StoryBar(cachedStories))
+                    feedItems.add(FeedItem.StoryBar(commit(scope) { cachedStories }))
                 }
 
                 val newPosts = mutableListOf<Post>()
@@ -231,7 +346,7 @@ class FeedRepositoryImpl(
                 }
 
                 // Đồng bộ toàn bộ bài viết mới tải vào cache tập trung
-                updatePostsCache(newPosts)
+                updatePostsCache(scope, newPosts)
 
                 Result.success(feedItems)
             } else {
@@ -239,150 +354,213 @@ class FeedRepositoryImpl(
             }
         }
 
-    override suspend fun getPostDetail(postId: Long): Result<Post> = withContext(dispatcher) {
-        val source = settingsDataStore.getDataSource()
+    override suspend fun getPostDetail(postId: Long): Result<Post> = scoped { scope ->
+        val source = scope.source
 
         if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
-            val cached = _postsMap.value[postId]
-            if (cached != null) return@withContext Result.success(cached)
-            return@withContext Result.failure(Exception("Post not found in DummyJSON cache"))
+            val cached = commit(scope) { _postsMap.value[postId] }
+            if (cached != null) return@scoped Result.success(cached)
+            return@scoped Result.failure(Exception("Post not found in DummyJSON cache"))
         }
 
-        val result: Result<PostDto> =
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.getPostDetail(postId) }
+        val result: Result<PostDto> = safeApiCall(dispatcher = dispatcher, gson = gson) {
+            feedApi.getPostDetail(
+                postId,
+                SessionRequest(scope.generation)
+            )
+        }
         if (result.isSuccess) {
             val postDto = result.getOrThrow()
             val post = postMapper.map(postDto)
-            updatePostsCache(listOf(post))
-            Result.success(post)
+            updatePostsCache(scope, listOf(post))
+            Result.success(commit(scope) { _postsMap.value[post.id] ?: throw InvalidScope() })
         } else {
             Result.failure(result.exceptionOrNull() ?: Exception("Không thể tải chi tiết bài viết"))
         }
     }
 
-    override suspend fun toggleLike(postId: Long): Result<Post> = withContext(dispatcher) {
-        val currentGen = validateSessionGeneration()
-        val currentPost = _postsMap.value[postId] ?: getPostDetail(postId).getOrNull()
-        ?: return@withContext Result.failure(Exception("Bài viết không tồn tại"))
+    override suspend fun toggleLike(postId: Long): Result<Post> = scoped { scope ->
+        mutationLock(scope, postId, "like").withLock {
+            val currentGen = scope.generation
+            val currentPost =
+                commit(scope) { _postsMap.value[postId] } ?: getPostDetail(postId).getOrNull()
+                ?: return@scoped Result.failure(Exception("Bài viết không tồn tại"))
 
-        val targetLiked = !currentPost.isLiked
-        val targetCount =
-            if (targetLiked) currentPost.likeCount + 1 else (currentPost.likeCount - 1).coerceAtLeast(
-                0
-            )
+            val targetLiked = !currentPost.isLiked
+            val targetCount =
+                if (targetLiked) currentPost.likeCount + 1 else (currentPost.likeCount - 1).coerceAtLeast(
+                    0
+                )
 
-        // 1. Cập nhật lạc quan (Optimistic Update) chỉ trên trường Like, không đè trường Bookmark
-        _postsMap.update { currentMap ->
-            val p = currentMap[postId] ?: currentPost
-            val updated = p.copy(isLiked = targetLiked, likeCount = targetCount)
-            currentMap + (postId to updated)
-        }
-
-        val source = settingsDataStore.getDataSource()
-        if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
-            return@withContext Result.success(_postsMap.value[postId] ?: currentPost)
-        }
-
-        // 2. Gửi request mạng
-        val callResult: Result<LikeResponseDto> = if (targetLiked) {
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.likePost(postId) }
-        } else {
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.unlikePost(postId) }
-        }
-
-        // Kiểm tra generation guard: nếu đã đổi phiên trong khi request đang bay, hủy bỏ
-        if (tokenStore != null && tokenStore.getSessionGeneration() != currentGen) {
-            return@withContext Result.failure(CancellationException("Session invalidated"))
-        }
-
-        if (callResult.isSuccess) {
-            val dto = callResult.getOrThrow()
-            // Hợp nhất (Merge) kết quả máy chủ độc lập trên trường Like
-            _postsMap.update { currentMap ->
-                val p = currentMap[postId] ?: return@update currentMap
-                val merged = p.copy(isLiked = dto.isLiked, likeCount = dto.likeCount)
-                currentMap + (postId to merged)
+            // 1. Cập nhật lạc quan (Optimistic Update) chỉ trên trường Like, không đè trường Bookmark
+            commit(scope) {
+                mutationStarted(postId, "like"); _postsMap.update { currentMap ->
+                val p = currentMap[postId] ?: currentPost
+                val updated = p.copy(isLiked = targetLiked, likeCount = targetCount)
+                currentMap + (postId to updated)
             }
-            Result.success(_postsMap.value[postId] ?: currentPost)
-        } else {
-            // 3. Hoàn tác (Rollback) chỉ trên trường Like, giữ nguyên trạng thái Bookmark mới nhất
-            _postsMap.update { currentMap ->
-                val p = currentMap[postId] ?: return@update currentMap
-                val reverted =
-                    p.copy(isLiked = currentPost.isLiked, likeCount = currentPost.likeCount)
-                currentMap + (postId to reverted)
             }
-            Result.failure(
-                callResult.exceptionOrNull() ?: Exception("Không thể cập nhật lượt thích")
-            )
+
+            try {
+                val source = scope.source
+                if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
+                    return@scoped Result.success(commit(scope) { _postsMap.value[postId] }
+                        ?: currentPost)
+                }
+
+                // 2. Gửi request mạng
+                val callResult: Result<LikeResponseDto> = if (targetLiked) {
+                    safeApiCall(dispatcher = dispatcher, gson = gson) {
+                        feedApi.likePost(
+                            postId,
+                            SessionRequest(scope.generation)
+                        )
+                    }
+                } else {
+                    safeApiCall(dispatcher = dispatcher, gson = gson) {
+                        feedApi.unlikePost(
+                            postId,
+                            SessionRequest(scope.generation)
+                        )
+                    }
+                }
+
+                // Kiểm tra generation guard: nếu đã đổi phiên trong khi request đang bay, hủy bỏ
+                if (tokenStore != null && tokenStore.getSessionGeneration() != currentGen) {
+                    return@scoped Result.failure(CancellationException("Session invalidated"))
+                }
+
+                if (callResult.isSuccess) {
+                    val dto = callResult.getOrThrow()
+                    // Hợp nhất (Merge) kết quả máy chủ độc lập trên trường Like
+                    commit(scope) {
+                        _postsMap.update { currentMap ->
+                            val p = currentMap[postId] ?: return@update currentMap
+                            val merged = p.copy(isLiked = dto.isLiked, likeCount = dto.likeCount)
+                            currentMap + (postId to merged)
+                        }
+                    }
+                    Result.success(commit(scope) { _postsMap.value[postId] } ?: currentPost)
+                } else {
+                    // 3. Hoàn tác (Rollback) chỉ trên trường Like, giữ nguyên trạng thái Bookmark mới nhất
+                    commit(scope) {
+                        _postsMap.update { currentMap ->
+                            val p = currentMap[postId] ?: return@update currentMap
+                            val reverted = p.copy(
+                                isLiked = currentPost.isLiked,
+                                likeCount = currentPost.likeCount
+                            )
+                            currentMap + (postId to reverted)
+                        }
+                    }
+                    Result.failure(
+                        callResult.exceptionOrNull() ?: Exception("Không thể cập nhật lượt thích")
+                    )
+                }
+            } finally {
+                mutationFinished(scope, postId, "like")
+            }
         }
     }
 
-    override suspend fun toggleBookmark(postId: Long): Result<Post> = withContext(dispatcher) {
-        val currentGen = validateSessionGeneration()
-        val currentPost = _postsMap.value[postId] ?: getPostDetail(postId).getOrNull()
-        ?: return@withContext Result.failure(Exception("Bài viết không tồn tại"))
+    override suspend fun toggleBookmark(postId: Long): Result<Post> = scoped { scope ->
+        mutationLock(scope, postId, "bookmark").withLock {
+            val currentGen = scope.generation
+            val currentPost =
+                commit(scope) { _postsMap.value[postId] } ?: getPostDetail(postId).getOrNull()
+                ?: return@scoped Result.failure(Exception("Bài viết không tồn tại"))
 
-        val targetBookmarked = !currentPost.isBookmarked
+            val targetBookmarked = !currentPost.isBookmarked
 
-        // 1. Cập nhật lạc quan chỉ trên trường Bookmark
-        _postsMap.update { currentMap ->
-            val p = currentMap[postId] ?: currentPost
-            val updated = p.copy(isBookmarked = targetBookmarked)
-            currentMap + (postId to updated)
-        }
-
-        val source = settingsDataStore.getDataSource()
-        if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
-            return@withContext Result.success(_postsMap.value[postId] ?: currentPost)
-        }
-
-        // 2. Gửi request mạng
-        val callResult: Result<BookmarkResponseDto> = if (targetBookmarked) {
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.bookmarkPost(postId) }
-        } else {
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.unbookmarkPost(postId) }
-        }
-
-        if (tokenStore != null && tokenStore.getSessionGeneration() != currentGen) {
-            return@withContext Result.failure(CancellationException("Session invalidated"))
-        }
-
-        if (callResult.isSuccess) {
-            val dto = callResult.getOrThrow()
-            _postsMap.update { currentMap ->
-                val p = currentMap[postId] ?: return@update currentMap
-                val merged = p.copy(isBookmarked = dto.isBookmarked)
-                currentMap + (postId to merged)
+            // 1. Cập nhật lạc quan chỉ trên trường Bookmark
+            commit(scope) {
+                mutationStarted(postId, "bookmark"); _postsMap.update { currentMap ->
+                val p = currentMap[postId] ?: currentPost
+                val updated = p.copy(isBookmarked = targetBookmarked)
+                currentMap + (postId to updated)
             }
-            Result.success(_postsMap.value[postId] ?: currentPost)
-        } else {
-            // 3. Hoàn tác chỉ trên trường Bookmark
-            _postsMap.update { currentMap ->
-                val p = currentMap[postId] ?: return@update currentMap
-                val reverted = p.copy(isBookmarked = currentPost.isBookmarked)
-                currentMap + (postId to reverted)
             }
-            Result.failure(callResult.exceptionOrNull() ?: Exception("Không thể lưu bài viết"))
+
+            try {
+                val source = scope.source
+                if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
+                    return@scoped Result.success(commit(scope) { _postsMap.value[postId] }
+                        ?: currentPost)
+                }
+
+                // 2. Gửi request mạng
+                val callResult: Result<BookmarkResponseDto> = if (targetBookmarked) {
+                    safeApiCall(dispatcher = dispatcher, gson = gson) {
+                        feedApi.bookmarkPost(
+                            postId,
+                            SessionRequest(scope.generation)
+                        )
+                    }
+                } else {
+                    safeApiCall(dispatcher = dispatcher, gson = gson) {
+                        feedApi.unbookmarkPost(
+                            postId,
+                            SessionRequest(scope.generation)
+                        )
+                    }
+                }
+
+                if (tokenStore != null && tokenStore.getSessionGeneration() != currentGen) {
+                    return@scoped Result.failure(CancellationException("Session invalidated"))
+                }
+
+                if (callResult.isSuccess) {
+                    val dto = callResult.getOrThrow()
+                    commit(scope) {
+                        _postsMap.update { currentMap ->
+                            val p = currentMap[postId] ?: return@update currentMap
+                            val merged = p.copy(isBookmarked = dto.isBookmarked)
+                            currentMap + (postId to merged)
+                        }
+                    }
+                    Result.success(commit(scope) { _postsMap.value[postId] } ?: currentPost)
+                } else {
+                    // 3. Hoàn tác chỉ trên trường Bookmark
+                    commit(scope) {
+                        _postsMap.update { currentMap ->
+                            val p = currentMap[postId] ?: return@update currentMap
+                            val reverted = p.copy(isBookmarked = currentPost.isBookmarked)
+                            currentMap + (postId to reverted)
+                        }
+                    }
+                    Result.failure(
+                        callResult.exceptionOrNull() ?: Exception("Không thể lưu bài viết")
+                    )
+                }
+            } finally {
+                mutationFinished(scope, postId, "bookmark")
+            }
         }
     }
 
-    override suspend fun deletePost(postId: Long): Result<Unit> = withContext(dispatcher) {
-        val source = settingsDataStore.getDataSource()
+    override suspend fun deletePost(postId: Long): Result<Unit> = scoped { scope ->
+        val source = scope.source
         if (source != SettingsDataStore.SOURCE_DUMMY_JSON) {
-            val callResult: Result<Unit> =
-                safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.deletePost(postId) }
+            val callResult: Result<Unit> = safeApiCall(dispatcher = dispatcher, gson = gson) {
+                val response = feedApi.deletePost(postId, SessionRequest(scope.generation))
+                // DELETE của MB Server trả success/data:null; HTTP 204 cũng không có payload.
+                if (response.isSuccessful && (response.code() == 204 || response.body()?.success == true))
+                    retrofit2.Response.success(ApiResponse(success = true, data = Unit))
+                else response
+            }
             if (callResult.isFailure) {
-                return@withContext Result.failure(
+                return@scoped Result.failure(
                     callResult.exceptionOrNull() ?: Exception("Xóa bài thất bại")
                 )
             }
         }
 
         // Xóa khỏi cache tập trung
-        val currentMap = _postsMap.value.toMutableMap()
-        currentMap.remove(postId)
-        _postsMap.value = currentMap
+        commit(scope) {
+            deletedVersions[postId] = ++cacheVersion
+            feedEpoch++
+            _postsMap.update { it - postId }
+        }
 
         Result.success(Unit)
     }
@@ -390,18 +568,28 @@ class FeedRepositoryImpl(
     override suspend fun toggleFollowUser(
         userId: Long,
         currentFollowing: Boolean
-    ): Result<Boolean> = withContext(dispatcher) {
+    ): Result<Boolean> = scoped { scope ->
         val targetFollowing = !currentFollowing
-        val source = settingsDataStore.getDataSource()
+        val source = scope.source
 
         if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
-            return@withContext Result.success(targetFollowing)
+            return@scoped Result.success(targetFollowing)
         }
 
         val callResult: Result<UserDto> = if (targetFollowing) {
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.followUser(userId) }
+            safeApiCall(dispatcher = dispatcher, gson = gson) {
+                feedApi.followUser(
+                    userId,
+                    SessionRequest(scope.generation)
+                )
+            }
         } else {
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.unfollowUser(userId) }
+            safeApiCall(dispatcher = dispatcher, gson = gson) {
+                feedApi.unfollowUser(
+                    userId,
+                    SessionRequest(scope.generation)
+                )
+            }
         }
 
         if (callResult.isSuccess) {
@@ -418,26 +606,36 @@ class FeedRepositoryImpl(
         pageSize: Int,
         sort: String,
         parentId: Long?
-    ): Result<List<Comment>> = withContext(dispatcher) {
-        val source = settingsDataStore.getDataSource()
+    ): Result<List<Comment>> = scoped { scope ->
+        val source = scope.source
 
         if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
             try {
-                val response = dummyJsonApi.getPostComments(postId)
+                val response =
+                    dummyJsonApi.getPostComments(postId, SessionRequest(scope.generation))
                 if (response.isSuccessful && response.body() != null) {
                     val dummyComments = response.body()?.comments ?: emptyList()
                     val mapped = dummyComments.map { commentMapper.mapFromDummyJson(it) }
-                    return@withContext Result.success(mapped)
+                    return@scoped Result.success(mapped)
                 } else {
-                    return@withContext Result.failure(Exception("DummyJSON comments failed: HTTP ${response.code()}"))
+                    return@scoped Result.failure(Exception("DummyJSON comments failed: HTTP ${response.code()}"))
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
-                return@withContext Result.failure(e)
+                return@scoped Result.failure(e)
             }
         }
 
         val result: Result<List<CommentDto>> = safeApiCall(dispatcher = dispatcher, gson = gson) {
-            feedApi.getComments(postId, page, pageSize, sort, parentId)
+            feedApi.getComments(
+                postId,
+                page,
+                pageSize,
+                sort,
+                parentId,
+                SessionRequest(scope.generation)
+            )
         }
         if (result.isSuccess) {
             val list = result.getOrThrow()
@@ -451,8 +649,8 @@ class FeedRepositoryImpl(
         postId: Long,
         content: String,
         parentId: Long?
-    ): Result<Comment> = withContext(dispatcher) {
-        val source = settingsDataStore.getDataSource()
+    ): Result<Comment> = scoped { scope ->
+        val source = scope.source
 
         if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
             val dummyComment = Comment(
@@ -466,11 +664,15 @@ class FeedRepositoryImpl(
                 replyCount = 0,
                 createdAt = "Vừa xong"
             )
-            return@withContext Result.success(dummyComment)
+            return@scoped Result.success(dummyComment)
         }
 
         val result: Result<CommentDto> = safeApiCall(dispatcher = dispatcher, gson = gson) {
-            feedApi.postComment(postId, PostCommentRequest(content, parentId))
+            feedApi.postComment(
+                postId,
+                PostCommentRequest(content, parentId),
+                SessionRequest(scope.generation)
+            )
         }
         if (result.isSuccess) {
             val dto = result.getOrThrow()
@@ -483,18 +685,28 @@ class FeedRepositoryImpl(
     override suspend fun toggleLikeComment(
         commentId: Long,
         currentLiked: Boolean
-    ): Result<Boolean> = withContext(dispatcher) {
+    ): Result<Boolean> = scoped { scope ->
         val targetLiked = !currentLiked
-        val source = settingsDataStore.getDataSource()
+        val source = scope.source
 
         if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
-            return@withContext Result.success(targetLiked)
+            return@scoped Result.success(targetLiked)
         }
 
         val result: Result<CommentLikeResponseDto> = if (targetLiked) {
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.likeComment(commentId) }
+            safeApiCall(dispatcher = dispatcher, gson = gson) {
+                feedApi.likeComment(
+                    commentId,
+                    SessionRequest(scope.generation)
+                )
+            }
         } else {
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.unlikeComment(commentId) }
+            safeApiCall(dispatcher = dispatcher, gson = gson) {
+                feedApi.unlikeComment(
+                    commentId,
+                    SessionRequest(scope.generation)
+                )
+            }
         }
         if (result.isSuccess) {
             val dto = result.getOrThrow()
@@ -504,17 +716,48 @@ class FeedRepositoryImpl(
         }
     }
 
-    override fun clearCache() {
-        _postsMap.value = emptyMap()
-        cachedStories = emptyList()
+    private suspend fun currentStoryAuthor(): Author {
+        val saved = settingsDataStore.getSavedUserJson()?.let { json ->
+            try {
+                gson.fromJson(json, User::class.java)
+            } catch (_: Exception) {
+                null
+            }
+        }
+        return if (saved == null) Author(0, "me", "", null, false)
+        else Author(saved.id, saved.username, saved.displayName, saved.avatarUrl, saved.verified)
     }
 
-    private fun updatePostsCache(posts: List<Post>) {
-        if (posts.isEmpty()) return
-        val current = _postsMap.value.toMutableMap()
-        for (p in posts) {
-            current[p.id] = p
+    override fun clearCache() {
+        synchronized(cacheLock) { clearLocked() }
+    }
+
+    /**
+     * Cập nhật danh sách bài viết vào cache Map tập trung theo ID bài viết.
+     */
+    private suspend fun updatePostsCache(scope: Scope, posts: List<Post>) {
+        commit(scope) {
+            if (posts.any {
+                    (deletedVersions[it.id] ?: -1L) > scope.cacheVersion
+                }) throw InvalidScope()
+            _postsMap.update { current ->
+                val merged = posts.associate { incoming ->
+                    val existing = current[incoming.id]
+                    val like = incoming.id to "like"
+                    val bookmark = incoming.id to "bookmark"
+                    val preserveLike =
+                        like in activeMutations || (fieldVersions[like] ?: -1L) > scope.cacheVersion
+                    val preserveBookmark = bookmark in activeMutations || (fieldVersions[bookmark]
+                        ?: -1L) > scope.cacheVersion
+                    var post = incoming
+                    if (existing != null && preserveLike) post =
+                        post.copy(isLiked = existing.isLiked, likeCount = existing.likeCount)
+                    if (existing != null && preserveBookmark) post =
+                        post.copy(isBookmarked = existing.isBookmarked)
+                    incoming.id to post
+                }
+                current + merged
+            }
         }
-        _postsMap.value = current
     }
 }

@@ -5,10 +5,15 @@ import com.ntq.training.momentbox.domain.model.FeedItem
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.domain.model.Story
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 interface FeedRepository {
     val postsMapFlow: StateFlow<Map<Long, Post>>
+    val followingMapFlow: StateFlow<Map<Long, Boolean>> get() = EMPTY_FOLLOWING
+    companion object {
+        private val EMPTY_FOLLOWING: StateFlow<Map<Long, Boolean>> = MutableStateFlow(emptyMap())
+    }
     fun observePost(postId: Long): Flow<Post?>
     suspend fun getStories(): Result<List<Story>>
     suspend fun getFeed(page: Int, pageSize: Int = 10): Result<List<FeedItem>>

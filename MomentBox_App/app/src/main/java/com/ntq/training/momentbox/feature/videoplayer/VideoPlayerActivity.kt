@@ -12,7 +12,11 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.SeekBar
 import android.widget.Toast
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.view.Gravity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -24,6 +28,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.databinding.ActivityVideoPlayerBinding
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import java.util.Locale
 
 
@@ -38,14 +44,10 @@ class VideoPlayerActivity : AppCompatActivity() {
 
         /** Trả về vị trí phát hiện tại cho FeedFragment */
         const val EXTRA_RETURN_POSITION_MS = "EXTRA_RETURN_POSITION_MS"
+
         /** Trả về ý định phát tiếp của người dùng */
         const val EXTRA_RETURN_PLAY_WHEN_READY = "EXTRA_RETURN_PLAY_WHEN_READY"
 
-        private const val KEY_POSITION = "KEY_POSITION"
-        private const val KEY_USER_INTENDED_PLAY = "KEY_USER_INTENDED_PLAY"
-        private const val KEY_SPEED = "KEY_SPEED"
-        private const val KEY_IS_LOCKED = "KEY_IS_LOCKED"
-        private const val KEY_IS_MUTED = "KEY_IS_MUTED"
     }
 
     private lateinit var binding: ActivityVideoPlayerBinding
@@ -55,12 +57,35 @@ class VideoPlayerActivity : AppCompatActivity() {
     private var postTitle: String = ""
     private var authorName: String = ""
 
-    private var currentPositionMs: Long = 0L
+    private val playbackState: VideoPlaybackViewModel by viewModels()
+    private var speedSheet: BottomSheetDialog? = null
+    private var currentPositionMs: Long
+        get() = playbackState.positionMs
+        set(value) {
+            playbackState.positionMs = value
+        }
+
     /** Ý định phát của người dùng: true nếu người dùng muốn video đang phát, false nếu người dùng đã bấm Pause */
-    private var userIntendedPlay: Boolean = true
-    private var currentSpeed: Float = 1.0f
-    private var isLocked: Boolean = false
-    private var isMuted: Boolean = false
+    private var userIntendedPlay: Boolean
+        get() = playbackState.intendedPlay
+        set(value) {
+            playbackState.intendedPlay = value
+        }
+    private var currentSpeed: Float
+        get() = playbackState.speed
+        set(value) {
+            playbackState.speed = value
+        }
+    private var isLocked: Boolean
+        get() = playbackState.locked
+        set(value) {
+            playbackState.locked = value
+        }
+    private var isMuted: Boolean
+        get() = playbackState.muted
+        set(value) {
+            playbackState.muted = value
+        }
 
     private val handler = Handler(Looper.getMainLooper())
     private var isScrubbingSeekBar = false
@@ -74,7 +99,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         hideOverlayControls()
     }
 
-    // Bộ cập nhật tiến trình SeekBar theo chu kỳ 200ms
+    // BA yêu cầu cập nhật thời gian mỗi 500 ms; dừng callback khi Activity không còn started.
     private val updateProgressRunnable = object : Runnable {
         override fun run() {
             exoPlayer?.let { player ->
@@ -92,7 +117,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                     binding.tvTotalDuration.text = formatTime(duration)
                 }
             }
-            if (screenStarted && exoPlayer != null) handler.postDelayed(this, 200)
+            if (screenStarted && exoPlayer != null) handler.postDelayed(this, 500)
         }
     }
 
@@ -105,17 +130,11 @@ class VideoPlayerActivity : AppCompatActivity() {
         videoUrl = intent.getStringExtra(EXTRA_VIDEO_URL) ?: ""
         postTitle = intent.getStringExtra(EXTRA_POST_TITLE) ?: getString(R.string.media_video_title)
         authorName = intent.getStringExtra(EXTRA_AUTHOR_NAME) ?: "MomentBox"
-        currentPositionMs = intent.getLongExtra(EXTRA_START_POSITION_MS, 0L)
-        userIntendedPlay = intent.getBooleanExtra(EXTRA_START_PLAY_WHEN_READY, true)
-
-        // Khôi phục trạng thái từ SavedInstanceState nếu Activity bị tái tạo do xoay màn hình
-        if (savedInstanceState != null) {
-            currentPositionMs = savedInstanceState.getLong(KEY_POSITION, currentPositionMs)
-            userIntendedPlay = savedInstanceState.getBoolean(KEY_USER_INTENDED_PLAY, true)
-            currentSpeed = savedInstanceState.getFloat(KEY_SPEED, 1.0f)
-            isLocked = savedInstanceState.getBoolean(KEY_IS_LOCKED, false)
-            isMuted = savedInstanceState.getBoolean(KEY_IS_MUTED, false)
-        }
+        // Intent chỉ khởi tạo lần đầu; SavedStateHandle giữ giá trị mới nhất khi recreate.
+        playbackState.initialize(
+            intent.getLongExtra(EXTRA_START_POSITION_MS, 0L),
+            intent.getBooleanExtra(EXTRA_START_PLAY_WHEN_READY, true)
+        )
 
         setupImmersiveMode()
         setupGestureDetector()
@@ -133,7 +152,8 @@ class VideoPlayerActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val controller = WindowInsetsControllerCompat(window, window.decorView)
         controller.hide(WindowInsetsCompat.Type.systemBars())
-        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 
     private fun setupGestureDetector() {
@@ -168,7 +188,9 @@ class VideoPlayerActivity : AppCompatActivity() {
         with(binding) {
             tvVideoTitle.text = postTitle
             tvVideoAuthorViews.text = getString(R.string.media_video_author, authorName)
-            tvSpeedText.text = String.format(Locale.getDefault(), "%.1fx", currentSpeed)
+            tvSpeedText.text = "${currentSpeed}x"
+            // Player mới mặc định đang pause; có thể chưa phát onIsPlayingChanged(false).
+            ivPlayPauseLarge.setImageResource(R.drawable.ic_play_arrow)
 
             btnBack.setOnClickListener { handleBack() }
 
@@ -211,16 +233,17 @@ class VideoPlayerActivity : AppCompatActivity() {
                 if (isLocked) return@setOnClickListener
                 exoPlayer?.let { player ->
                     val duration = player.duration
-                    val target = (player.currentPosition + 10000L).coerceAtMost(if (duration > 0) duration else Long.MAX_VALUE)
+                    val target =
+                        (player.currentPosition + 10000L).coerceAtMost(if (duration > 0) duration else Long.MAX_VALUE)
                     player.seekTo(target)
                 }
                 resetAutoHideTimer()
             }
 
-            // Chỉnh tốc độ phát: 0.5x -> 1.0x -> 1.25x -> 1.5x -> 2.0x -> 0.5x
+            // Mở danh sách lựa chọn; bấm mở không tự ý thay đổi tốc độ hiện tại.
             btnPlaybackSpeed.setOnClickListener {
                 if (isLocked) return@setOnClickListener
-                cyclePlaybackSpeed()
+                showPlaybackSpeedSheet()
                 resetAutoHideTimer()
             }
 
@@ -250,7 +273,11 @@ class VideoPlayerActivity : AppCompatActivity() {
 
             // Lắng nghe thanh tua SeekBar
             seekBarVideo.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                override fun onProgressChanged(
+                    seekBar: SeekBar?,
+                    progress: Int,
+                    fromUser: Boolean
+                ) {
                     if (fromUser && !isLocked) {
                         exoPlayer?.let { player ->
                             if (player.duration > 0) {
@@ -317,7 +344,8 @@ class VideoPlayerActivity : AppCompatActivity() {
                     pauseVideo(userInitiated = true)
                     binding.tvVideoAuthorViews.text = getString(R.string.media_video_error_retry)
                     binding.tvVideoAuthorViews.setOnClickListener {
-                        binding.tvVideoAuthorViews.text = getString(R.string.media_video_author, authorName)
+                        binding.tvVideoAuthorViews.text =
+                            getString(R.string.media_video_author, authorName)
                         binding.tvVideoAuthorViews.setOnClickListener(null)
                         playVideo()
                     }
@@ -372,18 +400,38 @@ class VideoPlayerActivity : AppCompatActivity() {
         audio.release(this)
     }
 
-    private fun cyclePlaybackSpeed() {
-        val nextSpeed = when (currentSpeed) {
-            0.5f -> 1.0f
-            1.0f -> 1.25f
-            1.25f -> 1.5f
-            1.5f -> 2.0f
-            else -> 0.5f
+    private fun showPlaybackSpeedSheet() {
+        if (speedSheet?.isShowing == true) return
+        val sheet = BottomSheetDialog(this)
+        val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val padding = (24 * resources.displayMetrics.density).toInt()
+        for (speed in listOf(0.5f, 1f, 1.25f, 1.5f, 2f)) {
+            content.addView(TextView(this).apply {
+                text = "${speed}x"
+                textSize = 16f
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(padding, padding / 2, padding, padding / 2)
+                minimumHeight = (48 * resources.displayMetrics.density).toInt()
+                isSelected = currentSpeed == speed
+                isFocusable = true
+                setOnClickListener {
+                    currentSpeed = speed
+                    exoPlayer?.setPlaybackSpeed(speed)
+                    binding.tvSpeedText.text = "${speed}x"
+                    sheet.dismiss()
+                }
+            }, LinearLayout.LayoutParams(-1, -2))
         }
-        currentSpeed = nextSpeed
-        exoPlayer?.setPlaybackSpeed(nextSpeed)
-        binding.tvSpeedText.text = String.format(Locale.getDefault(), "%.2fx", nextSpeed).replace(".00", ".0")
-        Toast.makeText(this, getString(R.string.audio_speed_format, binding.tvSpeedText.text.toString().removeSuffix("x")), Toast.LENGTH_SHORT).show()
+        sheet.setContentView(content)
+        sheet.setOnDismissListener {
+            speedSheet = null
+            if (screenStarted && !isFinishing) resetAutoHideTimer()
+        }
+        speedSheet = sheet
+        sheet.show()
+        // Mở hết danh sách, kể cả viewport thấp; test chờ EXPANDED trước khi chạm để tránh hit target đang chuyển động.
+        sheet.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        handler.removeCallbacks(hideControlsRunnable)
     }
 
     private fun setControlsLocked(locked: Boolean) {
@@ -486,13 +534,9 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        // Chụp vị trí thật trước khi SavedStateRegistry ghi SavedStateHandle.
+        currentPositionMs = exoPlayer?.currentPosition ?: currentPositionMs
         super.onSaveInstanceState(outState)
-        outState.putLong(KEY_POSITION, exoPlayer?.currentPosition ?: currentPositionMs)
-        // Lưu cả khi onStop đã release player; trạng thái không phụ thuộc reference decoder.
-        outState.putBoolean(KEY_USER_INTENDED_PLAY, userIntendedPlay)
-        outState.putFloat(KEY_SPEED, currentSpeed)
-        outState.putBoolean(KEY_IS_LOCKED, isLocked)
-        outState.putBoolean(KEY_IS_MUTED, isMuted)
     }
 
     override fun onStart() {
@@ -524,6 +568,8 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        speedSheet?.dismiss()
+        speedSheet = null
         handler.removeCallbacksAndMessages(null)
         audio.release(this)
         if (isFinishing) returnHandoffResult()

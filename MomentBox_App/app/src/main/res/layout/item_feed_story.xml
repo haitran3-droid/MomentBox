@@ -2,29 +2,32 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="wrap_content"
+    android:layout_width="64dp"
     android:layout_height="wrap_content"
-    android:minWidth="68dp"
-    android:layout_marginEnd="10dp"
+    android:layout_marginEnd="12dp"
+    android:clipChildren="false"
     android:gravity="center_horizontal"
     android:orientation="vertical">
 
     <FrameLayout
-        android:layout_width="56dp"
-        android:layout_height="56dp">
+        android:id="@+id/storyAvatarFrame"
+        android:layout_width="61dp"
+        android:layout_height="61dp"
+        android:clipChildren="false">
 
         <!-- Lớp 1: Vòng viền Story gradient / seen dạng oval -->
         <View
             android:id="@+id/viewStoryRing"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_gravity="center"
             android:background="@drawable/bg_story_ring_unread" />
 
         <!-- Lớp 2: Viền đệm trắng ngăn cách giữa vòng ngoài và avatar -->
         <View
             android:id="@+id/viewStoryRingGap"
-            android:layout_width="51dp"
-            android:layout_height="51dp"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
             android:layout_gravity="center"
             android:background="@drawable/bg_story_ring_seen"
             android:backgroundTint="@color/white" />
@@ -32,26 +35,44 @@
         <!-- Lớp 3: Ảnh đại diện Story tròn -->
         <ImageView
             android:id="@+id/ivStoryAvatar"
-            android:layout_width="47dp"
-            android:layout_height="47dp"
+            android:layout_width="51dp"
+            android:layout_height="51dp"
             android:layout_gravity="center"
             android:background="@drawable/bg_avatar_placeholder"
             android:scaleType="centerCrop"
-            tools:srcCompat="@drawable/bg_avatar_placeholder" />
+            tools:srcCompat="@drawable/bg_avatar_placeholder"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no" />
+
+        <!-- Chữ cái đầu nằm trên nền tròn khi tài khoản chưa có ảnh đại diện. -->
+        <TextView
+            android:id="@+id/tvStoryInitial"
+            android:layout_width="51dp"
+            android:layout_height="51dp"
+            android:layout_gravity="center"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:gravity="center"
+            android:importantForAccessibility="no"
+            android:textColor="@color/text_secondary"
+            android:textSize="19sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
 
         <!-- Nút dấu + thêm story cá nhân -->
         <FrameLayout
             android:id="@+id/btnAddStory"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
             android:layout_gravity="bottom|end"
+            android:layout_marginEnd="-2dp"
+            android:layout_marginBottom="-2dp"
             android:background="@drawable/bg_play_circle"
             android:visibility="gone"
             tools:visibility="visible">
 
             <ImageView
-                android:layout_width="14dp"
-                android:layout_height="14dp"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:layout_gravity="center"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_add"
@@ -64,11 +85,13 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="5dp"
+        android:maxWidth="64dp"
         android:ellipsize="end"
         android:fontFamily="@font/be_vietnam_pro"
-        android:gravity="center_horizontal"
-        android:maxLines="1"
+        android:gravity="start"
+        android:includeFontPadding="false"
+        android:maxLines="2"
         android:textColor="@color/text_secondary"
-        android:textSize="11sp"
+        android:textSize="11.5sp"
         tools:text="Tin của bạn" />
 </LinearLayout>

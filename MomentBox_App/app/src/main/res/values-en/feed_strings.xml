@@ -10,7 +10,10 @@
     <string name="feed_see_all">See all</string>
     <string name="feed_dismiss_suggestion">Dismiss suggestion</string>
     <string name="feed_nearby">Near you</string>
-    <string name="feed_mutual_count">%1$d mutual friends</string>
+    <plurals name="feed_mutual_count">
+        <item quantity="one">%1$d mutual friend</item>
+        <item quantity="other">%1$d mutual friends</item>
+    </plurals>
     <string name="feed_avatar_of">Avatar of %1$s</string>
     <plurals name="post_minutes_ago"><item quantity="one">%d minute ago</item><item quantity="other">%d minutes ago</item></plurals>
     <plurals name="post_hours_ago"><item quantity="one">%d hour ago</item><item quantity="other">%d hours ago</item></plurals>

@@ -1,288 +1,290 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
+xmlns:app="http://schemas.android.com/apk/res-auto"
+xmlns:tools="http://schemas.android.com/tools"
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:layout_marginTop="8dp"
+android:background="@color/surface"
+android:orientation="vertical"
+android:paddingTop="12dp"
+android:paddingBottom="10dp">
+
+<!-- Header tác giả -->
+<LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="8dp"
-    android:background="@color/surface"
-    android:orientation="vertical"
-    android:paddingTop="12dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingEnd="8dp"
     android:paddingBottom="10dp">
 
-    <!-- Header tác giả -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingEnd="8dp"
-        android:paddingBottom="10dp">
+    <ImageView
+        android:id="@+id/ivAuthorAvatar"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/bg_avatar_placeholder"
+        android:scaleType="centerCrop"
+        tools:srcCompat="@drawable/ic_launcher_foreground"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
 
-        <ImageView
-            android:id="@+id/ivAuthorAvatar"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@color/surface_variant"
-            android:scaleType="centerCrop"
-            tools:srcCompat="@drawable/ic_launcher_foreground" />
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/tvAuthorName"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/be_vietnam_pro"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    tools:text="Travel VN" />
-
-                <ImageView
-                    android:id="@+id/ivVerified"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginStart="4dp"
-                    android:contentDescription="Xác minh"
-                    android:src="@drawable/ic_verified"
-                    android:visibility="gone"
-                    tools:visibility="visible" />
-            </LinearLayout>
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <TextView
-                android:id="@+id/tvPostMeta"
+                android:id="@+id/tvAuthorName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
                 android:fontFamily="@font/be_vietnam_pro"
-                android:textColor="@color/text_tertiary"
-                android:textSize="12sp"
-                tools:text="Hôm qua · Đà Nẵng · Công khai" />
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="Travel VN" />
+
+            <ImageView
+                android:id="@+id/ivVerified"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="4dp"
+                android:contentDescription="@string/feed_verified"
+                android:src="@drawable/ic_verified"
+                android:visibility="gone"
+                tools:visibility="visible" />
         </LinearLayout>
 
-        <FrameLayout
-            android:id="@+id/btnPostMore"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:clickable="true"
-            android:focusable="true">
-
-            <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:layout_gravity="center"
-                android:contentDescription="Tùy chọn"
-                android:src="@drawable/ic_more_horiz"
-                app:tint="@color/text_secondary" />
-        </FrameLayout>
+        <TextView
+            android:id="@+id/tvPostMeta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:textColor="@color/text_tertiary"
+            android:textSize="12sp"
+            tools:text="Hôm qua · Đà Nẵng · Công khai" />
     </LinearLayout>
 
-    <!-- Khung phát Video Media3 -->
     <FrameLayout
-        android:id="@+id/videoContainer"
-        android:layout_width="match_parent"
-        android:layout_height="196dp"
-        android:background="@color/black">
+        android:id="@+id/btnPostMore"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true">
 
-        <androidx.media3.ui.PlayerView
-            android:id="@+id/playerView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:use_controller="false" />
-
-        <!-- Thumbnail ảnh tĩnh khi chưa autoplay -->
         <ImageView
-            android:id="@+id/ivVideoThumbnail"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop" />
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center"
+            android:contentDescription="@string/menu_post_options"
+            android:src="@drawable/ic_more_horiz"
+            app:tint="@color/text_secondary" />
+    </FrameLayout>
+</LinearLayout>
 
-        <!-- Pill hiển thị thời lượng video e.g. 0:24 -->
-        <TextView
-            android:id="@+id/tvVideoDuration"
-            android:layout_width="wrap_content"
-            android:layout_height="24dp"
-            android:layout_gravity="top|end"
-            android:layout_marginTop="10dp"
-            android:layout_marginEnd="10dp"
-            android:background="@drawable/bg_pill_counter"
-            android:fontFamily="@font/be_vietnam_pro"
-            android:gravity="center"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:textColor="@color/white"
-            android:textSize="11.5sp"
-            android:textStyle="bold"
-            tools:text="0:24" />
+<!-- Khung phát Video Media3 -->
+<FrameLayout
+    android:id="@+id/videoContainer"
+    android:layout_width="match_parent"
+    android:layout_height="196dp"
+    android:background="@color/black">
 
-        <!-- Nút bật/tắt tiếng âm thanh video -->
-        <FrameLayout
-            android:id="@+id/btnMuteToggle"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_gravity="bottom|end"
-            android:layout_marginEnd="10dp"
-            android:layout_marginBottom="14dp"
-            android:background="@drawable/bg_pill_counter">
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/playerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:use_controller="false" />
 
-            <ImageView
-                android:id="@+id/ivMuteIcon"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:layout_gravity="center"
-                android:contentDescription="Tắt/Bật tiếng"
-                android:src="@drawable/ic_volume_off"
-                app:tint="@color/white" />
-        </FrameLayout>
+    <!-- Thumbnail ảnh tĩnh khi chưa autoplay -->
+    <ImageView
+        android:id="@+id/ivVideoThumbnail"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop" />
 
-        <!-- Đường tiến trình chạy video siêu mảnh dưới đáy -->
-        <ProgressBar
-            android:id="@+id/pbVideoLine"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="3dp"
-            android:layout_gravity="bottom"
-            android:max="100"
-            android:progress="38"
-            android:progressBackgroundTint="#59FFFFFF"
-            android:progressTint="@color/white" />
+    <!-- Pill hiển thị thời lượng video e.g. 0:24 -->
+    <TextView
+        android:id="@+id/tvVideoDuration"
+        android:layout_width="wrap_content"
+        android:layout_height="24dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="10dp"
+        android:background="@drawable/bg_pill_counter"
+        android:fontFamily="@font/be_vietnam_pro"
+        android:gravity="center"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:textColor="@color/white"
+        android:textSize="11.5sp"
+        android:textStyle="bold"
+        tools:text="0:24" />
+
+    <!-- Nút bật/tắt tiếng âm thanh video -->
+    <FrameLayout
+        android:id="@+id/btnMuteToggle"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/bg_pill_counter">
+
+        <ImageView
+            android:id="@+id/ivMuteIcon"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:contentDescription="@string/feed_toggle_mute"
+            android:src="@drawable/ic_volume_off"
+            app:tint="@color/white" />
     </FrameLayout>
 
-    <!-- Hàng nút tương tác: Like, Comment, Share, Bookmark -->
-    <LinearLayout
+    <!-- Đường tiến trình chạy video siêu mảnh dưới đáy -->
+    <ProgressBar
+        android:id="@+id/pbVideoLine"
+        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_gravity="bottom"
+        android:max="100"
+        android:progress="38"
+        android:progressBackgroundTint="#59FFFFFF"
+        android:progressTint="@color/white" />
+</FrameLayout>
+
+<!-- Hàng nút tương tác: Like, Comment, Share, Bookmark -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="6dp">
+
+    <LinearLayout
+        android:id="@+id/btnLike"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
         android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingTop="10dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="6dp">
+        android:orientation="horizontal">
 
-        <LinearLayout
-            android:id="@+id/btnLike"
+        <ImageView
+            android:id="@+id/ivLike"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="@string/feed_like"
+            android:src="@drawable/ic_favorite"
+            app:tint="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/tvLikeCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:id="@+id/ivLike"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:contentDescription="Thích"
-                android:src="@drawable/ic_favorite"
-                app:tint="@color/text_primary" />
-
-            <TextView
-                android:id="@+id/tvLikeCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="5dp"
-                android:fontFamily="@font/be_vietnam_pro"
-                android:textColor="@color/text_primary"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                tools:text="128" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/btnComment"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:contentDescription="Bình luận"
-                android:src="@drawable/ic_chat_bubble"
-                app:tint="@color/text_primary" />
-
-            <TextView
-                android:id="@+id/tvCommentCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="5dp"
-                android:fontFamily="@font/be_vietnam_pro"
-                android:textColor="@color/text_primary"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                tools:text="24" />
-        </LinearLayout>
-
-        <FrameLayout
-            android:id="@+id/btnShare"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true">
-
-            <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:contentDescription="Chia sẻ"
-                android:src="@drawable/ic_send"
-                app:tint="@color/text_primary" />
-        </FrameLayout>
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
-
-        <FrameLayout
-            android:id="@+id/btnBookmark"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true">
-
-            <ImageView
-                android:id="@+id/ivBookmark"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:contentDescription="Lưu bài viết"
-                android:src="@drawable/ic_bookmark"
-                app:tint="@color/text_primary" />
-        </FrameLayout>
+            android:layout_marginStart="5dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            tools:text="128" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/tvCaption"
-        android:layout_width="match_parent"
+    <LinearLayout
+        android:id="@+id/btnComment"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:fontFamily="@font/be_vietnam_pro"
-        android:lineSpacingExtra="3dp"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:textColor="@color/text_primary"
-        android:textSize="13.5sp"
-        tools:text="Travel VN Hoàng hôn trên bãi biển Mỹ Khê Đà Nẵng... #danang #sunset" />
+        android:layout_marginStart="16dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="@string/feed_comment"
+            android:src="@drawable/ic_chat_bubble"
+            app:tint="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/tvCommentCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            tools:text="24" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/btnShare"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="@string/feed_share"
+            android:src="@drawable/ic_share_outline"
+            app:tint="@color/text_primary" />
+    </FrameLayout>
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1" />
+
+    <FrameLayout
+        android:id="@+id/btnBookmark"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true">
+
+        <ImageView
+            android:id="@+id/ivBookmark"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="@string/menu_post_save"
+            android:src="@drawable/ic_bookmark"
+            app:tint="@color/text_primary" />
+    </FrameLayout>
+</LinearLayout>
+
+<TextView
+    android:id="@+id/tvCaption"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="4dp"
+    android:fontFamily="@font/be_vietnam_pro"
+    android:lineSpacingExtra="3dp"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:textColor="@color/text_primary"
+    android:textSize="13.5sp"
+    tools:text="Travel VN Hoàng hôn trên bãi biển Mỹ Khê Đà Nẵng... #danang #sunset" />
 </LinearLayout>

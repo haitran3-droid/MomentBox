@@ -31,7 +31,7 @@
                 android:layout_weight="1"
                 android:fontFamily="@font/be_vietnam_pro"
                 android:letterSpacing="-0.02"
-                android:text="MomentBox"
+                android:text="@string/app_name"
                 android:textColor="@color/primary"
                 android:textSize="22sp"
                 android:textStyle="bold" />
@@ -49,7 +49,7 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Tìm kiếm"
+                    android:contentDescription="@string/action_search"
                     android:src="@drawable/ic_search"
                     app:tint="@color/text_primary" />
             </FrameLayout>
@@ -68,7 +68,7 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Thông báo"
+                    android:contentDescription="@string/action_notifications"
                     android:src="@drawable/ic_notifications"
                     app:tint="@color/text_primary" />
 
@@ -85,9 +85,9 @@
                     android:minWidth="18dp"
                     android:paddingStart="4dp"
                     android:paddingEnd="4dp"
-                    android:text="5"
+                    tools:text="5"
                     android:textColor="@color/white"
-                    android:textSize="10.5sp"
+                    android:textSize="11sp"
                     android:textStyle="bold"
                     android:visibility="gone"
                     tools:visibility="visible" />
@@ -146,7 +146,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
                 android:fontFamily="@font/be_vietnam_pro"
-                android:text="3 bài viết mới"
+                tools:text="3 bài viết mới"
                 android:textColor="@color/white"
                 android:textSize="13sp"
                 android:textStyle="bold" />

@@ -17,8 +17,6 @@ class SuggestionsAdapter(
     private val onDismissClick: (User) -> Unit
 ) : ListAdapter<User, SuggestionsAdapter.SuggestionViewHolder>(SuggestionDiffCallback) {
 
-    override fun getItemViewType(position: Int): Int = R.layout.item_suggestion_card
-
     inner class SuggestionViewHolder(val binding: ItemSuggestionCardBinding) :
         RecyclerView.ViewHolder(binding.root) {
         init {
@@ -51,29 +49,29 @@ class SuggestionsAdapter(
         with(holder.binding) {
             tvSuggestionName.text = user.displayName
             tvSuggestionMutual.text = if (user.mutualCount > 0) {
-                "${user.mutualCount} bạn chung"
+                root.context.resources.getQuantityString(R.plurals.feed_mutual_count, user.mutualCount, user.mutualCount)
             } else {
-                "Gần bạn"
+                root.context.getString(R.string.feed_nearby)
             }
 
             if (user.isFollowing) {
-                btnSuggestionFollow.text = "Đang theo dõi"
+                btnSuggestionFollow.text = root.context.getString(R.string.following)
                 btnSuggestionFollow.setBackgroundResource(R.drawable.bg_btn_tonal)
                 btnSuggestionFollow.setTextColor(
                     ContextCompat.getColor(root.context, R.color.on_primary_container)
                 )
             } else {
-                btnSuggestionFollow.text = "Theo dõi"
-                btnSuggestionFollow.setBackgroundResource(R.drawable.bg_btn_primary)
+                btnSuggestionFollow.text = root.context.getString(R.string.follow)
+                btnSuggestionFollow.setBackgroundResource(R.drawable.bg_btn_tonal)
                 btnSuggestionFollow.setTextColor(
-                    ContextCompat.getColor(root.context, R.color.white)
+                    ContextCompat.getColor(root.context, R.color.on_primary_container)
                 )
             }
 
             Glide.with(ivSuggestionAvatar.context)
                 .load(user.avatarUrl)
-                .placeholder(R.color.surface_variant)
-                .error(R.drawable.ic_launcher_foreground)
+                .placeholder(R.drawable.bg_avatar_placeholder)
+                .error(R.drawable.bg_avatar_placeholder)
                 .transition(DrawableTransitionOptions.withCrossFade(150))
                 .circleCrop()
                 .into(ivSuggestionAvatar)

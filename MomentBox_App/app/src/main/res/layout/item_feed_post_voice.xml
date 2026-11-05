@@ -27,9 +27,11 @@
             android:id="@+id/ivAuthorAvatar"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="@color/surface_variant"
+            android:background="@drawable/bg_avatar_placeholder"
             android:scaleType="centerCrop"
-            tools:srcCompat="@drawable/ic_launcher_foreground" />
+            tools:srcCompat="@drawable/ic_launcher_foreground"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -71,7 +73,7 @@
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:layout_gravity="center"
-                android:contentDescription="Tùy chọn"
+                android:contentDescription="@string/menu_post_options"
                 android:src="@drawable/ic_more_horiz"
                 app:tint="@color/text_secondary" />
         </FrameLayout>
@@ -114,7 +116,7 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:layout_gravity="center"
-                android:contentDescription="Phát"
+                android:contentDescription="@string/feed_play"
                 android:src="@drawable/ic_play_arrow"
                 app:tint="@color/white" />
         </FrameLayout>
@@ -158,6 +160,24 @@
             android:textStyle="bold" />
     </LinearLayout>
 
+    <!-- Chỉ hiện lỗi thật; bấm nhãn này gọi lại cùng thao tác phát để thử lại. -->
+    <TextView
+        android:id="@+id/tvVoiceError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:fontFamily="@font/be_vietnam_pro"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp"
+        android:text="@string/feed_voice_error_retry"
+        android:textColor="@color/error"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
     <!-- Hàng nút tương tác: Like, Comment, Share, Bookmark -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -183,7 +203,7 @@
                 android:id="@+id/ivLike"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:contentDescription="Thích"
+                android:contentDescription="@string/feed_like"
                 android:src="@drawable/ic_favorite"
                 app:tint="@color/text_primary" />
 
@@ -213,7 +233,7 @@
             <ImageView
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:contentDescription="Bình luận"
+                android:contentDescription="@string/feed_comment"
                 android:src="@drawable/ic_chat_bubble"
                 app:tint="@color/text_primary" />
 
@@ -241,8 +261,8 @@
             <ImageView
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:contentDescription="Chia sẻ"
-                android:src="@drawable/ic_send"
+                android:contentDescription="@string/feed_share"
+                android:src="@drawable/ic_share_outline"
                 app:tint="@color/text_primary" />
         </FrameLayout>
 
@@ -263,7 +283,7 @@
                 android:id="@+id/ivBookmark"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:contentDescription="Lưu bài viết"
+                android:contentDescription="@string/menu_post_save"
                 android:src="@drawable/ic_bookmark"
                 app:tint="@color/text_primary" />
         </FrameLayout>

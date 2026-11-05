@@ -23,7 +23,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:fontFamily="@font/be_vietnam_pro"
-            android:text="Gợi ý cho bạn"
+            android:text="@string/suggestions_title"
             android:textColor="@color/text_primary"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -33,7 +33,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/be_vietnam_pro"
-            android:text="Xem tất cả"
+            android:text="@string/feed_see_all"
             android:textColor="@color/primary"
             android:textSize="13sp"
             android:textStyle="bold" />

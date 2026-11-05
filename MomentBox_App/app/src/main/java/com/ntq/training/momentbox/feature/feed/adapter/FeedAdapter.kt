@@ -1,6 +1,16 @@
 package com.ntq.training.momentbox.feature.feed.adapter
 
 import android.graphics.Typeface
+import android.text.StaticLayout
+import android.text.SpannableStringBuilder
+import android.text.TextPaint
+import android.text.method.LinkMovementMethod
+import android.text.style.ClickableSpan
+import android.widget.TextView
+import androidx.core.view.doOnLayout
+import androidx.core.view.ViewCompat
+import com.ntq.training.momentbox.core.ui.PostMetadata
+import com.ntq.training.momentbox.feature.feed.FeedPresentationState
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
@@ -16,12 +26,8 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
-import com.ntq.training.momentbox.core.media.VoicePlaybackState
-import com.ntq.training.momentbox.domain.model.FeedItem
-import com.ntq.training.momentbox.domain.model.Post
-import com.ntq.training.momentbox.domain.model.Story
-import com.ntq.training.momentbox.domain.model.User
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.media.VoicePlaybackState
 import com.ntq.training.momentbox.databinding.ItemFeedLoadingFooterBinding
 import com.ntq.training.momentbox.databinding.ItemFeedPostPhotoBinding
 import com.ntq.training.momentbox.databinding.ItemFeedPostTextBinding
@@ -29,7 +35,12 @@ import com.ntq.training.momentbox.databinding.ItemFeedPostVideoBinding
 import com.ntq.training.momentbox.databinding.ItemFeedPostVoiceBinding
 import com.ntq.training.momentbox.databinding.ItemFeedStoryBarBinding
 import com.ntq.training.momentbox.databinding.ItemFeedSuggestionsBinding
+import com.ntq.training.momentbox.domain.model.FeedItem
+import com.ntq.training.momentbox.domain.model.Post
+import com.ntq.training.momentbox.domain.model.Story
+import com.ntq.training.momentbox.domain.model.User
 import java.util.Locale
+
 
 class FeedAdapter(
     private val recycledViewPool: RecyclerView.RecycledViewPool,
@@ -49,7 +60,8 @@ class FeedAdapter(
     private val onVideoMuteToggle: (Post, PlayerView) -> Unit,
     private val onVideoFullscreenClick: (Post) -> Unit,
     private val onFooterRetryClick: () -> Unit,
-    private val onVideoHolderRecycled: (PlayerView) -> Unit = {}
+    private val onVideoHolderRecycled: (PlayerView) -> Unit = {},
+    private val presentationState: FeedPresentationState = FeedPresentationState()
 ) : ListAdapter<FeedItem, RecyclerView.ViewHolder>(FeedDiffCallback) {
 
     companion object {
@@ -63,17 +75,26 @@ class FeedAdapter(
 
         const val PAYLOAD_LIKE = "PAYLOAD_LIKE"
         const val PAYLOAD_BOOKMARK = "PAYLOAD_BOOKMARK"
+        private const val PAYLOAD_VIDEO_MUTE = "PAYLOAD_VIDEO_MUTE"
     }
 
     private var currentVoiceState = VoicePlaybackState()
-    private val expandedPostIds = mutableSetOf<Long>()
-    private val albumPositions = mutableMapOf<Long, Int>()
+    private var videoMuted = true
+
+    /** Chỉ đổi icon của hàng video, không bind lại ảnh hoặc gắn lại player. */
+    fun updateVideoMuteState(isMuted: Boolean) {
+        videoMuted = isMuted
+        currentList.forEachIndexed { index, item ->
+            if (item is FeedItem.PostItem && item.post.isVideoPost) notifyItemChanged(index, PAYLOAD_VIDEO_MUTE)
+        }
+    }
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
         super.onViewRecycled(holder)
         if (holder is VideoPostViewHolder) {
             onVideoHolderRecycled(holder.binding.playerView)
         }
+        if (holder is PhotoPostViewHolder) holder.recycle()
     }
 
     fun updateVoicePlaybackState(state: VoicePlaybackState) {
@@ -161,6 +182,13 @@ class FeedAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         private var pageCallback: ViewPager2.OnPageChangeCallback? = null
+        private var boundPost: Post? = null
+
+        fun recycle() {
+            pageCallback?.let { binding.vpPostPhotos.unregisterOnPageChangeCallback(it) }
+            pageCallback = null
+            boundPost = null
+        }
 
         init {
             binding.root.setOnClickListener {
@@ -181,16 +209,6 @@ class FeedAdapter(
             binding.btnPostMore.setOnClickListener {
                 getPost()?.let { onMoreClick(it) }
             }
-            binding.tvCaption.setOnClickListener {
-                getPost()?.let { post ->
-                    if (expandedPostIds.contains(post.id)) {
-                        expandedPostIds.remove(post.id)
-                    } else {
-                        expandedPostIds.add(post.id)
-                    }
-                    bindCaption(post)
-                }
-            }
         }
 
         private fun getPost(): Post? {
@@ -199,13 +217,11 @@ class FeedAdapter(
         }
 
         private fun bindCaption(post: Post) {
-            val isExpanded = expandedPostIds.contains(post.id)
-            binding.tvCaption.maxLines = if (isExpanded) Int.MAX_VALUE else 3
-            binding.tvCaption.ellipsize = if (isExpanded) null else android.text.TextUtils.TruncateAt.END
-            binding.tvCaption.text = buildSpannableCaption(post.author.displayName, post.caption)
+            bindCaptionView(binding.tvCaption, post)
         }
 
         fun bind(post: Post, payloads: List<Any>) {
+            boundPost = post
             if (payloads.isNotEmpty()) {
                 for (payload in payloads) {
                     when (payload) {
@@ -218,7 +234,7 @@ class FeedAdapter(
 
             with(binding) {
                 tvAuthorName.text = post.author.displayName
-                tvPostMeta.text = buildMetaString(root.context, post)
+                PostMetadata.bind(tvPostMeta, post)
                 bindCaption(post)
 
                 Glide.with(ivAuthorAvatar.context)
@@ -230,33 +246,36 @@ class FeedAdapter(
 
                 val imageUrls = post.media.map { it.url }
 
+                // Bỏ callback của bài cũ trước khi thay adapter vì ViewPager có thể phát sự kiện reset ngay.
+                pageCallback?.let { vpPostPhotos.unregisterOnPageChangeCallback(it) }
+                pageCallback = null
+
                 // Tái sử dụng Adapter nếu danh sách ảnh không đổi (D07)
                 val currentAdapter = vpPostPhotos.adapter as? PhotoAlbumAdapter
                 if (currentAdapter == null || currentAdapter.images != imageUrls) {
                     vpPostPhotos.adapter = PhotoAlbumAdapter(imageUrls) {
-                        onPostClick(post)
+                        boundPost?.let(onPostClick)
                     }
                 }
-
-                // Hủy callback cũ trước khi đăng ký callback mới để tránh tích lũy callbacks (D07)
-                pageCallback?.let { vpPostPhotos.unregisterOnPageChangeCallback(it) }
 
                 if (imageUrls.size > 1) {
                     layoutPhotoCounter.visibility = View.VISIBLE
                     photoIndicator.visibility = View.VISIBLE
                     photoIndicator.setPageCount(imageUrls.size)
 
-                    val savedPos = albumPositions[post.id] ?: 0
+                    val savedPos = presentationState.albumPosition(post.id).coerceIn(0, imageUrls.lastIndex)
                     if (vpPostPhotos.currentItem != savedPos && savedPos < imageUrls.size) {
                         vpPostPhotos.setCurrentItem(savedPos, false)
                     }
-                    tvPhotoCounter.text = "${vpPostPhotos.currentItem + 1}/${imageUrls.size}"
+                    photoIndicator.setCurrentPage(vpPostPhotos.currentItem)
+                    tvPhotoCounter.text = root.context.getString(R.string.ui_page_counter, vpPostPhotos.currentItem + 1, imageUrls.size)
 
                     val newCallback = object : ViewPager2.OnPageChangeCallback() {
                         override fun onPageSelected(position: Int) {
-                            albumPositions[post.id] = position
-                            tvPhotoCounter.text = "${position + 1}/${imageUrls.size}"
-                            photoIndicator.setPageCount(imageUrls.size)
+                            if (boundPost?.id != post.id) return
+                            presentationState.setAlbumPosition(post.id, position)
+                            tvPhotoCounter.text = root.context.getString(R.string.ui_page_counter, position + 1, imageUrls.size)
+                            photoIndicator.setCurrentPage(position)
                         }
 
                         override fun onPageScrolled(pos: Int, offset: Float, offsetPixels: Int) {
@@ -272,27 +291,29 @@ class FeedAdapter(
 
                 updateLikeState(post)
                 updateBookmarkState(post)
-                tvCommentCount.text = post.commentCount.toString()
+                tvCommentCount.text = root.context.getString(R.string.ui_integer_count, post.commentCount)
             }
         }
 
         private fun updateLikeState(post: Post) {
             with(binding) {
+                btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
                     ivLike.imageTintList = null
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.like_active))
+                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 } else {
                     ivLike.setImageResource(R.drawable.ic_favorite)
                     ivLike.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
                     tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 }
-                tvLikeCount.text = post.likeCount.toString()
+                tvLikeCount.text = root.context.getString(R.string.ui_integer_count, post.likeCount)
             }
         }
 
         private fun updateBookmarkState(post: Post) {
             with(binding) {
+                btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                     ivBookmark.imageTintList = null
@@ -332,16 +353,6 @@ class FeedAdapter(
             binding.btnPostMore.setOnClickListener {
                 getPost()?.let { onMoreClick(it) }
             }
-            binding.tvCaption.setOnClickListener {
-                getPost()?.let { post ->
-                    if (expandedPostIds.contains(post.id)) {
-                        expandedPostIds.remove(post.id)
-                    } else {
-                        expandedPostIds.add(post.id)
-                    }
-                    bindCaption(post)
-                }
-            }
         }
 
         private fun getPost(): Post? {
@@ -350,10 +361,7 @@ class FeedAdapter(
         }
 
         private fun bindCaption(post: Post) {
-            val isExpanded = expandedPostIds.contains(post.id)
-            binding.tvCaption.maxLines = if (isExpanded) Int.MAX_VALUE else 3
-            binding.tvCaption.ellipsize = if (isExpanded) null else android.text.TextUtils.TruncateAt.END
-            binding.tvCaption.text = buildSpannableCaption(post.author.displayName, post.caption)
+            bindCaptionView(binding.tvCaption, post)
         }
 
         fun bind(post: Post, payloads: List<Any>) {
@@ -362,6 +370,7 @@ class FeedAdapter(
                     when (payload) {
                         PAYLOAD_LIKE -> updateLikeState(post)
                         PAYLOAD_BOOKMARK -> updateBookmarkState(post)
+                        PAYLOAD_VIDEO_MUTE -> updateMuteDisplay()
                     }
                 }
                 return
@@ -370,8 +379,9 @@ class FeedAdapter(
             with(binding) {
                 tvAuthorName.text = post.author.displayName
                 ivVerified.visibility = if (post.author.verified) View.VISIBLE else View.GONE
-                tvPostMeta.text = buildMetaString(root.context, post)
+                PostMetadata.bind(tvPostMeta, post)
                 bindCaption(post)
+                updateMuteDisplay()
 
                 val videoMedia = post.media.firstOrNull()
                 val thumbnailUrl = videoMedia?.url
@@ -393,27 +403,36 @@ class FeedAdapter(
 
                 updateLikeState(post)
                 updateBookmarkState(post)
-                tvCommentCount.text = post.commentCount.toString()
+                tvCommentCount.text = root.context.getString(R.string.ui_integer_count, post.commentCount)
             }
         }
 
+        private fun updateMuteDisplay() {
+            binding.ivMuteIcon.setImageResource(if (videoMuted) R.drawable.ic_volume_off else R.drawable.ic_volume_up)
+            binding.btnMuteToggle.contentDescription = binding.root.context.getString(
+                if (videoMuted) R.string.sound_muted else R.string.sound_unmuted
+            )
+            binding.ivMuteIcon.contentDescription = null
+        }
         private fun updateLikeState(post: Post) {
             with(binding) {
+                btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
                     ivLike.imageTintList = null
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.like_active))
+                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 } else {
                     ivLike.setImageResource(R.drawable.ic_favorite)
                     ivLike.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
                     tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 }
-                tvLikeCount.text = post.likeCount.toString()
+                tvLikeCount.text = root.context.getString(R.string.ui_integer_count, post.likeCount)
             }
         }
 
         private fun updateBookmarkState(post: Post) {
             with(binding) {
+                btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                     ivBookmark.imageTintList = null
@@ -432,6 +451,7 @@ class FeedAdapter(
             binding.root.setOnClickListener {
                 getPost()?.let { onPostClick(it) }
             }
+            binding.tvVoiceError.setOnClickListener { getPost()?.let(onVoicePlayClick) }
             binding.btnVoicePlay.setOnClickListener {
                 getPost()?.let { onVoicePlayClick(it) }
             }
@@ -456,16 +476,6 @@ class FeedAdapter(
             binding.btnPostMore.setOnClickListener {
                 getPost()?.let { onMoreClick(it) }
             }
-            binding.tvCaption.setOnClickListener {
-                getPost()?.let { post ->
-                    if (expandedPostIds.contains(post.id)) {
-                        expandedPostIds.remove(post.id)
-                    } else {
-                        expandedPostIds.add(post.id)
-                    }
-                    bindCaption(post)
-                }
-            }
         }
 
         private fun getPost(): Post? {
@@ -474,10 +484,7 @@ class FeedAdapter(
         }
 
         private fun bindCaption(post: Post) {
-            val isExpanded = expandedPostIds.contains(post.id)
-            binding.tvCaption.maxLines = if (isExpanded) Int.MAX_VALUE else 3
-            binding.tvCaption.ellipsize = if (isExpanded) null else android.text.TextUtils.TruncateAt.END
-            binding.tvCaption.text = buildSpannableCaption(post.author.displayName, post.caption)
+            bindCaptionView(binding.tvCaption, post)
         }
 
         fun bind(post: Post, payloads: List<Any>) {
@@ -494,7 +501,7 @@ class FeedAdapter(
 
             with(binding) {
                 tvAuthorName.text = post.author.displayName
-                tvPostMeta.text = buildMetaString(root.context, post)
+                PostMetadata.bind(tvPostMeta, post)
                 bindCaption(post)
 
                 Glide.with(ivAuthorAvatar.context)
@@ -507,13 +514,24 @@ class FeedAdapter(
                 updatePlaybackDisplay(post, currentVoiceState)
                 updateLikeState(post)
                 updateBookmarkState(post)
-                tvCommentCount.text = post.commentCount.toString()
+                tvCommentCount.text = root.context.getString(R.string.ui_integer_count, post.commentCount)
             }
         }
 
         private fun updatePlaybackDisplay(post: Post, state: VoicePlaybackState) {
             val totalSec = ((post.media.firstOrNull()?.durationMs ?: 42000L) / 1000).toInt()
             with(binding) {
+                val failed = state.postId == post.id && state.errorMessage != null
+                tvVoiceError.visibility = if (failed) View.VISIBLE else View.GONE
+                btnVoicePlay.contentDescription = root.context.getString(
+                    if (failed) R.string.retry else if (state.postId == post.id && state.isPlaying) R.string.feed_pause else R.string.feed_play
+                )
+                ivVoicePlay.contentDescription = null
+                val speed = if (state.postId == post.id) state.speed else 1f
+                btnVoiceSpeed.text = String.format(Locale.getDefault(), "%.1fx", speed)
+                btnVoiceSpeed.contentDescription = root.context.getString(
+                    R.string.audio_speed_format, String.format(Locale.getDefault(), "%.1f", speed)
+                )
                 if (state.postId == post.id) {
                     ivVoicePlay.setImageResource(
                         if (state.isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow
@@ -526,7 +544,6 @@ class FeedAdapter(
                         currentSec / 60, currentSec % 60,
                         totalSec / 60, totalSec % 60
                     )
-                    btnVoiceSpeed.text = String.format(Locale.getDefault(), "%.1fx", state.speed)
                 } else {
                     ivVoicePlay.setImageResource(R.drawable.ic_play_arrow)
                     waveformView.setProgress(0f)
@@ -535,28 +552,29 @@ class FeedAdapter(
                         "00:00 / %02d:%02d",
                         totalSec / 60, totalSec % 60
                     )
-                    btnVoiceSpeed.text = "1.0x"
                 }
             }
         }
 
         private fun updateLikeState(post: Post) {
             with(binding) {
+                btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
                     ivLike.imageTintList = null
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.like_active))
+                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 } else {
                     ivLike.setImageResource(R.drawable.ic_favorite)
                     ivLike.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
                     tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 }
-                tvLikeCount.text = post.likeCount.toString()
+                tvLikeCount.text = root.context.getString(R.string.ui_integer_count, post.likeCount)
             }
         }
 
         private fun updateBookmarkState(post: Post) {
             with(binding) {
+                btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                     ivBookmark.imageTintList = null
@@ -590,16 +608,6 @@ class FeedAdapter(
             binding.btnPostMore.setOnClickListener {
                 getPost()?.let { onMoreClick(it) }
             }
-            binding.tvCaption.setOnClickListener {
-                getPost()?.let { post ->
-                    if (expandedPostIds.contains(post.id)) {
-                        expandedPostIds.remove(post.id)
-                    } else {
-                        expandedPostIds.add(post.id)
-                    }
-                    bindCaption(post)
-                }
-            }
         }
 
         private fun getPost(): Post? {
@@ -608,10 +616,7 @@ class FeedAdapter(
         }
 
         private fun bindCaption(post: Post) {
-            val isExpanded = expandedPostIds.contains(post.id)
-            binding.tvCaption.maxLines = if (isExpanded) Int.MAX_VALUE else 3
-            binding.tvCaption.ellipsize = if (isExpanded) null else android.text.TextUtils.TruncateAt.END
-            binding.tvCaption.text = buildSpannableCaption(post.author.displayName, post.caption)
+            bindCaptionView(binding.tvCaption, post)
         }
 
         fun bind(post: Post, payloads: List<Any>) {
@@ -627,7 +632,7 @@ class FeedAdapter(
 
             with(binding) {
                 tvAuthorName.text = post.author.displayName
-                tvPostMeta.text = buildMetaString(root.context, post)
+                PostMetadata.bind(tvPostMeta, post)
                 bindCaption(post)
 
                 Glide.with(ivAuthorAvatar.context)
@@ -639,27 +644,29 @@ class FeedAdapter(
 
                 updateLikeState(post)
                 updateBookmarkState(post)
-                tvCommentCount.text = post.commentCount.toString()
+                tvCommentCount.text = root.context.getString(R.string.ui_integer_count, post.commentCount)
             }
         }
 
         private fun updateLikeState(post: Post) {
             with(binding) {
+                btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
                     ivLike.imageTintList = null
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.like_active))
+                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 } else {
                     ivLike.setImageResource(R.drawable.ic_favorite)
                     ivLike.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
                     tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 }
-                tvLikeCount.text = post.likeCount.toString()
+                tvLikeCount.text = root.context.getString(R.string.ui_integer_count, post.likeCount)
             }
         }
 
         private fun updateBookmarkState(post: Post) {
             with(binding) {
+                btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                     ivBookmark.imageTintList = null
@@ -712,14 +719,68 @@ class FeedAdapter(
         }
     }
 
-    private fun buildMetaString(context: android.content.Context, post: Post): String {
-        val parts = mutableListOf<String>()
-        if (post.createdAt.isNotBlank()) parts.add(post.createdAt)
-        if (!post.location.isNullOrBlank()) parts.add(post.location)
-        parts.add(if (post.privacy == "public") context.getString(R.string.post_public) else context.getString(R.string.post_friends))
-        return parts.joinToString(" · ")
+    /** Cắt caption theo chiều rộng thật; trạng thái được giữ theo postId trong ViewModel. */
+    /** Đo toàn bộ caption rồi dành chỗ cho liên kết, tránh để nhãn Xem thêm bị cắt ở dòng ba. */
+    private fun bindCaptionView(view: TextView, post: Post) {
+        view.tag = post.id
+        val full = buildSpannableCaption(post.author.displayName, post.caption)
+        val width = view.width - view.paddingLeft - view.paddingRight
+        val expanded = presentationState.isCaptionExpanded(post.id)
+        view.ellipsize = null
+        if (!expanded && width <= 0) {
+            view.maxLines = 3
+            view.text = full
+            view.doOnLayout { if (view.tag == post.id) bindCaptionView(view, post) }
+            return
+        }
+        fun layoutOf(text: CharSequence) = StaticLayout.Builder.obtain(text, 0, text.length, view.paint, width)
+            .setIncludePad(view.includeFontPadding)
+            .setLineSpacing(view.lineSpacingExtra, view.lineSpacingMultiplier)
+            .setBreakStrategy(view.breakStrategy)
+            .setHyphenationFrequency(view.hyphenationFrequency)
+            .build()
+        val layout = if (expanded) null else layoutOf(full)
+        if (layout != null && layout.lineCount <= 3) {
+            view.maxLines = Int.MAX_VALUE
+            view.text = full
+            view.movementMethod = null
+            ViewCompat.setStateDescription(view, null)
+            return
+        }
+        // Khi recreate, đo bản mở rộng ngay từ lần measure đầu tiên. Đổi maxLines trong
+        // doOnLayout của RecyclerView có thể quá muộn và để khung chỉ cao ba dòng.
+        val label = view.context.getString(if (expanded) R.string.post_collapse else R.string.post_read_more)
+        val text = if (expanded) SpannableStringBuilder(full) else {
+            var end = layout!!.getLineEnd(2).coerceAtMost(full.length)
+            val suffix = "…  $label"
+            while (end > 0 && layoutOf(SpannableStringBuilder(full, 0, end).append(suffix)).lineCount > 3) {
+                // Lùi theo ký tự Unicode đầy đủ để không cắt đôi emoji hoặc chữ ngoài BMP.
+                end = Character.offsetByCodePoints(full, end, -1)
+            }
+            SpannableStringBuilder(full, 0, end).append('…')
+        }
+        text.append("  ")
+        val start = text.length
+        text.append(label)
+        text.setSpan(object : ClickableSpan() {
+            override fun onClick(widget: View) {
+                if (view.tag != post.id) return
+                presentationState.toggleCaption(post.id)
+                bindCaptionView(view, post)
+            }
+            override fun updateDrawState(ds: TextPaint) {
+                super.updateDrawState(ds)
+                ds.isUnderlineText = false
+                ds.color = ContextCompat.getColor(view.context, R.color.text_tertiary)
+            }
+        }, start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        view.maxLines = if (expanded) Int.MAX_VALUE else 3
+        view.text = text
+        view.movementMethod = LinkMovementMethod.getInstance()
+        ViewCompat.setStateDescription(view, view.context.getString(
+            if (expanded) R.string.feed_caption_expanded else R.string.feed_caption_collapsed
+        ))
     }
-
     private fun buildSpannableCaption(authorName: String, caption: String): SpannableString {
         val fullText = "$authorName $caption"
         val spannable = SpannableString(fullText)

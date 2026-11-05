@@ -28,7 +28,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/be_vietnam_pro"
-            android:text="Không thể tải thêm bài viết"
+            android:text="@string/feed_load_more_error"
             android:textColor="@color/error"
             android:textSize="13sp" />
 
@@ -43,7 +43,7 @@
             android:paddingTop="4dp"
             android:paddingEnd="10dp"
             android:paddingBottom="4dp"
-            android:text="Thử lại"
+            android:text="@string/retry"
             android:textColor="@color/primary"
             android:textSize="12sp"
             android:textStyle="bold" />

@@ -10,11 +10,13 @@
     <string name="feed_see_all">Xem tất cả</string>
     <string name="feed_dismiss_suggestion">Bỏ qua gợi ý</string>
     <string name="feed_nearby">Gần bạn</string>
-    <string name="feed_mutual_count">%1$d bạn chung</string>
+    <plurals name="feed_mutual_count">
+        <item quantity="other">%1$d bạn chung</item>
+    </plurals>
     <string name="feed_avatar_of">Ảnh đại diện của %1$s</string>
-    <plurals name="post_minutes_ago"><item quantity="one">%d phút trước</item><item quantity="other">%d phút trước</item></plurals>
-    <plurals name="post_hours_ago"><item quantity="one">%d giờ trước</item><item quantity="other">%d giờ trước</item></plurals>
-    <plurals name="post_days_ago"><item quantity="one">%d ngày trước</item><item quantity="other">%d ngày trước</item></plurals>
+    <plurals name="post_minutes_ago"><item quantity="other">%d phút trước</item></plurals>
+    <plurals name="post_hours_ago"><item quantity="other">%d giờ trước</item></plurals>
+    <plurals name="post_days_ago"><item quantity="other">%d ngày trước</item></plurals>
     <string name="feed_voice_error_retry">Không thể phát ghi âm. Thử lại</string>
     <string name="feed_caption_expanded">Đã mở rộng</string>
     <string name="feed_caption_collapsed">Đã thu gọn</string>

@@ -22,7 +22,7 @@
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:layout_gravity="center"
-            android:contentDescription="Bỏ qua"
+            android:contentDescription="@string/feed_dismiss_suggestion"
             android:src="@drawable/ic_close"
             app:tint="@color/text_tertiary" />
     </FrameLayout>
@@ -37,9 +37,11 @@
             android:id="@+id/ivSuggestionAvatar"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="@color/surface_variant"
+            android:background="@drawable/bg_avatar_placeholder"
             android:scaleType="centerCrop"
-            tools:srcCompat="@drawable/ic_launcher_foreground" />
+            tools:srcCompat="@drawable/ic_launcher_foreground"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no" />
 
         <TextView
             android:id="@+id/tvSuggestionName"
@@ -71,13 +73,13 @@
             android:layout_width="match_parent"
             android:layout_height="30dp"
             android:layout_marginTop="8dp"
-            android:background="@drawable/bg_btn_primary"
+            android:background="@drawable/bg_btn_tonal"
             android:clickable="true"
             android:focusable="true"
             android:fontFamily="@font/be_vietnam_pro"
             android:gravity="center"
-            android:text="Theo dõi"
-            android:textColor="@color/white"
+            android:text="@string/follow"
+            android:textColor="@color/on_primary_container"
             android:textSize="12.5sp"
             android:textStyle="bold" />
     </LinearLayout>

@@ -10,11 +10,13 @@
     <string name="feed_see_all">すべて見る</string>
     <string name="feed_dismiss_suggestion">おすすめを非表示</string>
     <string name="feed_nearby">近くのユーザー</string>
-    <string name="feed_mutual_count">共通の友達%1$d人</string>
+    <plurals name="feed_mutual_count">
+        <item quantity="other">共通の友達%1$d人</item>
+    </plurals>
     <string name="feed_avatar_of">%1$sのプロフィール画像</string>
-    <plurals name="post_minutes_ago"><item quantity="one">%d分前</item><item quantity="other">%d分前</item></plurals>
-    <plurals name="post_hours_ago"><item quantity="one">%d時間前</item><item quantity="other">%d時間前</item></plurals>
-    <plurals name="post_days_ago"><item quantity="one">%d日前</item><item quantity="other">%d日前</item></plurals>
+    <plurals name="post_minutes_ago"><item quantity="other">%d分前</item></plurals>
+    <plurals name="post_hours_ago"><item quantity="other">%d時間前</item></plurals>
+    <plurals name="post_days_ago"><item quantity="other">%d日前</item></plurals>
     <string name="feed_voice_error_retry">音声を再生できません。再試行</string>
     <string name="feed_caption_expanded">展開済み</string>
     <string name="feed_caption_collapsed">折りたたみ済み</string>

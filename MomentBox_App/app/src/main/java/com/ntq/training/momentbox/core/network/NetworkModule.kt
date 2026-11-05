@@ -68,7 +68,7 @@ object NetworkModule {
             .readTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             // Đánh chặn trước nhất nếu đang ở chế độ Offline giả lập
-            .addInterceptor(MockInterceptor(context, settingsDataStore))
+            .addInterceptor(MockInterceptor(settingsDataStore, tokenStore))
             // Gắn header đa ngôn ngữ
             .addInterceptor(LanguageInterceptor())
             // Gắn Bearer Token vào header Authorization
@@ -100,7 +100,7 @@ object NetworkModule {
             .connectTimeout(3, TimeUnit.SECONDS)
             .readTimeout(3, TimeUnit.SECONDS)
             .writeTimeout(3, TimeUnit.SECONDS)
-            .addInterceptor(MockInterceptor(context, settingsDataStore))
+            .addInterceptor(MockInterceptor(settingsDataStore))
             .addInterceptor(LanguageInterceptor())
 
         if (BuildConfig.DEBUG) {

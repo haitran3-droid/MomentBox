@@ -11,9 +11,11 @@ import kotlinx.coroutines.flow.StateFlow
 interface FeedRepository {
     val postsMapFlow: StateFlow<Map<Long, Post>>
     val followingMapFlow: StateFlow<Map<Long, Boolean>> get() = EMPTY_FOLLOWING
+
     companion object {
         private val EMPTY_FOLLOWING: StateFlow<Map<Long, Boolean>> = MutableStateFlow(emptyMap())
     }
+
     fun observePost(postId: Long): Flow<Post?>
     suspend fun getStories(): Result<List<Story>>
     suspend fun getFeed(page: Int, pageSize: Int = 10): Result<List<FeedItem>>
@@ -21,6 +23,10 @@ interface FeedRepository {
     suspend fun toggleLike(postId: Long): Result<Post>
     suspend fun toggleBookmark(postId: Long): Result<Post>
     suspend fun deletePost(postId: Long): Result<Unit>
+
+    suspend fun loadFollowingState(userId: Long): Result<Boolean> =
+        Result.failure(IllegalStateException("Follow relationship is not available"))
+
     suspend fun toggleFollowUser(userId: Long, currentFlowing: Boolean): Result<Boolean>
     suspend fun getComments(
         postId: Long,

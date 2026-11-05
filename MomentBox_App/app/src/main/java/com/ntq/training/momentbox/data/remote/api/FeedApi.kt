@@ -109,6 +109,9 @@ interface FeedApi {
         @Tag session: SessionRequest? = null
     ): Response<ApiResponse<CommentLikeResponseDto>>
 
+    @GET("v1/users/{id}")
+    suspend fun getUser(@Path("id") id: Long, @Tag session: SessionRequest? = null): Response<ApiResponse<UserDto>>
+
     /** Theo dõi người dùng */
     @POST("v1/users/{id}/follow")
     suspend fun followUser(

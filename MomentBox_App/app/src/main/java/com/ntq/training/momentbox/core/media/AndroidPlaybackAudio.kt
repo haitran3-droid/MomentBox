@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.core.media
 
+import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -12,7 +13,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
 
-class AndroidPlaybackAudio private constructor(private val context: Context) : PlaybackAudio {
+class AndroidPlaybackAudio private constructor(private val context: Application) : PlaybackAudio {
     private val ownership = AudioOwnership()
     private val manager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var focusRequest: AudioFocusRequest? = null
@@ -104,7 +105,7 @@ class AndroidPlaybackAudio private constructor(private val context: Context) : P
         @Volatile
         private var instance: AndroidPlaybackAudio? = null
         fun get(context: Context): AndroidPlaybackAudio = instance ?: synchronized(this) {
-            instance ?: AndroidPlaybackAudio(context.applicationContext).also { instance = it }
+            instance ?: AndroidPlaybackAudio(context.applicationContext as Application).also { instance = it }
         }
     }
 }

@@ -32,7 +32,8 @@
             android:paddingStart="16dp"
             android:paddingTop="14dp"
             android:paddingEnd="16dp"
-            android:paddingBottom="10dp">
+            android:paddingBottom="10dp"
+            android:baselineAligned="false">
 
             <FrameLayout
                 android:id="@+id/btnBack"
@@ -46,7 +47,7 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Quay lại"
+                    android:contentDescription="@string/detail_back"
                     android:src="@drawable/ic_arrow_back"
                     app:tint="@color/white" />
             </FrameLayout>
@@ -108,7 +109,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:fontFamily="@font/be_vietnam_pro"
-                    android:text="1.0x"
+                    android:text="@string/ui_default_speed"
                     android:textColor="@color/white"
                     android:textSize="12.5sp"
                     android:textStyle="bold" />
@@ -129,7 +130,7 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Khóa điều khiển"
+                    android:contentDescription="@string/media_lock_controls"
                     android:src="@drawable/ic_lock_open"
                     app:tint="@color/white" />
             </FrameLayout>
@@ -157,7 +158,7 @@
                     android:layout_width="36dp"
                     android:layout_height="36dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Lùi 10 giây"
+                    android:contentDescription="@string/media_seek_back"
                     android:src="@drawable/ic_replay_10"
                     app:tint="@color/white" />
             </FrameLayout>
@@ -178,7 +179,7 @@
                     android:layout_width="38dp"
                     android:layout_height="38dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Phát/Tạm dừng"
+                    android:contentDescription="@string/media_play_pause"
                     android:src="@drawable/ic_pause"
                     app:tint="@color/white" />
             </FrameLayout>
@@ -196,7 +197,7 @@
                     android:layout_width="36dp"
                     android:layout_height="36dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Tiến 10 giây"
+                    android:contentDescription="@string/media_seek_forward"
                     android:src="@drawable/ic_forward_10"
                     app:tint="@color/white" />
             </FrameLayout>
@@ -265,7 +266,7 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Bật/Tắt âm thanh"
+                    android:contentDescription="@string/media_toggle_sound"
                     android:src="@drawable/ic_volume_up"
                     app:tint="@color/white" />
             </FrameLayout>
@@ -285,7 +286,7 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Toàn màn hình"
+                    android:contentDescription="@string/media_toggle_fullscreen"
                     android:src="@drawable/ic_fullscreen_exit"
                     app:tint="@color/white" />
             </FrameLayout>
@@ -309,7 +310,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_gravity="center"
-            android:contentDescription="Mở khóa"
+            android:contentDescription="@string/media_unlock_controls"
             android:src="@drawable/ic_lock_closed"
             app:tint="@color/white" />
     </FrameLayout>

@@ -1,16 +1,9 @@
 package com.ntq.training.momentbox.feature.videoplayer
 
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -29,8 +22,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.databinding.ActivityVideoPlayerBinding
-import kotlinx.coroutines.Runnable
 import java.util.Locale
 
 
@@ -41,6 +34,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         const val EXTRA_POST_TITLE = "EXTRA_POST_TITLE"
         const val EXTRA_AUTHOR_NAME = "EXTRA_AUTHOR_NAME"
         const val EXTRA_START_POSITION_MS = "EXTRA_START_POSITION_MS"
+        const val EXTRA_START_PLAY_WHEN_READY = "EXTRA_START_PLAY_WHEN_READY"
 
         /** Trả về vị trí phát hiện tại cho FeedFragment */
         const val EXTRA_RETURN_POSITION_MS = "EXTRA_RETURN_POSITION_MS"
@@ -71,8 +65,8 @@ class VideoPlayerActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var isScrubbingSeekBar = false
 
-    private lateinit var audioManager: AudioManager
-    private var audioFocusRequest: AudioFocusRequest? = null
+    private val audio by lazy { AndroidPlaybackAudio.get(this) }
+    private var screenStarted = false
     private lateinit var gestureDetector: GestureDetector
 
     // Bộ đệm ẩn điều khiển sau 3 giây không thao tác
@@ -98,16 +92,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                     binding.tvTotalDuration.text = formatTime(duration)
                 }
             }
-            handler.postDelayed(this, 200)
-        }
-    }
-
-    // Nhận sự kiện rút tai nghe
-    private val noisyReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
-                pauseVideo(userInitiated = false)
-            }
+            if (screenStarted && exoPlayer != null) handler.postDelayed(this, 200)
         }
     }
 
@@ -116,13 +101,12 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding = ActivityVideoPlayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
         // Lấy tham số khởi tạo từ Intent
         videoUrl = intent.getStringExtra(EXTRA_VIDEO_URL) ?: ""
-        postTitle = intent.getStringExtra(EXTRA_POST_TITLE) ?: "Video MomentBox"
+        postTitle = intent.getStringExtra(EXTRA_POST_TITLE) ?: getString(R.string.media_video_title)
         authorName = intent.getStringExtra(EXTRA_AUTHOR_NAME) ?: "MomentBox"
         currentPositionMs = intent.getLongExtra(EXTRA_START_POSITION_MS, 0L)
+        userIntendedPlay = intent.getBooleanExtra(EXTRA_START_PLAY_WHEN_READY, true)
 
         // Khôi phục trạng thái từ SavedInstanceState nếu Activity bị tái tạo do xoay màn hình
         if (savedInstanceState != null) {
@@ -136,8 +120,6 @@ class VideoPlayerActivity : AppCompatActivity() {
         setupImmersiveMode()
         setupGestureDetector()
         setupViews()
-        initExoPlayer()
-        registerNoisyReceiver()
 
         // Xử lý phím Back hệ thống: Nếu đang ngang thì về dọc trước, nếu dọc thì trả kết quả về Feed
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -179,33 +161,31 @@ class VideoPlayerActivity : AppCompatActivity() {
                 return true
             }
 
-            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                if (isLocked) {
-                    binding.btnUnlockOverlay.visibility = View.VISIBLE
-                    resetAutoHideTimer()
-                } else {
-                    if (binding.overlayControls.visibility == View.VISIBLE) {
-                        hideOverlayControls()
-                    } else {
-                        showOverlayControls()
-                    }
-                }
-                return true
-            }
         })
     }
 
     private fun setupViews() {
         with(binding) {
             tvVideoTitle.text = postTitle
-            tvVideoAuthorViews.text = "$authorName · 1.204 lượt xem"
+            tvVideoAuthorViews.text = getString(R.string.media_video_author, authorName)
             tvSpeedText.text = String.format(Locale.getDefault(), "%.1fx", currentSpeed)
 
             btnBack.setOnClickListener { handleBack() }
 
             // Lắng nghe cử chỉ chạm trên toàn bộ bề mặt video
-            videoPlayerRoot.setOnTouchListener { _, event ->
+            videoPlayerRoot.contentDescription = getString(R.string.media_toggle_controls)
+            videoPlayerRoot.isFocusable = true
+            videoPlayerRoot.setOnClickListener {
+                if (isLocked) {
+                    btnUnlockOverlay.visibility = View.VISIBLE
+                    resetAutoHideTimer()
+                } else if (overlayControls.visibility == View.VISIBLE) hideOverlayControls()
+                else showOverlayControls()
+            }
+            videoPlayerRoot.setOnTouchListener { view, event ->
                 gestureDetector.onTouchEvent(event)
+                // GestureDetector giữ double-tap seek; click chuẩn cũng dùng được qua TalkBack/keyboard.
+                if (event.actionMasked == MotionEvent.ACTION_UP) view.performClick()
                 true
             }
 
@@ -311,17 +291,19 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     private fun initExoPlayer() {
-        requestAudioFocus()
+        if (exoPlayer != null) return
 
         val player = ExoPlayer.Builder(this).build().apply {
             volume = if (isMuted) 0f else 1f
             setPlaybackSpeed(currentSpeed)
-            playWhenReady = userIntendedPlay
+            playWhenReady = false
 
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
                         binding.tvTotalDuration.text = formatTime(duration)
+                    } else if (playbackState == Player.STATE_ENDED) {
+                        pauseVideo(userInitiated = true)
                     }
                 }
 
@@ -332,10 +314,12 @@ class VideoPlayerActivity : AppCompatActivity() {
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
-                    binding.tvVideoAuthorViews.text = "Lỗi phát video (${error.errorCodeName}). Chạm để thử lại."
+                    pauseVideo(userInitiated = true)
+                    binding.tvVideoAuthorViews.text = getString(R.string.media_video_error_retry)
                     binding.tvVideoAuthorViews.setOnClickListener {
-                        this@apply.prepare()
-                        if (userIntendedPlay) this@apply.play()
+                        binding.tvVideoAuthorViews.text = getString(R.string.media_video_author, authorName)
+                        binding.tvVideoAuthorViews.setOnClickListener(null)
+                        playVideo()
                     }
                 }
             })
@@ -360,7 +344,7 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     private fun togglePlayPause() {
         exoPlayer?.let { player ->
-            if (player.isPlaying) {
+            if (player.playWhenReady) {
                 pauseVideo(userInitiated = true)
             } else {
                 playVideo()
@@ -369,9 +353,15 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     private fun playVideo() {
+        val player = exoPlayer ?: return
         userIntendedPlay = true
-        requestAudioFocus()
-        exoPlayer?.play()
+        if (!isMuted && !audio.acquire(this, { pauseVideo(userInitiated = true) })) {
+            pauseVideo(userInitiated = true)
+            return
+        }
+        // Sau lỗi, ExoPlayer ở STATE_IDLE: phải prepare lại trước khi play.
+        if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        player.play()
     }
 
     private fun pauseVideo(userInitiated: Boolean = false) {
@@ -379,6 +369,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             userIntendedPlay = false
         }
         exoPlayer?.pause()
+        audio.release(this)
     }
 
     private fun cyclePlaybackSpeed() {
@@ -392,7 +383,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         currentSpeed = nextSpeed
         exoPlayer?.setPlaybackSpeed(nextSpeed)
         binding.tvSpeedText.text = String.format(Locale.getDefault(), "%.2fx", nextSpeed).replace(".00", ".0")
-        Toast.makeText(this, "Tốc độ: ${binding.tvSpeedText.text}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.audio_speed_format, binding.tvSpeedText.text.toString().removeSuffix("x")), Toast.LENGTH_SHORT).show()
     }
 
     private fun setControlsLocked(locked: Boolean) {
@@ -402,11 +393,11 @@ class VideoPlayerActivity : AppCompatActivity() {
             hideOverlayControls()
             binding.btnUnlockOverlay.visibility = View.VISIBLE
             resetAutoHideTimer()
-            Toast.makeText(this, "Đã khóa màn hình điều khiển", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.screen_locked, Toast.LENGTH_SHORT).show()
         } else {
             binding.btnUnlockOverlay.visibility = View.GONE
             showOverlayControls()
-            Toast.makeText(this, "Đã mở khóa", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.screen_unlocked, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -418,7 +409,19 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     private fun toggleMute() {
         isMuted = !isMuted
-        exoPlayer?.volume = if (isMuted) 0f else 1f
+        if (isMuted) {
+            exoPlayer?.volume = 0f
+            audio.release(this)
+        } else if (userIntendedPlay) {
+            if (audio.acquire(this, { pauseVideo(userInitiated = true) })) {
+                exoPlayer?.volume = 1f
+            } else {
+                isMuted = true
+                pauseVideo(userInitiated = true)
+            }
+        } else {
+            exoPlayer?.volume = 1f
+        }
         updateVolumeUi()
     }
 
@@ -482,81 +485,48 @@ class VideoPlayerActivity : AppCompatActivity() {
         setResult(RESULT_OK, resultIntent)
     }
 
-    private fun requestAudioFocus() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-                )
-                .setOnAudioFocusChangeListener { focusChange ->
-                    if (focusChange == AudioManager.AUDIOFOCUS_LOSS ||
-                        focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
-                    ) {
-                        pauseVideo(userInitiated = false)
-                    }
-                }
-                .build()
-            audioFocusRequest = request
-            audioManager.requestAudioFocus(request)
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(
-                { focusChange ->
-                    if (focusChange == AudioManager.AUDIOFOCUS_LOSS ||
-                        focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
-                    ) {
-                        pauseVideo(userInitiated = false)
-                    }
-                },
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
-            )
-        }
-    }
-
-    private fun registerNoisyReceiver() {
-        val filter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-        registerReceiver(noisyReceiver, filter)
-    }
-
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        exoPlayer?.let { player ->
-            outState.putLong(KEY_POSITION, player.currentPosition)
-            // Bảo toàn ý định phát thật sự của người dùng thay vì player.isPlaying (F14)
-            outState.putBoolean(KEY_USER_INTENDED_PLAY, userIntendedPlay)
-            outState.putFloat(KEY_SPEED, currentSpeed)
-            outState.putBoolean(KEY_IS_LOCKED, isLocked)
-            outState.putBoolean(KEY_IS_MUTED, isMuted)
-        }
+        outState.putLong(KEY_POSITION, exoPlayer?.currentPosition ?: currentPositionMs)
+        // Lưu cả khi onStop đã release player; trạng thái không phụ thuộc reference decoder.
+        outState.putBoolean(KEY_USER_INTENDED_PLAY, userIntendedPlay)
+        outState.putFloat(KEY_SPEED, currentSpeed)
+        outState.putBoolean(KEY_IS_LOCKED, isLocked)
+        outState.putBoolean(KEY_IS_MUTED, isMuted)
     }
 
     override fun onStart() {
         super.onStart()
-        if (userIntendedPlay && exoPlayer != null) {
-            playVideo()
-        }
+        screenStarted = true
+        initExoPlayer()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (userIntendedPlay) playVideo()
     }
 
     override fun onPause() {
         super.onPause()
-        // Dừng video tạm thời khi app vào background, nhưng KHÔNG xóa ý định phát của người dùng
+        // Giữ ý định phát khi chỉ tạm rời Activity; focus/noisy và nút Pause xóa ý định.
         pauseVideo(userInitiated = false)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        returnHandoffResult()
-        try {
-            unregisterReceiver(noisyReceiver)
-        } catch (_: Exception) {
-        }
+    override fun onStop() {
+        currentPositionMs = exoPlayer?.currentPosition ?: currentPositionMs
+        screenStarted = false
         handler.removeCallbacksAndMessages(null)
+        pauseVideo(userInitiated = false)
         binding.playerViewFullscreen.player = null
         exoPlayer?.release()
         exoPlayer = null
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        audio.release(this)
+        if (isFinishing) returnHandoffResult()
+        super.onDestroy()
     }
 }

@@ -94,7 +94,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:includeFontPadding="false"
-                    android:text="VN"
+                    android:text="@string/language_badge_vi"
                     android:textSize="22sp"
                     app:lineHeight="28.6sp" />
 
@@ -140,7 +140,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:includeFontPadding="false"
-                    android:text="GB"
+                    android:text="@string/language_badge_en"
                     android:textSize="22sp"
                     app:lineHeight="28.6sp" />
 
@@ -186,7 +186,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:includeFontPadding="false"
-                    android:text="JP"
+                    android:text="@string/language_badge_ja"
                     android:textSize="22sp"
                     app:lineHeight="28.6sp" />
 

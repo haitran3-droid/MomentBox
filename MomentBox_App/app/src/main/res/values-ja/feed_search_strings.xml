@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nhãn tìm kiếm cục bộ S04 theo ngôn ngữ đã chọn. -->
+    <string name="feed_search_hint">読み込み済みの本文・ハッシュタグを検索</string>
+    <string name="feed_search_close">検索を閉じる</string>
+    <string name="feed_search_empty">読み込み済みの投稿に一致するものはありません</string>
+</resources>

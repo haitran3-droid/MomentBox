@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nhãn tìm kiếm cục bộ S04 theo ngôn ngữ đã chọn. -->
+    <string name="feed_search_hint">Tìm chú thích hoặc hashtag đã tải</string>
+    <string name="feed_search_close">Đóng tìm kiếm</string>
+    <string name="feed_search_empty">Không có bài viết đã tải phù hợp</string>
+</resources>

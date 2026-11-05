@@ -1,0 +1,30 @@
+<resources>
+    <!-- Nhãn của bảng tin và thời gian tương đối; Android chọn bản dịch theo locale. -->
+    <string name="feed_like">いいね</string>
+    <string name="feed_comment">コメント</string>
+    <string name="feed_share">共有</string>
+    <string name="feed_verified">認証済み</string>
+    <string name="feed_toggle_mute">音声を切り替える</string>
+    <string name="feed_play">再生</string>
+    <string name="feed_load_more_error">投稿を追加で読み込めません</string>
+    <string name="feed_see_all">すべて見る</string>
+    <string name="feed_dismiss_suggestion">おすすめを非表示</string>
+    <string name="feed_nearby">近くのユーザー</string>
+    <plurals name="feed_mutual_count">
+        <item quantity="other">共通の友達%1$d人</item>
+    </plurals>
+    <string name="feed_avatar_of">%1$sのプロフィール画像</string>
+    <plurals name="post_minutes_ago"><item quantity="other">%d分前</item></plurals>
+    <plurals name="post_hours_ago"><item quantity="other">%d時間前</item></plurals>
+    <plurals name="post_days_ago"><item quantity="other">%d日前</item></plurals>
+    <string name="feed_voice_error_retry">音声を再生できません。再試行</string>
+    <string name="feed_caption_expanded">展開済み</string>
+    <string name="feed_caption_collapsed">折りたたみ済み</string>
+    <string name="feed_pause">一時停止</string>
+    <string name="feed_like_failed">いいねを更新できません</string>
+    <string name="feed_bookmark_failed">投稿の保存を更新できません</string>
+    <string name="feed_follow_failed">フォローを更新できません</string>
+    <string name="feed_post_deleted">投稿を削除しました</string>
+    <string name="feed_delete_failed">投稿を削除できません</string>
+    <string name="post_private">自分のみ</string>
+</resources>

@@ -52,6 +52,15 @@
     <color name="chip_api_mock_border">#FFE0A8</color>
     <color name="chip_api_mock_text">#8A5A00</color>
 
+    <!-- M2 Color Tokens -->
+    <color name="like_active">#F43F5E</color>
+    <color name="verified_blue">#3D8BFD</color>
+    <color name="story_ring_seen">#D5D5E0</color>
+    <color name="wave_unplayed">#CFCBF5</color>
+    <color name="video_dark_bg">#0E0E12</color>
+    <color name="pill_bg">#8C0A0A14</color>
+    <color name="overlay_scrim">#80000000</color>
+
     <!-- Basic -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>

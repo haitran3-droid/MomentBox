@@ -17,7 +17,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
         <!-- Illustration Canvas Container -->
-        <com.example.momentbox_app.core.ui.OnboardingArtLayout
+        <com.ntq.training.momentbox.core.ui.OnboardingArtLayout
             android:id="@+id/artContainer2"
             android:layout_width="match_parent"
             android:layout_height="330dp"
@@ -117,7 +117,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="8dp"
                         android:includeFontPadding="false"
-                        android:text="😄"
+                        android:text="@string/onboarding_mood_great"
                         android:textSize="24sp"
                         app:lineHeight="31.2sp" />
 
@@ -126,7 +126,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="8dp"
                         android:includeFontPadding="false"
-                        android:text="😊"
+                        android:text="@string/onboarding_mood_good"
                         android:textSize="24sp"
                         app:lineHeight="31.2sp" />
 
@@ -135,7 +135,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="8dp"
                         android:includeFontPadding="false"
-                        android:text="😐"
+                        android:text="@string/onboarding_mood_neutral"
                         android:textSize="24sp"
                         app:lineHeight="31.2sp" />
 
@@ -143,14 +143,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:includeFontPadding="false"
-                        android:text="🌧️"
+                        android:text="@string/onboarding_mood_rain"
                         android:textSize="24sp"
                         app:lineHeight="31.2sp" />
                 </LinearLayout>
 
             </LinearLayout>
 
-        </com.example.momentbox_app.core.ui.OnboardingArtLayout>
+        </com.ntq.training.momentbox.core.ui.OnboardingArtLayout>
 
         <!-- Page Title -->
         <com.google.android.material.textview.MaterialTextView

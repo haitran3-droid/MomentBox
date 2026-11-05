@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Avatar fixture Offline: gradient CSS mockup, chữ từ font Be Vietnam Pro Semibold (CSS weight 600). -->
+    <path android:pathData="M50,0 A50,50 0,1 1,50,100 A50,50 0,1 1,50,0Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="100"
+                android:endY="100"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item
+                    android:color="#7DC8FF"
+                    android:offset="0" />
+                <item
+                    android:color="#3D8BFD"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M25.997,63.214 L25.997,36.786 L35.497,36.786 C37.64,36.786 39.515,37.161 41.122,37.911 C42.729,38.661 44.069,39.667 45.14,40.929 C46.211,42.191 47.015,43.607 47.551,45.179 C48.086,46.75 48.354,48.357 48.354,50 C48.354,51.643 48.086,53.25 47.551,54.821 C47.015,56.393 46.211,57.809 45.14,59.071 C44.069,60.333 42.729,61.339 41.122,62.089 C39.515,62.839 37.64,63.214 35.497,63.214 Z M35.283,41.036 L30.854,41.036 L30.854,58.929 L35.283,58.929 C37.14,58.929 38.676,58.494 39.89,57.625 C41.104,56.756 42.009,55.637 42.604,54.268 C43.2,52.899 43.497,51.464 43.497,49.964 C43.497,48.488 43.2,47.066 42.604,45.696 C42.009,44.327 41.104,43.208 39.89,42.339 C38.676,41.47 37.14,41.036 35.283,41.036 Z M52.539,63.214 L52.539,36.786 L57.396,36.786 L57.396,48.25 L67.467,36.822 L73.538,36.822 L62.074,49.5 L74.003,63.214 L67.717,63.214 L57.396,51.143 L57.396,63.214 Z" />
+</vector>

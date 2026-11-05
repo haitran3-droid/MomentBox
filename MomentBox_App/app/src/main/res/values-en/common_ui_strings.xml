@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_post_image">Post photo</string>
+    <string name="media_toggle_controls">Show or hide video controls</string>
+    <string name="media_lock_controls">Lock controls</string>
+    <string name="media_seek_back">Rewind 10 seconds</string>
+    <string name="media_play_pause">Play or pause</string>
+    <string name="media_seek_forward">Forward 10 seconds</string>
+    <string name="media_toggle_sound">Mute or unmute</string>
+    <string name="media_toggle_fullscreen">Toggle fullscreen</string>
+    <string name="media_unlock_controls">Unlock controls</string>
+    <string name="feature_coming_soon">This feature is coming soon.</string>
+    <string name="profile_account_title">Your account</string>
+    <string name="journal_placeholder_title">Mood journal</string>
+    <string name="journal_placeholder_desc">Explore and keep your memorable moments.</string>
+    <string name="chat_placeholder_title">Direct messages</string>
+    <string name="chat_placeholder_desc">Chat and connect with your friends.</string>
+</resources>

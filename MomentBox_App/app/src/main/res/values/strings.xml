@@ -70,4 +70,69 @@
     <string name="onboarding_art_chat_incoming">Hôm nay trời đẹp quá! ☀️</string>
     <string name="onboarding_art_chat_outgoing">Đi cafe chụp ảnh nhé? 📸</string>
     <string name="main_debug_refresh_request">Đang kiểm tra 401 → refresh → thử lại…</string>
+
+    <!-- M2 Navigation -->
+    <string name="nav_feed">Bảng tin</string>
+    <string name="nav_journal">Nhật ký</string>
+    <string name="nav_create">Tạo bài viết</string>
+    <string name="nav_chat">Tin nhắn</string>
+    <string name="nav_profile">Cá nhân</string>
+
+    <!-- M2 Stories -->
+    <string name="my_story">Tin của bạn</string>
+
+    <!-- M2 Post & Feed -->
+    <string name="post_public">Công khai</string>
+    <string name="post_friends">Bạn bè</string>
+    <string name="post_just_now">Vừa xong</string>
+    <string name="post_read_more">Xem thêm</string>
+    <string name="post_collapse">Thu gọn</string>
+    <plurals name="new_posts_chip">
+        <item quantity="one">%1$d bài viết mới</item>
+        <item quantity="other">%1$d bài viết mới</item>
+    </plurals>
+    <string name="suggestions_title">Gợi ý cho bạn</string>
+    <string name="see_all">Xem tất cả</string>
+    <string name="follow">Theo dõi</string>
+    <string name="following">Đang theo dõi</string>
+    <string name="feed_error">Lỗi tải bảng tin</string>
+
+    <!-- M2 Comments & Detail -->
+    <string name="comments_count_title">Bình luận (%1$d)</string>
+    <string name="sort_top">Phù hợp nhất</string>
+    <string name="sort_newest">Mới nhất</string>
+    <string name="comment_sending">Đang gửi…</string>
+    <string name="comment_send_failed">Lỗi gửi (Thử lại)</string>
+    <string name="comment_input_hint">Viết bình luận…</string>
+    <string name="reply_to">Đang trả lời %1$s</string>
+    <plurals name="hide_replies">
+        <item quantity="one">Ẩn %1$d phản hồi</item>
+        <item quantity="other">Ẩn %1$d phản hồi</item>
+    </plurals>
+    <plurals name="show_replies">
+        <item quantity="one">Xem %1$d phản hồi</item>
+        <item quantity="other">Xem %1$d phản hồi</item>
+    </plurals>
+    <string name="comments_error">Lỗi tải bình luận</string>
+
+    <!-- M2 Menu & Actions -->
+    <string name="menu_post_options">Tùy chọn bài viết</string>
+    <string name="menu_post_save">Lưu bài viết</string>
+    <string name="menu_post_copy_link">Sao chép liên kết</string>
+    <string name="menu_post_report">Báo cáo bài viết</string>
+    <string name="menu_post_delete">Xóa bài viết</string>
+    <string name="action_like">Thích</string>
+    <string name="action_comment">Bình luận</string>
+    <string name="action_share">Chia sẻ</string>
+    <string name="action_search">Tìm kiếm</string>
+    <string name="action_notifications">Thông báo</string>
+    <string name="audio_speed_format">Tốc độ: %1$sx</string>
+    <string name="screen_locked">Đã khóa màn hình điều khiển</string>
+    <string name="screen_unlocked">Đã mở khóa</string>
+    <string name="sound_muted">Đã tắt tiếng</string>
+    <string name="sound_unmuted">Đã bật tiếng</string>
+    <string name="create_post_coming_soon">Tính năng tạo bài viết đang được phát triển (Milestone M4)</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="suggestion_mutual_count">%1$d bạn chung</string>
 </resources>

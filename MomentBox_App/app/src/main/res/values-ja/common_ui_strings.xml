@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_post_image">投稿の写真</string>
+    <string name="media_toggle_controls">動画の操作を表示または非表示</string>
+    <string name="media_lock_controls">操作をロック</string>
+    <string name="media_seek_back">10秒戻る</string>
+    <string name="media_play_pause">再生または一時停止</string>
+    <string name="media_seek_forward">10秒進む</string>
+    <string name="media_toggle_sound">音声を切り替え</string>
+    <string name="media_toggle_fullscreen">全画面表示を切り替え</string>
+    <string name="media_unlock_controls">操作ロックを解除</string>
+    <string name="feature_coming_soon">この機能は準備中です。</string>
+    <string name="profile_account_title">あなたのアカウント</string>
+    <string name="journal_placeholder_title">気持ちの日記</string>
+    <string name="journal_placeholder_desc">大切な瞬間を見つけて記録しましょう。</string>
+    <string name="chat_placeholder_title">ダイレクトメッセージ</string>
+    <string name="chat_placeholder_desc">友達と気軽にチャットしましょう。</string>
+</resources>

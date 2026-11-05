@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="media_video_title">MomentBoxの動画</string>
+    <string name="media_video_author">%1$s</string>
+    <string name="media_video_error_retry">動画を再生できません。タップして再試行してください。</string>
+</resources>

@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Avatar fixture Offline: gradient CSS mockup, chữ từ font Be Vietnam Pro Semibold (CSS weight 600). -->
+    <path android:pathData="M50,0 A50,50 0,1 1,50,100 A50,50 0,1 1,50,0Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="100"
+                android:endY="100"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item
+                    android:color="#8B7CF6"
+                    android:offset="0" />
+                <item
+                    android:color="#5B4BDB"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M22.715,63.214 L22.715,36.786 L29.18,36.786 L35.787,51.107 L42.537,36.786 L48.894,36.786 L48.894,63.214 L44.108,63.214 L44.108,44.107 L38.037,56.821 L33.537,56.821 L27.501,44.036 L27.501,63.214 Z M52.713,63.214 L61.821,36.786 L68.142,36.786 L77.285,63.214 L72.213,63.214 L70.32,57.643 L59.678,57.643 L57.785,63.214 Z M61.071,53.429 L68.928,53.429 L64.999,41.75 Z" />
+</vector>

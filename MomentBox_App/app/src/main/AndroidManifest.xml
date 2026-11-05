@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:name="com.example.momentbox_app.MomentBoxApp"
+        android:name=".MomentBoxApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -27,7 +27,7 @@
         </service>
 
         <activity
-            android:name="com.example.momentbox_app.feature.splash.SplashActivity"
+            android:name=".feature.splash.SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.MomentBox.Splash">
             <intent-filter>
@@ -36,17 +36,47 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.example.momentbox_app.feature.onboarding.OnboardingActivity"
+            android:name=".feature.onboarding.OnboardingActivity"
             android:exported="false" />
-
         <activity
-            android:name="com.example.momentbox_app.feature.auth.AuthActivity"
+            android:name=".feature.auth.AuthActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
-            android:name="com.example.momentbox_app.MainActivity"
+            android:name=".MainActivity"
             android:exported="false"
             android:launchMode="singleTask" />
+        <activity
+            android:name=".feature.postdetail.PostDetailActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="post"
+                    android:scheme="momentbox" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="momentbox.dev"
+                    android:pathPrefix="/post"
+                    android:scheme="https" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".feature.videoplayer.VideoPlayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MomentBox.VideoPlayer" />
     </application>
 
 </manifest>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="PageIndicatorView">
+        <attr name="indicatorMode" format="enum">
+            <enum name="onboarding" value="0" />
+            <enum name="album" value="1" />
+        </attr>
+    </declare-styleable>
+</resources>

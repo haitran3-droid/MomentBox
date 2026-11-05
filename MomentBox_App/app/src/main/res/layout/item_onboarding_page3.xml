@@ -17,7 +17,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
         <!-- Illustration Canvas Container -->
-        <com.example.momentbox_app.core.ui.OnboardingArtLayout
+        <com.ntq.training.momentbox.core.ui.OnboardingArtLayout
             android:id="@+id/artContainer3"
             android:layout_width="match_parent"
             android:layout_height="330dp"
@@ -125,14 +125,14 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/be_vietnam_pro"
                     android:includeFontPadding="false"
-                    android:text="0:15"
+                    android:text="@string/onboarding_voice_sample_time"
                     android:textColor="@color/text_secondary"
                     android:textSize="11.5sp"
                     app:fontFamily="@font/be_vietnam_pro"
                     app:lineHeight="14.95sp" />
             </LinearLayout>
 
-        </com.example.momentbox_app.core.ui.OnboardingArtLayout>
+        </com.ntq.training.momentbox.core.ui.OnboardingArtLayout>
 
         <!-- Page Title -->
         <com.google.android.material.textview.MaterialTextView

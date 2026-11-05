@@ -1,13 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    values-en/strings.xml - Tài nguyên chuỗi tiếng Anh (English Localization).
-
-    [Dành cho Android Intern]:
-    - Khi thiết bị hoặc người dùng chọn ngôn ngữ là tiếng Anh (`en`), hệ điều hành sẽ tự động
-      tìm kiếm các chuỗi trong thư mục `values-en/` để nạp vào giao diện thay thế cho `values/strings.xml`.
-    - Mọi khóa `<string name="...">` phải khớp chính xác 100% với file gốc trong `values/strings.xml`
-      để tránh trường hợp thiếu chuỗi gây lỗi biên dịch hoặc hiển thị sai.
--->
 <resources>
     <string name="app_name">MomentBox</string>
 
@@ -80,4 +71,67 @@
     <string name="onboarding_art_chat_incoming">Such a beautiful day! ☀️</string>
     <string name="onboarding_art_chat_outgoing">Coffee and photos? 📸</string>
     <string name="main_debug_refresh_request">Testing 401 → refresh → retry…</string>
+
+    <!-- M2 Navigation -->
+    <string name="nav_feed">Feed</string>
+    <string name="nav_journal">Journal</string>
+    <string name="nav_create">Create</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- M2 Stories -->
+    <string name="my_story">Your story</string>
+
+    <!-- M2 Post & Feed -->
+    <string name="post_public">Public</string>
+    <string name="post_friends">Friends</string>
+    <string name="post_just_now">Just now</string>
+    <string name="post_read_more">Read more</string>
+    <string name="post_collapse">Show less</string>
+    <plurals name="new_posts_chip">
+        <item quantity="one">%1$d new post</item>
+        <item quantity="other">%1$d new posts</item>
+    </plurals>
+    <string name="suggestions_title">Suggested for you</string>
+    <string name="see_all">See all</string>
+    <string name="follow">Follow</string>
+    <string name="following">Following</string>
+    <string name="feed_error">Failed to load feed</string>
+
+    <!-- M2 Comments & Detail -->
+    <string name="comments_count_title">Comments (%1$d)</string>
+    <string name="sort_top">Top comments</string>
+    <string name="sort_newest">Newest</string>
+    <string name="comment_sending">Sending…</string>
+    <string name="comment_send_failed">Failed (Retry)</string>
+    <string name="comment_input_hint">Write a comment…</string>
+    <string name="reply_to">Replying to %1$s</string>
+    <plurals name="hide_replies">
+        <item quantity="one">Hide %1$d reply</item>
+        <item quantity="other">Hide %1$d replies</item>
+    </plurals>
+    <plurals name="show_replies">
+        <item quantity="one">Show %1$d reply</item>
+        <item quantity="other">View %1$d replies</item>
+    </plurals>
+    <string name="comments_error">Failed to load comments</string>
+
+    <!-- M2 Menu & Actions -->
+    <string name="menu_post_options">Post options</string>
+    <string name="menu_post_save">Save post</string>
+    <string name="menu_post_copy_link">Copy link</string>
+    <string name="menu_post_report">Report post</string>
+    <string name="menu_post_delete">Delete post</string>
+    <string name="action_like">Like</string>
+    <string name="action_comment">Comment</string>
+    <string name="action_share">Share</string>
+    <string name="action_search">Search</string>
+    <string name="action_notifications">Notifications</string>
+    <string name="audio_speed_format">Speed: %1$sx</string>
+    <string name="screen_locked">Controls locked</string>
+    <string name="screen_unlocked">Controls unlocked</string>
+    <string name="sound_muted">Muted</string>
+    <string name="sound_unmuted">Sound on</string>
+    <string name="create_post_coming_soon">Post creation is coming soon (Milestone M4)</string>
+    <string name="suggestion_mutual_count">%1$d mutual friends</string>
 </resources>

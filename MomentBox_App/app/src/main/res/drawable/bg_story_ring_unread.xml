@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    bg_story_ring_unread.xml - Vòng viền Story chưa xem dạng Gradient 3 màu (Cam - Hồng - Tím)
+
+    [Dành cho Android Intern]:
+    - Theo chuẩn CSS .ring trong mockup-src/src/00_head.html:44,60:
+      linear-gradient(45deg, #FFB347, #FF5F6D 45%, #8B5CF6)
+    - Vẽ bằng shape oval với gradient 45 độ bo tròn 100%, không bị góc nhọn hay hình vuông.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:angle="45"
+        android:startColor="#FFB347"
+        android:centerColor="#FF5F6D"
+        android:endColor="#8B5CF6"
+        android:type="linear" />
+    <size
+        android:width="56dp"
+        android:height="56dp" />
+</shape>

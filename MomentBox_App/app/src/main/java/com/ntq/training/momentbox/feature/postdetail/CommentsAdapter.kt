@@ -11,6 +11,7 @@ import com.bumptech.glide.Glide
 import com.ntq.training.momentbox.core.ui.RelativePostTime
 import com.ntq.training.momentbox.domain.model.Comment
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.databinding.ItemCommentBinding
 import com.ntq.training.momentbox.databinding.ItemCommentReplyBinding
 
@@ -114,7 +115,7 @@ class CommentsAdapter(
 
                 // Avatar với placeholder tròn đồng nhất
                 Glide.with(ivCommentAvatar.context)
-                    .load(comment.author.avatarUrl)
+                    .load(MediaImageModel.resolve(ivCommentAvatar.context, comment.author.avatarUrl))
                     .placeholder(R.drawable.bg_avatar_placeholder)
                     .error(R.drawable.bg_avatar_placeholder)
                     .circleCrop()
@@ -183,7 +184,7 @@ class CommentsAdapter(
                 }
 
                 Glide.with(ivReplyAvatar.context)
-                    .load(reply.author.avatarUrl)
+                    .load(MediaImageModel.resolve(ivReplyAvatar.context, reply.author.avatarUrl))
                     .placeholder(R.drawable.bg_avatar_placeholder)
                     .error(R.drawable.bg_avatar_placeholder)
                     .circleCrop()

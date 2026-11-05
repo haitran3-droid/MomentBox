@@ -34,6 +34,7 @@ import com.ntq.training.momentbox.domain.model.User
 import com.ntq.training.momentbox.feature.auth.AuthActivity
 import com.ntq.training.momentbox.feature.videoplayer.VideoPlayerActivity
 import com.ntq.training.momentbox.core.media.VoicePlayerManager
+import com.ntq.training.momentbox.core.ui.MediaImageModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -102,7 +103,7 @@ class PostDetailActivity : AppCompatActivity() {
             currentUser?.avatarUrl?.let { url ->
                 bindingB?.let { b ->
                     Glide.with(this@PostDetailActivity)
-                        .load(url)
+                        .load(MediaImageModel.resolve(this@PostDetailActivity, url))
                         .placeholder(R.drawable.bg_avatar_placeholder)
                         .circleCrop()
                         .into(b.ivCurrentUserAvatar)
@@ -267,7 +268,7 @@ class PostDetailActivity : AppCompatActivity() {
         // Avatar người dùng hiện tại
         currentUser?.avatarUrl?.let { url ->
             Glide.with(this)
-                .load(url)
+                .load(MediaImageModel.resolve(this@PostDetailActivity, url))
                 .placeholder(R.drawable.bg_avatar_placeholder)
                 .error(R.drawable.bg_avatar_placeholder)
                 .circleCrop()

@@ -17,6 +17,7 @@ import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.databinding.ItemFeedStoryBinding
 import com.ntq.training.momentbox.domain.model.Story
 import kotlin.math.roundToInt
@@ -25,7 +26,7 @@ class StoriesAdapter(
     private val onStoryClick: (Story) -> Unit,
     private val onAddStoryClick: () -> Unit
 ) : ListAdapter<Story, StoriesAdapter.StoryViewHolder>(StoryDiffCallback) {
-
+    override fun getItemViewType(position: Int): Int = R.layout.item_feed_story
     inner class StoryViewHolder(val binding: ItemFeedStoryBinding) :
         RecyclerView.ViewHolder(binding.root) {
         init {
@@ -110,7 +111,7 @@ class StoriesAdapter(
 
             // Avatar luôn dùng placeholder và error hình tròn, không dùng nền vuông hay default launcher icon
             Glide.with(ivStoryAvatar.context)
-                .load(story.user.avatarUrl)
+                .load(MediaImageModel.resolve(ivStoryAvatar.context, story.user.avatarUrl))
                 .placeholder(R.drawable.bg_avatar_placeholder)
                 .error(R.drawable.bg_avatar_placeholder)
                 .listener(object : RequestListener<Drawable> {

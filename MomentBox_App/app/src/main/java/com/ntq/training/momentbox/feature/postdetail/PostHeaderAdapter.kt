@@ -15,6 +15,7 @@ import com.bumptech.glide.Glide
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.ui.PostMetadata
 import com.ntq.training.momentbox.core.media.VoicePlaybackState
+import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.databinding.ItemPostDetailHeaderBinding
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.feature.feed.adapter.PhotoAlbumAdapter
@@ -168,7 +169,7 @@ class PostHeaderAdapter(
 
             // Avatar tròn với placeholder/error dạng oval
             Glide.with(ivDetailAuthorAvatar.context)
-                .load(currentPost.author.avatarUrl)
+                .load(MediaImageModel.resolve(ivDetailAuthorAvatar.context, currentPost.author.avatarUrl))
                 .placeholder(R.drawable.bg_avatar_placeholder)
                 .error(R.drawable.bg_avatar_placeholder)
                 .circleCrop()
@@ -225,8 +226,12 @@ class PostHeaderAdapter(
         layoutDetailCounter.visibility = View.GONE
         if (photo) {
             val urls = post.media.filter { it.isImage }.map { it.url }
-            // Chỉ thay adapter khi danh sách ảnh đổi. Callback đọc bài đang bind để tránh giữ post cũ.
-            if ((vpDetailPhotos.adapter as? PhotoAlbumAdapter)?.images != urls) {
+            // Tái sử dụng adapter khi có thể và cập nhật ảnh bằng submitImages. Callback đọc bài đang bind để tránh giữ post cũ.
+            val currentAdapter = vpDetailPhotos.adapter as? PhotoAlbumAdapter
+            if (currentAdapter != null) {
+                currentAdapter.onPhotoClick = { page -> holder.boundPost?.let { onPhotoClick(it, page) } }
+                currentAdapter.submitImages(urls)
+            } else {
                 vpDetailPhotos.adapter = PhotoAlbumAdapter(urls) { page -> holder.boundPost?.let { onPhotoClick(it, page) } }
             }
             val page = (albumPages[post.id] ?: initialAlbumPage).coerceIn(0, urls.lastIndex)
@@ -244,7 +249,8 @@ class PostHeaderAdapter(
             vpDetailPhotos.adapter = null
         }
         if (video) {
-            Glide.with(ivDetailVideoPreview).asBitmap().load(post.media.first { it.isVideo }.url)
+            val media = post.media.first { it.isVideo }
+            Glide.with(ivDetailVideoPreview).asBitmap().load(media.thumbnailUrl ?: media.url)
                 .frame(0).placeholder(R.drawable.bg_onboarding_art_gradient)
                 .error(R.drawable.bg_onboarding_art_gradient).into(ivDetailVideoPreview)
         } else Glide.with(ivDetailVideoPreview).clear(ivDetailVideoPreview)

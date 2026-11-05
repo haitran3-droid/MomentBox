@@ -10,13 +10,14 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.ntq.training.momentbox.domain.model.User
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.databinding.ItemSuggestionCardBinding
 
 class SuggestionsAdapter(
     private val onFollowClick: (User) -> Unit,
     private val onDismissClick: (User) -> Unit
 ) : ListAdapter<User, SuggestionsAdapter.SuggestionViewHolder>(SuggestionDiffCallback) {
-
+    override fun getItemViewType(position: Int): Int = R.layout.item_suggestion_card
     inner class SuggestionViewHolder(val binding: ItemSuggestionCardBinding) :
         RecyclerView.ViewHolder(binding.root) {
         init {
@@ -69,7 +70,7 @@ class SuggestionsAdapter(
             }
 
             Glide.with(ivSuggestionAvatar.context)
-                .load(user.avatarUrl)
+                .load(MediaImageModel.resolve(ivSuggestionAvatar.context, user.avatarUrl))
                 .placeholder(R.drawable.bg_avatar_placeholder)
                 .error(R.drawable.bg_avatar_placeholder)
                 .transition(DrawableTransitionOptions.withCrossFade(150))

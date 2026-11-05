@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:name="com.ntq.training.momentbox.MomentBoxApp"
+        android:name=".MomentBoxApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -27,34 +27,56 @@
         </service>
 
         <activity
-            android:name="com.ntq.training.momentbox.feature.splash.SplashActivity"
+            android:name=".feature.splash.SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.MomentBox.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
-            android:name="com.ntq.training.momentbox.feature.onboarding.OnboardingActivity"
+            android:name=".feature.onboarding.OnboardingActivity"
             android:exported="false" />
         <activity
-            android:name="com.ntq.training.momentbox.feature.auth.AuthActivity"
+            android:name=".feature.auth.AuthActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
-            android:name="com.ntq.training.momentbox.MainActivity"
+            android:name=".MainActivity"
             android:exported="false"
             android:launchMode="singleTask" />
         <activity
-            android:name="com.ntq.training.momentbox.feature.postdetail.PostDetailActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
+            android:name=".feature.postdetail.PostDetailActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="post"
+                    android:scheme="momentbox" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="momentbox.dev"
+                    android:pathPrefix="/post"
+                    android:scheme="https" />
+            </intent-filter>
+        </activity>
+
         <activity
-            android:name="com.ntq.training.momentbox.feature.videoplayer.VideoPlayerActivity"
+            android:name=".feature.videoplayer.VideoPlayerActivity"
             android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
+            android:theme="@style/Theme.MomentBox.VideoPlayer" />
     </application>
 
 </manifest>

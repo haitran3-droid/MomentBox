@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_voice_loading">Đang tải…</string>
+    <string name="detail_photo_viewer">Xem ảnh toàn màn hình</string>
+    <string name="detail_reply">Trả lời</string>
+    <string name="detail_back">Quay lại</string>
+    <string name="detail_title">Bài viết</string>
+    <string name="detail_title_a">Bài viết (Bản A - NestedScrollView)</string>
+    <string name="detail_cancel">Hủy</string>
+    <string name="detail_emoji">Biểu tượng cảm xúc</string>
+    <string name="detail_send_comment">Gửi bình luận</string>
+    <string name="detail_invalid_post">Không tìm thấy bài viết hợp lệ</string>
+    <string name="detail_login_required">Vui lòng đăng nhập để xem chi tiết bài viết</string>
+    <string name="detail_follow_failed">Không thể cập nhật theo dõi</string>
+    <string name="detail_you">Bạn</string>
+    <string name="detail_link_copied">Đã sao chép liên kết</string>
+    <string name="detail_report_sent">Đã gửi báo cáo bài viết</string>
+    <string name="detail_post_deleted">Đã xóa bài viết</string>
+    <string name="detail_delete_failed">Không thể xóa bài viết</string>
+    <string name="detail_share_text">Xem bài viết của %1$s trên MomentBox: momentbox://post/%2$d</string>
+    <string name="detail_share_chooser">Chia sẻ bài viết qua</string>
+</resources>

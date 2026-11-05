@@ -21,9 +21,11 @@
             android:id="@+id/ivCommentAvatar"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:background="@color/surface_variant"
+            android:background="@drawable/bg_avatar_placeholder"
             android:scaleType="centerCrop"
-            tools:srcCompat="@drawable/ic_launcher_foreground" />
+            tools:srcCompat="@drawable/ic_launcher_foreground"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -73,7 +75,8 @@
                 android:layout_marginTop="4dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="4dp">
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp">
 
                 <TextView
                     android:id="@+id/tvCommentTime"
@@ -93,7 +96,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:fontFamily="@font/be_vietnam_pro"
-                    android:text="Thích"
+                    android:text="@string/action_like"
                     android:textColor="@color/text_secondary"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -106,7 +109,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:fontFamily="@font/be_vietnam_pro"
-                    android:text="Trả lời"
+                    android:text="@string/detail_reply"
                     android:textColor="@color/text_secondary"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -127,7 +130,7 @@
                 android:id="@+id/ivCommentLike"
                 android:layout_width="18dp"
                 android:layout_height="18dp"
-                android:contentDescription="Thích"
+                android:contentDescription="@string/action_like"
                 android:src="@drawable/ic_favorite"
                 app:tint="@color/text_tertiary" />
 

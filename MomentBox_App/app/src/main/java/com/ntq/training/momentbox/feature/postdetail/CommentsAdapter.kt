@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.ntq.training.momentbox.core.ui.RelativePostTime
 import com.ntq.training.momentbox.domain.model.Comment
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.databinding.ItemCommentBinding
@@ -30,11 +31,13 @@ class CommentsAdapter(
     private val onReplyClick: (Comment) -> Unit,
     private val onExpandRepliesClick: (Comment) -> Unit,
     private val onRetryClick: ((Comment) -> Unit)? = null
-) : ListAdapter<CommentDisplayItem, RecyclerView.ViewHolder>(CommentDiffCallback){
-    companion object{
+) : ListAdapter<CommentDisplayItem, RecyclerView.ViewHolder>(CommentDiffCallback) {
+
+    companion object {
         const val VIEW_TYPE_ROOT = 1002
         const val VIEW_TYPE_REPLY = 1003
     }
+
     /** Bộ đếm số lần gọi onBindViewHolder phục vụ đo đạc A/B testing */
     var bindCount: Int = 0
         private set
@@ -44,14 +47,14 @@ class CommentsAdapter(
     }
 
     /**
-     * Chuyển đổi cây bình luận lồng nhau thành danh sách phẳng
+     * Chuyển đổi cây bình luận lồng nhau thành danh sách phẳng (Flattened list) để RecyclerView vẽ mượt mà.
      */
-    fun submitCommentsList(comments: List<Comment>){
+    fun submitCommentsList(comments: List<Comment>) {
         val displayItems = mutableListOf<CommentDisplayItem>()
-        for(root in comments){
+        for (root in comments) {
             displayItems.add(CommentDisplayItem.Root(root))
-            if(root.isRepliesExpanded){
-                for(reply in root.replies){
+            if (root.isRepliesExpanded) {
+                for (reply in root.replies) {
                     displayItems.add(CommentDisplayItem.Reply(reply, root.id))
                 }
             }
@@ -60,11 +63,12 @@ class CommentsAdapter(
     }
 
     override fun getItemViewType(position: Int): Int {
-        return when (getItem(position)){
+        return when (getItem(position)) {
             is CommentDisplayItem.Root -> VIEW_TYPE_ROOT
             is CommentDisplayItem.Reply -> VIEW_TYPE_REPLY
         }
     }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
@@ -89,20 +93,23 @@ class CommentsAdapter(
             with(binding) {
                 tvCommentAuthorName.text = comment.author.displayName
                 tvCommentContent.text = comment.content
+                tvCommentTime.isFocusable = comment.sendFailed && !comment.isSending
 
                 // Trạng thái gửi / lỗi gửi
                 if (comment.isSending) {
                     tvCommentTime.text = root.context.getString(R.string.comment_sending)
                     tvCommentTime.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
                     tvCommentTime.setOnClickListener(null)
+                    tvCommentTime.isClickable = false
                 } else if (comment.sendFailed) {
                     tvCommentTime.text = root.context.getString(R.string.comment_send_failed)
                     tvCommentTime.setTextColor(ContextCompat.getColor(root.context, R.color.error))
                     tvCommentTime.setOnClickListener { onRetryClick?.invoke(comment) }
                 } else {
-                    tvCommentTime.text = comment.createdAt
+                    tvCommentTime.text = RelativePostTime.format(root.context, comment.createdAt)
                     tvCommentTime.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
                     tvCommentTime.setOnClickListener(null)
+                    tvCommentTime.isClickable = false
                 }
 
                 // Avatar với placeholder tròn đồng nhất
@@ -117,13 +124,13 @@ class CommentsAdapter(
                 if (comment.isLiked) {
                     ivCommentLike.setImageResource(R.drawable.ic_favorite_filled)
                     ivCommentLike.imageTintList = null
-                    tvCommentLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.like_active))
+                    tvCommentLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
                 } else {
                     ivCommentLike.setImageResource(R.drawable.ic_favorite)
                     ivCommentLike.setColorFilter(ContextCompat.getColor(root.context, R.color.text_tertiary))
                     tvCommentLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
                 }
-                tvCommentLikeCount.text = comment.likeCount.toString()
+                tvCommentLikeCount.text = root.context.getString(R.string.ui_integer_count, comment.likeCount)
 
                 // Nút Thích & Trả lời
                 btnLikeComment.setOnClickListener { onLikeClick(comment) }
@@ -135,9 +142,9 @@ class CommentsAdapter(
                     layoutExpandReplies.visibility = View.VISIBLE
                     val totalReplies = if (comment.replies.isNotEmpty()) comment.replies.size else comment.replyCount
                     tvExpandRepliesText.text = if (comment.isRepliesExpanded) {
-                        "Ẩn $totalReplies phản hồi"
+                        root.context.resources.getQuantityString(R.plurals.hide_replies, totalReplies, totalReplies)
                     } else {
-                        "Xem $totalReplies phản hồi"
+                        root.context.resources.getQuantityString(R.plurals.show_replies, totalReplies, totalReplies)
                     }
                     layoutExpandReplies.setOnClickListener {
                         onExpandRepliesClick(comment)
@@ -156,20 +163,23 @@ class CommentsAdapter(
             with(binding) {
                 tvReplyAuthorName.text = reply.author.displayName
                 tvReplyContent.text = reply.content
+                tvReplyTime.isFocusable = reply.sendFailed && !reply.isSending
 
                 // Trạng thái gửi / lỗi gửi cho phản hồi con
                 if (reply.isSending) {
                     tvReplyTime.text = root.context.getString(R.string.comment_sending)
                     tvReplyTime.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
                     tvReplyTime.setOnClickListener(null)
+                    tvReplyTime.isClickable = false
                 } else if (reply.sendFailed) {
                     tvReplyTime.text = root.context.getString(R.string.comment_send_failed)
                     tvReplyTime.setTextColor(ContextCompat.getColor(root.context, R.color.error))
                     tvReplyTime.setOnClickListener { onRetryClick?.invoke(reply) }
                 } else {
-                    tvReplyTime.text = reply.createdAt
+                    tvReplyTime.text = RelativePostTime.format(root.context, reply.createdAt)
                     tvReplyTime.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
                     tvReplyTime.setOnClickListener(null)
+                    tvReplyTime.isClickable = false
                 }
 
                 Glide.with(ivReplyAvatar.context)
@@ -182,13 +192,13 @@ class CommentsAdapter(
                 if (reply.isLiked) {
                     ivReplyLike.setImageResource(R.drawable.ic_favorite_filled)
                     ivReplyLike.imageTintList = null
-                    tvReplyLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.like_active))
+                    tvReplyLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
                 } else {
                     ivReplyLike.setImageResource(R.drawable.ic_favorite)
                     ivReplyLike.setColorFilter(ContextCompat.getColor(root.context, R.color.text_tertiary))
                     tvReplyLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
                 }
-                tvReplyLikeCount.text = reply.likeCount.toString()
+                tvReplyLikeCount.text = root.context.getString(R.string.ui_integer_count, reply.likeCount)
 
                 btnLikeReply.setOnClickListener { onLikeClick(reply) }
             }

@@ -1,0 +1,21 @@
+<resources>
+    <string name="detail_voice_loading">Loading…</string>
+    <string name="detail_photo_viewer">View photo fullscreen</string>
+    <string name="detail_reply">Reply</string>
+    <string name="detail_back">Back</string>
+    <string name="detail_title">Post</string>
+    <string name="detail_title_a">Post (Version A - NestedScrollView)</string>
+    <string name="detail_cancel">Cancel</string>
+    <string name="detail_emoji">Emoji</string>
+    <string name="detail_send_comment">Send comment</string>
+    <string name="detail_invalid_post">Valid post not found</string>
+    <string name="detail_login_required">Please sign in to view this post</string>
+    <string name="detail_follow_failed">Could not update following</string>
+    <string name="detail_you">You</string>
+    <string name="detail_link_copied">Link copied</string>
+    <string name="detail_report_sent">Post report sent</string>
+    <string name="detail_post_deleted">Post deleted</string>
+    <string name="detail_delete_failed">Could not delete post</string>
+    <string name="detail_share_text">View %1$s’s post on MomentBox: momentbox://post/%2$d</string>
+    <string name="detail_share_chooser">Share post via</string>
+</resources>

@@ -1,0 +1,21 @@
+<resources>
+    <string name="detail_voice_loading">読み込み中…</string>
+    <string name="detail_photo_viewer">写真を全画面で表示</string>
+    <string name="detail_reply">返信</string>
+    <string name="detail_back">戻る</string>
+    <string name="detail_title">投稿</string>
+    <string name="detail_title_a">投稿（バージョンA - NestedScrollView）</string>
+    <string name="detail_cancel">キャンセル</string>
+    <string name="detail_emoji">絵文字</string>
+    <string name="detail_send_comment">コメントを送信</string>
+    <string name="detail_invalid_post">有効な投稿が見つかりません</string>
+    <string name="detail_login_required">投稿を見るにはログインしてください</string>
+    <string name="detail_follow_failed">フォロー状態を更新できませんでした</string>
+    <string name="detail_you">あなた</string>
+    <string name="detail_link_copied">リンクをコピーしました</string>
+    <string name="detail_report_sent">投稿の報告を送信しました</string>
+    <string name="detail_post_deleted">投稿を削除しました</string>
+    <string name="detail_delete_failed">投稿を削除できませんでした</string>
+    <string name="detail_share_text">MomentBoxで%1$sの投稿を見る：momentbox://post/%2$d</string>
+    <string name="detail_share_chooser">投稿を共有</string>
+</resources>

@@ -15,9 +15,11 @@
         android:id="@+id/ivReplyAvatar"
         android:layout_width="28dp"
         android:layout_height="28dp"
-        android:background="@color/surface_variant"
+        android:background="@drawable/bg_avatar_placeholder"
         android:scaleType="centerCrop"
-        tools:srcCompat="@drawable/ic_launcher_foreground" />
+        tools:srcCompat="@drawable/ic_launcher_foreground"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -65,7 +67,8 @@
             android:layout_marginTop="3dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="4dp">
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
 
             <TextView
                 android:id="@+id/tvReplyTime"
@@ -85,7 +88,7 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:fontFamily="@font/be_vietnam_pro"
-                android:text="Thích"
+                android:text="@string/action_like"
                 android:textColor="@color/text_secondary"
                 android:textSize="11.5sp"
                 android:textStyle="bold" />
@@ -104,7 +107,7 @@
             android:id="@+id/ivReplyLike"
             android:layout_width="16dp"
             android:layout_height="16dp"
-            android:contentDescription="Thích"
+            android:contentDescription="@string/action_like"
             android:src="@drawable/ic_favorite"
             app:tint="@color/text_tertiary" />
 
@@ -114,7 +117,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="@font/be_vietnam_pro"
             android:textColor="@color/text_tertiary"
-            android:textSize="10.5sp"
+            android:textSize="11sp"
             tools:text="3" />
     </LinearLayout>
 </LinearLayout>

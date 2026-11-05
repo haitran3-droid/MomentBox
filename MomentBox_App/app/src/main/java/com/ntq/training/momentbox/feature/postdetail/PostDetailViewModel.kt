@@ -8,11 +8,19 @@ import com.ntq.training.momentbox.domain.model.Author
 import com.ntq.training.momentbox.domain.model.Comment
 import com.ntq.training.momentbox.domain.model.Post
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 class PostDetailViewModel(
     private val feedRepository: FeedRepository,
@@ -22,6 +30,46 @@ class PostDetailViewModel(
     // Quan sát bài viết từ nguồn chân lý duy nhất (SSOT)
     val post: StateFlow<Post?> = feedRepository.observePost(postId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private val followOverride = MutableStateFlow<Pair<Long, Boolean>?>(null)
+    private val _isFollowPending = MutableStateFlow(false)
+    val isFollowPending: StateFlow<Boolean> = _isFollowPending.asStateFlow()
+    /** Có quan hệ xác nhận mới cho phép UI toggle; pending chỉ biểu diễn request đang chạy. */
+    val isFollowAvailable: StateFlow<Boolean> = combine(post, feedRepository.followingMapFlow) { currentPost, confirmed ->
+        currentPost != null && currentPost.author.id in confirmed
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    private val _followErrors = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val followErrors = _followErrors.asSharedFlow()
+    val isFollowingAuthor: StateFlow<Boolean> = combine(post, feedRepository.followingMapFlow, followOverride) { currentPost, confirmed, optimistic ->
+        val authorId = currentPost?.author?.id
+        if (authorId == null) false else optimistic?.takeIf { it.first == authorId }?.second ?: confirmed[authorId] ?: false
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun toggleFollowAuthor() {
+        val currentPost = post.value ?: return
+        if (_isFollowPending.value) return
+        val authorId = currentPost.author.id
+        val currentFollowing = feedRepository.followingMapFlow.value[authorId] ?: return
+        // Khóa ngay trước khi launch để hai lần chạm nhanh không tạo hai request.
+        _isFollowPending.value = true
+        followOverride.value = authorId to !currentFollowing
+        viewModelScope.launch {
+            try {
+                val result = try {
+                    feedRepository.toggleFollowUser(authorId, currentFollowing)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Result.failure(error)
+                }
+                if (result.isFailure && result.exceptionOrNull() !is CancellationException) _followErrors.emit(Unit)
+            } finally {
+                // Bỏ state tạm để trở về confirmed state mới nhất, không phục hồi snapshot cũ.
+                followOverride.value = null
+                _isFollowPending.value = false
+            }
+        }
+    }
 
     private val _comments = MutableStateFlow<List<Comment>>(emptyList())
     val comments: StateFlow<List<Comment>> = _comments.asStateFlow()
@@ -39,6 +87,7 @@ class PostDetailViewModel(
     val replyingTo: StateFlow<Comment?> = _replyingTo.asStateFlow()
 
     private var currentCommentPage = 1
+    private val retryingCommentIds = mutableSetOf<Long>()
 
     init {
         loadPostDetail()
@@ -47,7 +96,17 @@ class PostDetailViewModel(
 
     private fun loadPostDetail() {
         viewModelScope.launch {
-            feedRepository.getPostDetail(postId)
+            _isFollowPending.value = true
+            try {
+                val loaded = feedRepository.getPostDetail(postId).getOrNull() ?: return@launch
+                // Không coi entry chưa có trong cache là "chưa follow": cold deep link cần hỏi server.
+                val relationship = feedRepository.loadFollowingState(loaded.author.id)
+                if (relationship.isFailure && relationship.exceptionOrNull() !is CancellationException) {
+                    _followErrors.emit(Unit)
+                }
+            } finally {
+                _isFollowPending.value = false
+            }
         }
     }
 
@@ -114,52 +173,31 @@ class PostDetailViewModel(
      * Thử lại bình luận hoặc phản hồi con bị lỗi gửi (Sửa lỗi F12).
      */
     fun retryComment(comment: Comment) {
-        updateCommentInList(comment.id) {
+        // Adapter có thể còn giữ row cũ trong lúc DiffUtil đang chạy; luôn kiểm tra state hiện tại.
+        val current = _comments.value.firstOrNull { it.id == comment.id }
+            ?: _comments.value.asSequence().flatMap { it.replies.asSequence() }.firstOrNull { it.id == comment.id }
+            ?: return
+        if (!current.sendFailed || current.isSending || !retryingCommentIds.add(current.id)) return
+
+        updateCommentInList(current.id) {
             it.copy(isSending = true, sendFailed = false)
         }
 
         viewModelScope.launch {
-            val result = feedRepository.postComment(
-                postId = postId,
-                content = comment.content,
-                parentId = comment.parentId
-            )
-
-            if (result.isSuccess) {
-                val confirmedComment = result.getOrThrow()
-                if (comment.parentId != null) {
-                    updateCommentInList(comment.parentId) { parent ->
-                        parent.copy(
-                            replies = parent.replies.map {
-                                if (it.id == comment.id) confirmedComment else it
-                            }
-                        )
-                    }
-                } else {
-                    _comments.value = _comments.value.map {
-                        if (it.id == comment.id) confirmedComment else it
-                    }
+            try {
+                val result: Result<Comment> = try {
+                    feedRepository.postComment(postId, current.content, current.parentId)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Result.failure(error)
                 }
-            } else {
-                if (comment.parentId != null) {
-                    updateCommentInList(comment.parentId) { parent ->
-                        parent.copy(
-                            replies = parent.replies.map {
-                                if (it.id == comment.id) it.copy(
-                                    isSending = false,
-                                    sendFailed = true
-                                ) else it
-                            }
-                        )
-                    }
-                } else {
-                    _comments.value = _comments.value.map {
-                        if (it.id == comment.id) it.copy(
-                            isSending = false,
-                            sendFailed = true
-                        ) else it
-                    }
+                updateCommentInList(current.id) {
+                    result.getOrNull() ?: it.copy(isSending = false, sendFailed = true)
                 }
+            } finally {
+                // Giải phóng khóa khi request kết thúc để người dùng có thể thử lại nếu còn lỗi.
+                retryingCommentIds.remove(current.id)
             }
         }
     }
@@ -247,7 +285,9 @@ class PostDetailViewModel(
             likeCount = 0,
             isLiked = false,
             replyCount = 0,
-            createdAt = "Vừa xong",
+            createdAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }.format(Date()),
             isSending = true,
             sendFailed = false
         )
@@ -296,10 +336,7 @@ class PostDetailViewModel(
                     updateCommentInList(targetParent.id) { parent ->
                         parent.copy(
                             replies = parent.replies.map {
-                                if (it.id == tempId) it.copy(
-                                    isSending = false,
-                                    sendFailed = true
-                                ) else it
+                                if (it.id == tempId) it.copy(isSending = false, sendFailed = true) else it
                             }
                         )
                     }

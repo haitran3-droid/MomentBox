@@ -22,9 +22,11 @@
             android:id="@+id/ivDetailAuthorAvatar"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="@color/surface_variant"
+            android:background="@drawable/bg_avatar_placeholder"
             android:scaleType="centerCrop"
-            tools:srcCompat="@drawable/ic_launcher_foreground" />
+            tools:srcCompat="@drawable/ic_launcher_foreground"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -66,7 +68,7 @@
             android:gravity="center"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
-            android:text="Theo dõi"
+            android:text="@string/follow"
             android:textColor="@color/on_primary_container"
             android:textSize="12.5sp"
             android:textStyle="bold" />
@@ -76,12 +78,94 @@
     <FrameLayout
         android:id="@+id/detailMediaContainer"
         android:layout_width="match_parent"
-        android:layout_height="220dp">
+        android:layout_height="wrap_content">
 
         <androidx.viewpager2.widget.ViewPager2
             android:id="@+id/vpDetailPhotos"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="220dp" />
+
+        <FrameLayout
+            android:id="@+id/detailVideoContainer"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:contentDescription="@string/feed_play"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/ivDetailVideoPreview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="@null" />
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_play_circle"
+                android:padding="10dp"
+                android:src="@drawable/ic_play_arrow"
+                android:contentDescription="@null"
+                app:tint="@color/white" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:id="@+id/detailVoiceContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_voice_container"
+                android:gravity="center_vertical"
+                android:padding="10dp">
+                <ImageButton
+                    android:id="@+id/btnDetailVoicePlay"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_play_circle"
+                    android:src="@drawable/ic_play_arrow"
+                    android:contentDescription="@string/feed_play"
+                    app:tint="@color/white" />
+                <com.ntq.training.momentbox.core.ui.WaveformView
+                    android:id="@+id/detailWaveform"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp" />
+                <TextView
+                    android:id="@+id/tvDetailVoiceTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/on_primary_container"
+                    android:textSize="12sp" />
+                <TextView
+                    android:id="@+id/btnDetailVoiceSpeed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:minWidth="44dp"
+                    android:gravity="center"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:textColor="@color/on_primary_container" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/tvDetailVoiceError"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="44dp"
+                android:gravity="center_vertical"
+                android:text="@string/retry"
+                android:textColor="@color/error"
+                android:clickable="true"
+                android:focusable="true"
+                android:visibility="gone" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/layoutDetailCounter"
@@ -141,7 +225,7 @@
                 android:id="@+id/ivDetailLike"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:contentDescription="Thích"
+                android:contentDescription="@string/action_like"
                 android:src="@drawable/ic_favorite"
                 app:tint="@color/text_primary" />
 
@@ -172,7 +256,7 @@
                 android:id="@+id/ivDetailComment"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:contentDescription="Bình luận"
+                android:contentDescription="@string/action_comment"
                 android:src="@drawable/ic_chat_bubble"
                 app:tint="@color/text_primary" />
 
@@ -200,8 +284,8 @@
             <ImageView
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:contentDescription="Chia sẻ"
-                android:src="@drawable/ic_send"
+                android:contentDescription="@string/action_share"
+                android:src="@drawable/ic_share_outline"
                 app:tint="@color/text_primary" />
         </FrameLayout>
 
@@ -222,7 +306,7 @@
                 android:id="@+id/ivDetailBookmark"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:contentDescription="Lưu bài viết"
+                android:contentDescription="@string/menu_post_save"
                 android:src="@drawable/ic_bookmark"
                 app:tint="@color/text_primary" />
         </FrameLayout>
@@ -289,7 +373,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/be_vietnam_pro"
-                android:text="Phù hợp nhất"
+                android:text="@string/sort_top"
                 android:textColor="@color/text_primary"
                 android:textSize="12sp"
                 android:textStyle="bold" />

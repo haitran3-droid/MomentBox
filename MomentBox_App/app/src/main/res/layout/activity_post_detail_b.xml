@@ -35,7 +35,7 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Quay lại"
+                    android:contentDescription="@string/detail_back"
                     android:src="@drawable/ic_arrow_back"
                     app:tint="@color/text_primary" />
             </FrameLayout>
@@ -46,7 +46,7 @@
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:fontFamily="@font/be_vietnam_pro"
-                android:text="Bài viết"
+                android:text="@string/detail_title"
                 android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -63,7 +63,7 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Tùy chọn"
+                    android:contentDescription="@string/menu_post_options"
                     android:src="@drawable/ic_more_vert"
                     app:tint="@color/text_primary" />
             </FrameLayout>
@@ -90,7 +90,7 @@
             android:id="@+id/layoutReplyingBanner"
             android:layout_width="match_parent"
             android:layout_height="32dp"
-            android:background="@color/surface_variant"
+            android:background="@drawable/bg_avatar_placeholder"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="16dp"
@@ -112,7 +112,7 @@
                 android:id="@+id/btnCancelReply"
                 android:layout_width="18dp"
                 android:layout_height="18dp"
-                android:contentDescription="Hủy"
+                android:contentDescription="@string/detail_cancel"
                 android:src="@drawable/ic_close"
                 app:tint="@color/text_tertiary" />
         </LinearLayout>
@@ -135,9 +135,11 @@
                 android:id="@+id/ivCurrentUserAvatar"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
-                android:background="@color/surface_variant"
+                android:background="@drawable/bg_avatar_placeholder"
                 android:scaleType="centerCrop"
-                tools:srcCompat="@drawable/ic_launcher_foreground" />
+                tools:srcCompat="@drawable/ic_launcher_foreground"
+                android:contentDescription="@null"
+                android:importantForAccessibility="no" />
 
             <!-- Khung nhập liệu bo cong 21dp -->
             <LinearLayout
@@ -159,14 +161,16 @@
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:fontFamily="@font/be_vietnam_pro"
-                    android:hint="Viết bình luận…"
+                    android:hint="@string/comment_input_hint"
                     android:imeOptions="actionSend"
                     android:inputType="textCapSentences|textMultiLine"
                     android:maxLength="500"
                     android:maxLines="3"
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_tertiary"
-                    android:textSize="14sp" />
+                    android:textSize="14sp"
+                    android:importantForAutofill="no"
+                    tools:targetApi="o" />
 
                 <!-- Đếm số ký tự chỉ hiện khi >= 450/500 -->
                 <TextView
@@ -185,7 +189,7 @@
                     android:id="@+id/btnEmoji"
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:contentDescription="Emoji"
+                    android:contentDescription="@string/detail_emoji"
                     android:src="@drawable/ic_sentiment_satisfied"
                     app:tint="@color/text_tertiary" />
             </LinearLayout>
@@ -203,7 +207,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Gửi bình luận"
+                    android:contentDescription="@string/detail_send_comment"
                     android:src="@drawable/ic_send"
                     app:tint="@color/white" />
             </FrameLayout>

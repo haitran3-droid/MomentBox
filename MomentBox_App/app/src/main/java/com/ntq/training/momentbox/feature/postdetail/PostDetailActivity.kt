@@ -11,6 +11,7 @@ import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -23,13 +24,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.ntq.training.momentbox.MomentBoxApp
-import com.ntq.training.momentbox.MainActivity
-import com.ntq.training.momentbox.domain.model.Author
-import com.ntq.training.momentbox.domain.model.User
-import com.ntq.training.momentbox.feature.auth.AuthActivity
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.databinding.ActivityPostDetailABinding
 import com.ntq.training.momentbox.databinding.ActivityPostDetailBBinding
+import com.ntq.training.momentbox.domain.model.Author
+import com.ntq.training.momentbox.domain.model.Comment
+import com.ntq.training.momentbox.domain.model.Post
+import com.ntq.training.momentbox.domain.model.User
+import com.ntq.training.momentbox.feature.auth.AuthActivity
+import com.ntq.training.momentbox.feature.videoplayer.VideoPlayerActivity
+import com.ntq.training.momentbox.core.media.VoicePlayerManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -56,15 +60,26 @@ class PostDetailActivity : AppCompatActivity() {
     private lateinit var commentsAdapter: CommentsAdapter
     private lateinit var postHeaderAdapter: PostHeaderAdapter
     private lateinit var commentsFooterAdapter: CommentsFooterAdapter
+    private var voicePlayerManager: VoicePlayerManager? = null
+    private var restoredAlbumPage = 0
+    private var videoPositionMs = 0L
+    private var videoShouldPlay = true
+    private val videoLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        videoPositionMs = result.data?.getLongExtra(VideoPlayerActivity.EXTRA_RETURN_POSITION_MS, videoPositionMs) ?: videoPositionMs
+        videoShouldPlay = result.data?.getBooleanExtra(VideoPlayerActivity.EXTRA_RETURN_PLAY_WHEN_READY, videoShouldPlay) ?: videoShouldPlay
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        restoredAlbumPage = savedInstanceState?.getInt("detailAlbumPage") ?: 0
+        videoPositionMs = savedInstanceState?.getLong("detailVideoPosition") ?: 0L
+        videoShouldPlay = savedInstanceState?.getBoolean("detailVideoShouldPlay", true) ?: true
         enableEdgeToEdge()
 
         // 1. Phân tích Deep Link hoặc Extra Intent
         parsePostIdFromIntent()
         if (postId <= 0L) {
-            Toast.makeText(this, "Không tìm thấy bài viết hợp lệ", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.detail_invalid_post), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -72,7 +87,7 @@ class PostDetailActivity : AppCompatActivity() {
         // 2. Chốt chặn xác thực (Auth Gate) & Lấy thông tin người dùng
         lifecycleScope.launch {
             if (!app.authRepository.isLoggedIn()) {
-                Toast.makeText(this@PostDetailActivity, "Vui lòng đăng nhập để xem chi tiết bài viết", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@PostDetailActivity, getString(R.string.detail_login_required), Toast.LENGTH_SHORT).show()
                 val authIntent = Intent(this@PostDetailActivity, AuthActivity::class.java).apply {
                     putExtra("EXTRA_REDIRECT_POST_ID", postId)
                 }
@@ -82,11 +97,13 @@ class PostDetailActivity : AppCompatActivity() {
             }
 
             currentUser = app.authRepository.getSavedUser()
+            // Profile đọc bất đồng bộ; bind lại header để tính quyền follow ngay khi biết viewerId.
+            if (::postHeaderAdapter.isInitialized) postHeaderAdapter.setFollowing(viewModel.isFollowingAuthor.value)
             currentUser?.avatarUrl?.let { url ->
                 bindingB?.let { b ->
                     Glide.with(this@PostDetailActivity)
                         .load(url)
-                        .placeholder(R.color.surface_variant)
+                        .placeholder(R.drawable.bg_avatar_placeholder)
                         .circleCrop()
                         .into(b.ivCurrentUserAvatar)
                 }
@@ -146,22 +163,28 @@ class PostDetailActivity : AppCompatActivity() {
 
         b.btnBack.setOnClickListener { handleBackNavigation() }
         b.btnMoreDetail.setOnClickListener { showPostMoreBottomSheet() }
+        voicePlayerManager = VoicePlayerManager(this)
 
         // Khởi tạo các adapter cho ConcatAdapter
         postHeaderAdapter = PostHeaderAdapter(
             onLikeClick = { viewModel.toggleLikePost() },
             onBookmarkClick = { viewModel.toggleBookmarkPost() },
             onShareClick = { shareCurrentPost() },
-            onFollowClick = {
-                val currentPost = viewModel.post.value ?: return@PostHeaderAdapter
-                lifecycleScope.launch {
-                    val res = app.feedRepository.toggleFollowUser(currentPost.author.id, false)
-                    if (res.isFailure) {
-                        Toast.makeText(this@PostDetailActivity, "Không thể cập nhật theo dõi", Toast.LENGTH_SHORT).show()
-                    }
+            onFollowClick = { viewModel.toggleFollowAuthor() },
+            onSortClick = { showSortPopupMenu(b.root) },
+            onPhotoClick = { post, page ->
+                voicePlayerManager?.pauseVoice()
+                if (supportFragmentManager.findFragmentByTag("detailPhotoViewer") == null) {
+                    PostPhotoViewerDialog.newInstance(post.media.filter { it.isImage }.map { it.url }, page)
+                        .show(supportFragmentManager, "detailPhotoViewer")
                 }
             },
-            onSortClick = { showSortPopupMenu(b.root) }
+            onVideoClick = { post -> openDetailVideo(post) },
+            onVoicePlayClick = { post -> toggleDetailVoice(post) },
+            onVoiceSeek = { post, progress -> voicePlayerManager?.seekTo(post.id, progress) },
+            onVoiceSpeedClick = { post -> voicePlayerManager?.cycleSpeed(post.id) },
+            initialAlbumPage = restoredAlbumPage,
+            currentUserId = { currentUser?.id }
         )
 
         commentsAdapter = CommentsAdapter(
@@ -207,7 +230,7 @@ class PostDetailActivity : AppCompatActivity() {
                 val len = s?.length ?: 0
                 if (len >= 450) {
                     b.tvCharCounter.visibility = View.VISIBLE
-                    b.tvCharCounter.text = "$len/500"
+                    b.tvCharCounter.text = getString(R.string.ui_page_counter, len, 500)
                     if (len == 500) {
                         b.tvCharCounter.setTextColor(ContextCompat.getColor(this@PostDetailActivity, R.color.error))
                     } else {
@@ -227,7 +250,7 @@ class PostDetailActivity : AppCompatActivity() {
                 val currentAuthor = Author(
                     id = currentUser?.id ?: 1L,
                     username = currentUser?.username ?: "me",
-                    displayName = currentUser?.displayName ?: "Bạn",
+                    displayName = currentUser?.displayName ?: getString(R.string.detail_you),
                     avatarUrl = currentUser?.avatarUrl,
                     verified = currentUser?.verified ?: false
                 )
@@ -264,7 +287,8 @@ class PostDetailActivity : AppCompatActivity() {
         commentsAdapter = CommentsAdapter(
             onLikeClick = { comment -> viewModel.toggleLikeComment(comment) },
             onReplyClick = { comment -> viewModel.setReplyingTo(comment) },
-            onExpandRepliesClick = { comment -> viewModel.expandReplies(comment) }
+            onExpandRepliesClick = { comment -> viewModel.expandReplies(comment) },
+            onRetryClick = { comment -> viewModel.retryComment(comment) }
         )
 
         a.rvCommentsA.layoutManager = LinearLayoutManager(this)
@@ -276,7 +300,7 @@ class PostDetailActivity : AppCompatActivity() {
                 val currentAuthor = Author(
                     id = currentUser?.id ?: 1L,
                     username = currentUser?.username ?: "me",
-                    displayName = currentUser?.displayName ?: "Bạn",
+                    displayName = currentUser?.displayName ?: getString(R.string.detail_you),
                     avatarUrl = currentUser?.avatarUrl,
                     verified = currentUser?.verified ?: false
                 )
@@ -293,6 +317,20 @@ class PostDetailActivity : AppCompatActivity() {
     private fun observeViewModel() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                if (!isVersionA) launch {
+                    voicePlayerManager?.playbackState?.collectLatest { postHeaderAdapter.updateVoicePlaybackState(it) }
+                }
+                if (!isVersionA) launch {
+                    viewModel.isFollowingAuthor.collectLatest { postHeaderAdapter.setFollowing(it) }
+                }
+                if (!isVersionA) launch {
+                    kotlinx.coroutines.flow.combine(viewModel.isFollowPending, viewModel.isFollowAvailable) { pending, available ->
+                        pending || !available
+                    }.collectLatest { postHeaderAdapter.setFollowPending(it) }
+                }
+                launch {
+                    viewModel.followErrors.collect { Toast.makeText(this@PostDetailActivity, getString(R.string.detail_follow_failed), Toast.LENGTH_SHORT).show() }
+                }
                 // Quan sát dữ liệu bài viết
                 launch {
                     viewModel.post.collectLatest { post ->
@@ -333,7 +371,7 @@ class PostDetailActivity : AppCompatActivity() {
                         if (b != null) {
                             if (replyingComment != null) {
                                 b.layoutReplyingBanner.visibility = View.VISIBLE
-                                b.tvReplyingTo.text = "Đang trả lời ${replyingComment.author.displayName}"
+                                b.tvReplyingTo.text = getString(R.string.reply_to, replyingComment.author.displayName)
                                 b.etCommentInput.requestFocus()
                                 showKeyboard(b.etCommentInput)
                             } else {
@@ -348,7 +386,7 @@ class PostDetailActivity : AppCompatActivity() {
                     viewModel.sortMode.collectLatest { mode ->
                         if (!isVersionA) {
                             postHeaderAdapter.setSortLabel(
-                                if (mode == "newest") "Mới nhất" else "Phù hợp nhất"
+                                if (mode == "newest") getString(R.string.sort_newest) else getString(R.string.sort_top)
                             )
                         }
                     }
@@ -364,7 +402,7 @@ class PostDetailActivity : AppCompatActivity() {
      */
     private fun handleBackNavigation() {
         if (isTaskRoot) {
-            val intent = Intent(this, MainActivity::class.java).apply {
+            val intent = Intent(this, com.ntq.training.momentbox.MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
             startActivity(intent)
@@ -387,13 +425,13 @@ class PostDetailActivity : AppCompatActivity() {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
             val clip = android.content.ClipData.newPlainText("Post Link", "momentbox://post/$postId")
             clipboard?.setPrimaryClip(clip)
-            Toast.makeText(this, "Đã sao chép liên kết", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.detail_link_copied), Toast.LENGTH_SHORT).show()
             dialog.dismiss()
         }
 
         // 2. Báo cáo vi phạm
         sheetBinding.menuReport.setOnClickListener {
-            Toast.makeText(this, "Đã gửi báo cáo bài viết", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.detail_report_sent), Toast.LENGTH_SHORT).show()
             dialog.dismiss()
         }
 
@@ -406,10 +444,10 @@ class PostDetailActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     val res = app.feedRepository.deletePost(postId)
                     if (res.isSuccess) {
-                        Toast.makeText(this@PostDetailActivity, "Đã xóa bài viết", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@PostDetailActivity, getString(R.string.detail_post_deleted), Toast.LENGTH_SHORT).show()
                         handleBackNavigation()
                     } else {
-                        Toast.makeText(this@PostDetailActivity, "Không thể xóa bài viết", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@PostDetailActivity, getString(R.string.detail_delete_failed), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -422,8 +460,8 @@ class PostDetailActivity : AppCompatActivity() {
 
     private fun showSortPopupMenu(anchor: View) {
         val popup = PopupMenu(this, anchor)
-        popup.menu.add(0, 1, 0, "Phù hợp nhất")
-        popup.menu.add(0, 2, 1, "Mới nhất")
+        popup.menu.add(0, 1, 0, getString(R.string.sort_top))
+        popup.menu.add(0, 2, 1, getString(R.string.sort_newest))
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> viewModel.setSortMode("top")
@@ -438,10 +476,50 @@ class PostDetailActivity : AppCompatActivity() {
         val p = viewModel.post.value ?: return
         val sendIntent = Intent().apply {
             action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, "Xem bài viết của ${p.author.displayName} trên MomentBox: momentbox://post/${p.id}")
+            putExtra(Intent.EXTRA_TEXT, getString(R.string.detail_share_text, p.author.displayName, p.id))
             type = "text/plain"
         }
-        startActivity(Intent.createChooser(sendIntent, "Chia sẻ bài viết qua"))
+        startActivity(Intent.createChooser(sendIntent, getString(R.string.detail_share_chooser)))
+    }
+
+    private fun toggleDetailVoice(post: Post) {
+        val manager = voicePlayerManager ?: return
+        val media = post.media.firstOrNull { it.isAudio } ?: return
+        val state = manager.playbackState.value
+        if (state.postId == post.id && (state.isPlaying || state.isLoading)) manager.pauseVoice()
+        else manager.playVoice(post.id, media.url, ((media.durationMs ?: 0L) / 1000).toInt())
+    }
+
+    private fun openDetailVideo(post: Post) {
+        val media = post.media.firstOrNull { it.isVideo } ?: return
+        voicePlayerManager?.pauseVoice()
+        videoLauncher.launch(Intent(this, VideoPlayerActivity::class.java).apply {
+            putExtra(VideoPlayerActivity.EXTRA_VIDEO_URL, media.url)
+            putExtra(VideoPlayerActivity.EXTRA_POST_TITLE, post.caption.take(50))
+            putExtra(VideoPlayerActivity.EXTRA_AUTHOR_NAME, post.author.displayName)
+            putExtra(VideoPlayerActivity.EXTRA_START_POSITION_MS, videoPositionMs)
+            putExtra(VideoPlayerActivity.EXTRA_START_PLAY_WHEN_READY, videoShouldPlay)
+        })
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("detailAlbumPage", if (::postHeaderAdapter.isInitialized) postHeaderAdapter.currentAlbumPage else restoredAlbumPage)
+        outState.putLong("detailVideoPosition", videoPositionMs)
+        outState.putBoolean("detailVideoShouldPlay", videoShouldPlay)
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onStop() {
+        voicePlayerManager?.pauseVoice()
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        if (::postHeaderAdapter.isInitialized) postHeaderAdapter.release()
+        bindingB?.rvPostDetail?.adapter = null
+        voicePlayerManager?.release()
+        voicePlayerManager = null
+        super.onDestroy()
     }
 
     private fun showKeyboard(view: View) {

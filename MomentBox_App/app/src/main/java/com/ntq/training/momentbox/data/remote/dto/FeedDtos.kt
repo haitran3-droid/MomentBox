@@ -14,7 +14,8 @@ data class AuthorDto(
 data class MediaDto(
     @SerializedName("type") val type: String? = null,
     @SerializedName("url") val url: String? = null,
-    @SerializedName("durationMs") val durationMs: Long? = null
+    @SerializedName("durationMs") val durationMs: Long? = null,
+    @SerializedName("thumbnailUrl") val thumbnailUrl: String? = null
 )
 
 data class PostDto(

@@ -55,7 +55,8 @@ class PostMapper : Mapper<PostDto, Post> {
         return MediaItem(
             type = dto.type ?: "image",
             url = url,
-            durationMs = dto.durationMs
+            durationMs = dto.durationMs,
+            thumbnailUrl = dto.thumbnailUrl?.takeIf { it.isNotBlank() }
         )
     }
 

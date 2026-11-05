@@ -42,11 +42,14 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
+        val navContentHeight = binding.bottomNav.layoutParams.height
         ViewCompat.setOnApplyWindowInsetsListener(binding.mainRoot) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
             binding.bottomNav.setPadding(0, 0, 0, systemBars.bottom)
+            binding.bottomNav.layoutParams = binding.bottomNav.layoutParams.apply {
+                height = navContentHeight + systemBars.bottom
+            }
             insets
         }
 

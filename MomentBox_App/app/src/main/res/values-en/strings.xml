@@ -1,13 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    values-en/strings.xml - Tài nguyên chuỗi tiếng Anh (English Localization).
-
-    [Dành cho Android Intern]:
-    - Khi thiết bị hoặc người dùng chọn ngôn ngữ là tiếng Anh (`en`), hệ điều hành sẽ tự động
-      tìm kiếm các chuỗi trong thư mục `values-en/` để nạp vào giao diện thay thế cho `values/strings.xml`.
-    - Mọi khóa `<string name="...">` phải khớp chính xác 100% với file gốc trong `values/strings.xml`
-      để tránh trường hợp thiếu chuỗi gây lỗi biên dịch hoặc hiển thị sai.
--->
 <resources>
     <string name="app_name">MomentBox</string>
 
@@ -97,7 +88,10 @@
     <string name="post_just_now">Just now</string>
     <string name="post_read_more">Read more</string>
     <string name="post_collapse">Show less</string>
-    <string name="new_posts_chip">%1$d new posts</string>
+    <plurals name="new_posts_chip">
+        <item quantity="one">%1$d new post</item>
+        <item quantity="other">%1$d new posts</item>
+    </plurals>
     <string name="suggestions_title">Suggested for you</string>
     <string name="see_all">See all</string>
     <string name="follow">Follow</string>
@@ -112,8 +106,14 @@
     <string name="comment_send_failed">Failed (Retry)</string>
     <string name="comment_input_hint">Write a comment…</string>
     <string name="reply_to">Replying to %1$s</string>
-    <string name="hide_replies">Hide %1$d replies</string>
-    <string name="show_replies">View %1$d replies</string>
+    <plurals name="hide_replies">
+        <item quantity="one">Hide %1$d reply</item>
+        <item quantity="other">Hide %1$d replies</item>
+    </plurals>
+    <plurals name="show_replies">
+        <item quantity="one">Show %1$d reply</item>
+        <item quantity="other">View %1$d replies</item>
+    </plurals>
     <string name="comments_error">Failed to load comments</string>
 
     <!-- M2 Menu & Actions -->

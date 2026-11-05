@@ -125,7 +125,7 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/be_vietnam_pro"
                     android:includeFontPadding="false"
-                    android:text="0:15"
+                    android:text="@string/onboarding_voice_sample_time"
                     android:textColor="@color/text_secondary"
                     android:textSize="11.5sp"
                     app:fontFamily="@font/be_vietnam_pro"

@@ -40,7 +40,7 @@
             android:layout_marginTop="6dp"
             android:fontFamily="@font/be_vietnam_pro"
             android:gravity="center"
-            android:text="Tính năng đang được phát triển trong Milestone tiếp theo."
+            android:text="@string/feature_coming_soon"
             android:textColor="@color/text_secondary"
             android:textSize="13.5sp" />
     </LinearLayout>

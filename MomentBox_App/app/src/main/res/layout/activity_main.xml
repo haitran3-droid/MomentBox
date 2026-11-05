@@ -36,7 +36,8 @@
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        android:baselineAligned="false">
 
         <!-- Tab 1: Bảng tin (Feed) -->
         <LinearLayout
@@ -72,7 +73,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:fontFamily="@font/be_vietnam_pro"
-                android:text="Bảng tin"
+                android:text="@string/nav_feed"
                 android:textColor="@color/primary"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -111,7 +112,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:fontFamily="@font/be_vietnam_pro"
-                android:text="Nhật ký"
+                android:text="@string/nav_journal"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:textStyle="normal" />
@@ -182,9 +183,9 @@
                     android:minWidth="18dp"
                     android:paddingStart="4dp"
                     android:paddingEnd="4dp"
-                    android:text="5"
+                    android:text="@string/ui_demo_chat_count"
                     android:textColor="@color/white"
-                    android:textSize="10.5sp"
+                    android:textSize="11sp"
                     android:textStyle="bold" />
             </FrameLayout>
 
@@ -194,7 +195,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:fontFamily="@font/be_vietnam_pro"
-                android:text="Tin nhắn"
+                android:text="@string/nav_chat"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:textStyle="normal" />
@@ -233,7 +234,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:fontFamily="@font/be_vietnam_pro"
-                android:text="Cá nhân"
+                android:text="@string/nav_profile"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:textStyle="normal" />

@@ -96,7 +96,9 @@
     <string name="post_just_now">たった今</string>
     <string name="post_read_more">もっと見る</string>
     <string name="post_collapse">折りたたむ</string>
-    <string name="new_posts_chip">%1$d件の新着投稿</string>
+    <plurals name="new_posts_chip">
+        <item quantity="other">%1$d件の新着投稿</item>
+    </plurals>
     <string name="suggestions_title">おすすめのユーザー</string>
     <string name="see_all">すべて見る</string>
     <string name="follow">フォロー</string>
@@ -111,8 +113,12 @@
     <string name="comment_send_failed">送信失敗 (再試行)</string>
     <string name="comment_input_hint">コメントを入力…</string>
     <string name="reply_to">%1$sに返信</string>
-    <string name="hide_replies">%1$d件の返信を非表示</string>
-    <string name="show_replies">%1$d件の返信を表示</string>
+    <plurals name="hide_replies">
+        <item quantity="other">%1$d件の返信を非表示</item>
+    </plurals>
+    <plurals name="show_replies">
+        <item quantity="other">%1$d件の返信を表示</item>
+    </plurals>
     <string name="comments_error">コメントの読み込みに失敗しました</string>
 
     <!-- M2 Menu & Actions -->

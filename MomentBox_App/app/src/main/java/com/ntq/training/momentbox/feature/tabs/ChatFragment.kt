@@ -24,8 +24,8 @@ class ChatFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.ivPlaceholderIcon.setImageResource(R.drawable.ic_nav_chat)
-        binding.tvPlaceholderTitle.text = "Tin nhắn trực tiếp (M4)"
-        binding.tvPlaceholderDesc.text = "Trò chuyện và kết nối nhanh chóng cùng bạn bè."
+        binding.tvPlaceholderTitle.text = getString(R.string.chat_placeholder_title)
+        binding.tvPlaceholderDesc.text = getString(R.string.chat_placeholder_desc)
     }
 
     override fun onDestroyView() {

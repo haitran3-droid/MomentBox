@@ -91,7 +91,9 @@
     <string name="post_just_now">Vừa xong</string>
     <string name="post_read_more">Xem thêm</string>
     <string name="post_collapse">Thu gọn</string>
-    <string name="new_posts_chip">%1$d bài viết mới</string>
+    <plurals name="new_posts_chip">
+        <item quantity="other">%1$d bài viết mới</item>
+    </plurals>
     <string name="suggestions_title">Gợi ý cho bạn</string>
     <string name="see_all">Xem tất cả</string>
     <string name="follow">Theo dõi</string>
@@ -106,8 +108,12 @@
     <string name="comment_send_failed">Lỗi gửi (Thử lại)</string>
     <string name="comment_input_hint">Viết bình luận…</string>
     <string name="reply_to">Đang trả lời %1$s</string>
-    <string name="hide_replies">Ẩn %1$d phản hồi</string>
-    <string name="show_replies">Xem %1$d phản hồi</string>
+    <plurals name="hide_replies">
+        <item quantity="other">Ẩn %1$d phản hồi</item>
+    </plurals>
+    <plurals name="show_replies">
+        <item quantity="other">Xem %1$d phản hồi</item>
+    </plurals>
     <string name="comments_error">Lỗi tải bình luận</string>
 
     <!-- M2 Menu & Actions -->

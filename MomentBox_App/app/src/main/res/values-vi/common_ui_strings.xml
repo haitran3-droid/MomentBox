@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_post_image">Ảnh trong bài viết</string>
+    <string name="media_toggle_controls">Hiện hoặc ẩn điều khiển video</string>
+    <string name="media_lock_controls">Khóa điều khiển</string>
+    <string name="media_seek_back">Lùi 10 giây</string>
+    <string name="media_play_pause">Phát hoặc tạm dừng</string>
+    <string name="media_seek_forward">Tiến 10 giây</string>
+    <string name="media_toggle_sound">Bật hoặc tắt âm thanh</string>
+    <string name="media_toggle_fullscreen">Chuyển chế độ toàn màn hình</string>
+    <string name="media_unlock_controls">Mở khóa</string>
+    <string name="feature_coming_soon">Tính năng đang được phát triển.</string>
+    <string name="profile_account_title">Tài khoản của bạn</string>
+    <string name="journal_placeholder_title">Nhật ký cảm xúc</string>
+    <string name="journal_placeholder_desc">Khám phá và lưu giữ những khoảnh khắc đáng nhớ của bạn.</string>
+    <string name="chat_placeholder_title">Tin nhắn trực tiếp</string>
+    <string name="chat_placeholder_desc">Trò chuyện và kết nối nhanh chóng cùng bạn bè.</string>
+</resources>

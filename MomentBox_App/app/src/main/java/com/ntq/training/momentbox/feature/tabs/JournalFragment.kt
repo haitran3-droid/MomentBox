@@ -24,8 +24,8 @@ class JournalFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.ivPlaceholderIcon.setImageResource(R.drawable.ic_nav_journal)
-        binding.tvPlaceholderTitle.text = "Nhật ký cảm xúc (M3)"
-        binding.tvPlaceholderDesc.text = "Khám phá và lưu giữ những khoảnh khắc đáng nhớ của bạn."
+        binding.tvPlaceholderTitle.text = getString(R.string.journal_placeholder_title)
+        binding.tvPlaceholderDesc.text = getString(R.string.journal_placeholder_desc)
     }
 
     override fun onDestroyView() {

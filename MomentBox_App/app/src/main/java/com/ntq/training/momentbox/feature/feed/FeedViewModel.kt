@@ -12,6 +12,7 @@ import com.ntq.training.momentbox.domain.model.FeedItem
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.domain.model.User
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -20,6 +21,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -69,6 +73,24 @@ class FeedViewModel(
 
     private val _rawFeedItems = MutableStateFlow<List<FeedItem>>(emptyList())
 
+    /** Chuỗi nhập do Fragment gửi; thuộc ViewModel để giữ qua lần tạo lại View. */
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    /** Chờ người dùng ngừng gõ 300ms; xóa chuỗi phục hồi bảng tin ngay, không gọi API tìm kiếm.
+     * Eagerly giữ chuỗi đã áp dụng qua lúc Fragment dừng quan sát hoặc tạo lại View.
+     */
+    @OptIn(FlowPreview::class)
+    val appliedSearchQuery: StateFlow<String> = _searchQuery
+        .map { it.trim() }
+        .distinctUntilChanged()
+        .debounce { if (it.isEmpty()) 0L else 300L }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
+
     private var currentPage = 1
     private var hasMorePages = true
 
@@ -79,7 +101,9 @@ class FeedViewModel(
     private val followOperations = mutableMapOf<Long, Long>()
     private var nextFollowOperation = 0L
     private var followRevision = 0L
+
     private data class FollowState(val revision: Long, val following: Boolean)
+
     private val followStates = mutableMapOf<Long, FollowState>()
 
     /** Giữ caption và trang album qua lần tạo lại Fragment/View khi xoay máy. */
@@ -92,7 +116,7 @@ class FeedViewModel(
     val newPostsCount: StateFlow<Int> = socketManager.feedNewCountFlow
 
     // Dòng chảy danh sách FeedItem kết hợp với cache bài viết và footer
-    val feedItems: StateFlow<List<FeedItem>> = combine(
+    private val loadedFeedItems = combine(
         _rawFeedItems,
         feedRepository.postsMapFlow,
         _isLoadingMore,
@@ -108,11 +132,13 @@ class FeedViewModel(
                     val updatedPost = postsMap[item.post.id] ?: item.post
                     result.add(FeedItem.PostItem(updatedPost))
                 }
+
                 is FeedItem.Suggestions -> result.add(item.copy(users = item.users.map { user ->
                     // POST S04 đang chạy thì giữ optimistic state; còn lại nhận confirmed từ S05/GET.
                     if (user.id in followOperations) user
                     else followingMap[user.id]?.let { user.copy(isFollowing = it) } ?: user
                 }))
+
                 else -> result.add(item)
             }
         }
@@ -128,7 +154,23 @@ class FeedViewModel(
         }
 
         result
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+
+    /** Lọc sau khi ghép cache để like/bookmark và caption mới từ S05 vẫn phản ánh đúng.
+     * Chỉ PostItem được tìm theo caption/hashtag; dữ liệu gốc, story và gợi ý vẫn được giữ để khôi phục.
+     */
+    val feedItems: StateFlow<List<FeedItem>> =
+        combine(loadedFeedItems, appliedSearchQuery) { items, query ->
+            if (query.isEmpty()) items else items.filter { item ->
+                item is FeedItem.PostItem && (
+                        item.post.caption.contains(query, ignoreCase = true) ||
+                                item.post.tags.any { tag ->
+                                    tag.removePrefix("#")
+                                        .contains(query.removePrefix("#"), ignoreCase = true)
+                                }
+                        )
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         socketManager.connect()
@@ -167,7 +209,8 @@ class FeedViewModel(
                 socketManager.clearFeedNewCount()
             } else {
                 // Refresh lỗi: GIỮ NGUYÊN danh sách cũ, không xóa trắng màn hình của người dùng (F05)
-                val errMsg = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() } ?: messageText(R.string.feed_error)
+                val errMsg = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
+                    ?: messageText(R.string.feed_error)
                 if (_rawFeedItems.value.isEmpty()) {
                     showFooterError(result.exceptionOrNull(), R.string.feed_error)
                 } else {
@@ -189,6 +232,8 @@ class FeedViewModel(
      * Khử trùng lặp bài viết (Deduplication) và bảo vệ thế hệ phân trang (F05).
      */
     fun loadNextPage() {
+        // Danh sách lọc ngắn có thể phát onScrolled ngay khi submitList; chặn cả thời gian debounce.
+        if (_searchQuery.value.isNotBlank() || appliedSearchQuery.value.isNotEmpty()) return
         if (_isLoadingMore.value || !hasMorePages || _isRefreshing.value) return
 
         val gen = feedGeneration
@@ -234,7 +279,9 @@ class FeedViewModel(
         viewModelScope.launch {
             val result = feedRepository.toggleLike(post.id)
             if (result.isFailure) {
-                _snackbarMessage.emit(result.exceptionOrNull()?.message ?: messageText(R.string.feed_like_failed))
+                _snackbarMessage.emit(
+                    result.exceptionOrNull()?.message ?: messageText(R.string.feed_like_failed)
+                )
             }
         }
     }
@@ -246,7 +293,9 @@ class FeedViewModel(
         viewModelScope.launch {
             val result = feedRepository.toggleBookmark(post.id)
             if (result.isFailure) {
-                _snackbarMessage.emit(result.exceptionOrNull()?.message ?: messageText(R.string.feed_bookmark_failed))
+                _snackbarMessage.emit(
+                    result.exceptionOrNull()?.message ?: messageText(R.string.feed_bookmark_failed)
+                )
             }
         }
     }
@@ -259,7 +308,8 @@ class FeedViewModel(
         if (followOperations.containsKey(user.id)) return
         val current = _rawFeedItems.value.filterIsInstance<FeedItem.Suggestions>()
             .flatMap { it.users }.firstOrNull { it.id == user.id } ?: return
-        val previousFollowing = feedRepository.followingMapFlow.value[user.id] ?: current.isFollowing
+        val previousFollowing =
+            feedRepository.followingMapFlow.value[user.id] ?: current.isFollowing
         val operation = ++nextFollowOperation
         followOperations[user.id] = operation
         updateSuggestedFollowing(user.id, !previousFollowing)
@@ -272,7 +322,12 @@ class FeedViewModel(
                 if (result.isFailure) {
                     // Chỉ hoàn tác trường theo dõi; không khôi phục bài đã xóa hoặc ghi đè trang mới.
                     updateSuggestedFollowing(user.id, previousFollowing)
-                    _snackbarMessage.emit(failureText(R.string.feed_follow_failed, result.exceptionOrNull()))
+                    _snackbarMessage.emit(
+                        failureText(
+                            R.string.feed_follow_failed,
+                            result.exceptionOrNull()
+                        )
+                    )
                 } else {
                     updateSuggestedFollowing(user.id, result.getOrThrow())
                 }
@@ -303,6 +358,7 @@ class FeedViewModel(
                 } else user
             }) else item
         }
+
     /**
      * Bỏ qua thẻ gợi ý khỏi danh sách.
      */
@@ -332,7 +388,12 @@ class FeedViewModel(
                 _rawFeedItems.value = updated
                 _snackbarMessage.emit(messageText(R.string.feed_post_deleted))
             } else {
-                _snackbarMessage.emit(failureText(R.string.feed_delete_failed, result.exceptionOrNull()))
+                _snackbarMessage.emit(
+                    failureText(
+                        R.string.feed_delete_failed,
+                        result.exceptionOrNull()
+                    )
+                )
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.ntq.training.momentbox.core.media
 
 import android.content.Context
+import android.view.View
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -8,6 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.ntq.training.momentbox.core.ui.FeedVideoSurface
 import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +24,10 @@ class FeedVideoPlayerManager(
 ) {
 
     private var exoPlayer: ExoPlayer? = null
-    private var currentPlayerView: PlayerView? = null
+    private var currentPlayerView: FeedVideoSurface? = null
+    private var renderer: PlayerView? = null
+    private var currentPoster: View? = null
+    private var firstFrameRendered = false
     private var currentPostId: Long? = null
     private var isMuted: Boolean = true
     private var autoplaySetting: String = SettingsDataStore.AUTOPLAY_WIFI_ONLY
@@ -49,7 +54,15 @@ class FeedVideoPlayerManager(
                 volume = if (isMuted) 0f else 1f
                 playWhenReady = false
                 addListener(object : Player.Listener {
+                    override fun onRenderedFirstFrame() {
+                        // Chỉ bỏ ảnh bìa khi decoder thực sự vẽ frame, tránh lộ nền đen lúc buffering.
+                        firstFrameRendered = true
+                        currentPoster?.visibility = View.GONE
+                    }
+
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        firstFrameRendered = false
+                        currentPoster?.visibility = View.VISIBLE
                         pauseForInterruption()
                     }
                 })
@@ -79,11 +92,13 @@ class FeedVideoPlayerManager(
     /**
      * Gắn ExoPlayer vào PlayerView của bài viết đang active.
      */
-    fun attachPlayer(playerView: PlayerView, videoUrl: String, postId: Long, startPositionMs: Long = 0L) {
+    fun attachPlayer(playerView: FeedVideoSurface, videoUrl: String, postId: Long, startPositionMs: Long = 0L, poster: View? = null) {
         initPlayer()
         val player = exoPlayer ?: return
 
         if (currentPostId == postId && currentPlayerView == playerView) {
+            currentPoster = poster
+            poster?.visibility = if (firstFrameRendered) View.GONE else View.VISIBLE
             resume()
             return
         }
@@ -91,11 +106,20 @@ class FeedVideoPlayerManager(
         // Tách player khỏi view cũ nếu có
         currentPostId?.let { savedPositions[it] = player.currentPosition }
         pause()
-        currentPlayerView?.player = null
+        currentPlayerView?.detachRenderer()
+        currentPoster?.visibility = View.VISIBLE
 
         currentPlayerView = playerView
+        currentPoster = poster
+        firstFrameRendered = false
+        poster?.visibility = View.VISIBLE
         currentPostId = postId
-        playerView.player = player
+        // Chỉ khởi tạo UI Media3 khi có ứng viên active, không nằm trong inflate của mọi holder.
+        val activeRenderer = renderer ?: PlayerView(playerView.context).apply {
+            useController = false
+        }.also { renderer = it }
+        playerView.attachRenderer(activeRenderer)
+        activeRenderer.player = player
 
         try {
             val mediaItem = MediaItem.fromUri(Uri.parse(videoUrl))
@@ -113,11 +137,14 @@ class FeedVideoPlayerManager(
     /**
      * Tách ExoPlayer khỏi PlayerView khi bị cuộn khỏi vùng nhìn thấy hoặc ViewHolder bị recycle (F20).
      */
-    fun detachPlayer(playerView: PlayerView) {
+    fun detachPlayer(playerView: FeedVideoSurface) {
         if (currentPlayerView == playerView) {
             currentPostId?.let { savedPositions[it] = exoPlayer?.currentPosition ?: 0L }
             pause()
-            playerView.player = null
+            playerView.detachRenderer()
+            currentPoster?.visibility = View.VISIBLE
+            currentPoster = null
+            firstFrameRendered = false
             currentPlayerView = null
             currentPostId = null
         }
@@ -223,7 +250,12 @@ class FeedVideoPlayerManager(
     fun release() {
         scope.cancel()
         pause()
-        currentPlayerView?.player = null
+        currentPlayerView?.detachRenderer()
+        renderer?.player = null
+        renderer = null
+        currentPoster?.visibility = View.VISIBLE
+        currentPoster = null
+        firstFrameRendered = false
         currentPlayerView = null
         currentPostId = null
         exoPlayer?.release()

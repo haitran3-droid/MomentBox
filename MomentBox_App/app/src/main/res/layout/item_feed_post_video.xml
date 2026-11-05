@@ -100,11 +100,10 @@ android:paddingBottom="10dp">
     android:layout_height="196dp"
     android:background="@color/black">
 
-    <androidx.media3.ui.PlayerView
+    <com.ntq.training.momentbox.core.ui.FeedVideoSurface
         android:id="@+id/playerView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:use_controller="false" />
+        android:layout_height="match_parent" />
 
     <!-- Thumbnail ảnh tĩnh khi chưa autoplay -->
     <ImageView

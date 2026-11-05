@@ -5,16 +5,20 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Rect
 import android.graphics.Shader
 import android.os.Bundle
+import android.os.Parcelable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.graphics.toColorInt
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -31,18 +35,25 @@ import com.ntq.training.momentbox.databinding.DialogPostMenuBottomSheetBinding
 import com.ntq.training.momentbox.databinding.FragmentFeedBinding
 import com.ntq.training.momentbox.domain.model.FeedItem
 import com.ntq.training.momentbox.domain.model.Post
+import com.ntq.training.momentbox.domain.model.Story
+import com.ntq.training.momentbox.domain.model.User
 import com.ntq.training.momentbox.feature.feed.adapter.FeedAdapter
 import com.ntq.training.momentbox.feature.postdetail.PostDetailActivity
 import com.ntq.training.momentbox.feature.videoplayer.VideoPlayerActivity
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import androidx.core.graphics.toColorInt
+import androidx.core.widget.doAfterTextChanged
 
 class FeedFragment : Fragment() {
 
     companion object {
         private const val KEY_PAUSED_VIDEO_IDS = "feed.pausedVideoIds"
         private const val KEY_FULLSCREEN_POST_ID = "feed.fullscreenPostId"
+        private const val KEY_SEARCH_OPEN = "feed.searchOpen"
+        private const val KEY_SEARCH_QUERY = "feed.searchQuery"
+        private const val KEY_NORMAL_FEED_SCROLL = "feed.normalScroll"
     }
 
     private var _binding: FragmentFeedBinding? = null
@@ -51,11 +62,24 @@ class FeedFragment : Fragment() {
     private val app get() = requireActivity().application as MomentBoxApp
 
     private val viewModel: FeedViewModel by viewModels {
-        FeedViewModel.Factory(app.feedRepository, app.database, app.socketManager, resources::getString)
+        FeedViewModel.Factory(
+            app.feedRepository,
+            app.database,
+            app.socketManager,
+            resources::getString
+        )
     }
 
     private lateinit var feedAdapter: FeedAdapter
     private val recycledViewPool = RecyclerView.RecycledViewPool()
+
+    /** Mốc cuộn của bảng tin đầy đủ chỉ được phục hồi sau khi DiffUtil đã bỏ bộ lọc.
+     * Bundle giữ mốc này khi xoay máy; không giữ View/LayoutManager trong ViewModel.
+     */
+    private var normalFeedScrollState: Parcelable? = null
+    private var searchOpen = false
+    private var lastRenderedSearchQuery = ""
+    private lateinit var searchBackCallback: OnBackPressedCallback
 
     private lateinit var voicePlayerManager: VoicePlayerManager
     private lateinit var videoPlayerManager: FeedVideoPlayerManager
@@ -69,8 +93,11 @@ class FeedFragment : Fragment() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val returnPos = result.data?.getLongExtra(VideoPlayerActivity.EXTRA_RETURN_POSITION_MS, -1L) ?: -1L
-            val returnPlayWhenReady = result.data?.getBooleanExtra(VideoPlayerActivity.EXTRA_RETURN_PLAY_WHEN_READY, true) ?: true
+            val returnPos =
+                result.data?.getLongExtra(VideoPlayerActivity.EXTRA_RETURN_POSITION_MS, -1L) ?: -1L
+            val returnPlayWhenReady =
+                result.data?.getBooleanExtra(VideoPlayerActivity.EXTRA_RETURN_PLAY_WHEN_READY, true)
+                    ?: true
             fullscreenPostId?.let { postId ->
                 // Ghi ý định trước seek/autoplay, để callback submitList không tự phát lại bài đã Pause.
                 videoPlayerManager.setUserPlaybackIntent(postId, returnPlayWhenReady)
@@ -97,18 +124,31 @@ class FeedFragment : Fragment() {
 
         voicePlayerManager = VoicePlayerManager(requireContext())
         videoPlayerManager = FeedVideoPlayerManager(requireContext(), app.settingsDataStore)
-        videoPlayerManager.restorePausedPostIds(savedInstanceState?.getLongArray(KEY_PAUSED_VIDEO_IDS) ?: longArrayOf())
-        fullscreenPostId = savedInstanceState?.getLong(KEY_FULLSCREEN_POST_ID, -1L)?.takeIf { it >= 0L }
+        videoPlayerManager.restorePausedPostIds(
+            savedInstanceState?.getLongArray(
+                KEY_PAUSED_VIDEO_IDS
+            ) ?: longArrayOf()
+        )
+        fullscreenPostId =
+            savedInstanceState?.getLong(KEY_FULLSCREEN_POST_ID, -1L)?.takeIf { it >= 0L }
 
         setupLogoGradient()
         setupRecyclerView()
+        setupSearch(savedInstanceState)
         setupListeners()
         observeViewModel()
         observeVoicePlayback()
     }
 
     /**
-     * Áp dụng dải màu Gradient nằm ngang cho logo MomentBox theo token CSS `.logo-t` (D04).
+     * Áp dụng dải màu Gradient nằm ngang cho logo MomentBox theo token CSS `.logo-t` (D04 & mockup-src/src/00_head.html:44).
+     *
+     * [Dành cho Android Intern]:
+     * - Logo title "MomentBox" sử dụng LinearGradient 90 độ trải đều qua 3 điểm dừng:
+     *   1. 0%: Tím chủ đạo (#5B4BDB - token --p)
+     *   2. 60%: Tím sáng (#B04BD6)
+     *   3. 100%: Cam san hô (#FF7A59 - token --s / secondary)
+     * - Trước đây dùng nhầm màu hồng #EC4899, nay đồng bộ chuẩn xác với thiết kế mockup gốc.
      */
     private fun setupLogoGradient() {
         binding.tvLogoTitle.post {
@@ -142,7 +182,11 @@ class FeedFragment : Fragment() {
             onShareClick = { post -> sharePost(post) },
             onMoreClick = { post -> showPostMenuBottomSheet(post) },
             onStoryClick = { story ->
-                Toast.makeText(requireContext(), "Xem story: ${story.user.displayName}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    requireContext(),
+                    "Xem story: ${story.user.displayName}",
+                    Toast.LENGTH_SHORT
+                ).show()
             },
             onAddStoryClick = {
                 Toast.makeText(requireContext(), "Tạo story mới", Toast.LENGTH_SHORT).show()
@@ -153,10 +197,17 @@ class FeedFragment : Fragment() {
             onVoiceSeek = { post, progress -> voicePlayerManager.seekTo(post.id, progress) },
             onVoiceSpeedClick = { post ->
                 val newSpeed = voicePlayerManager.cycleSpeed(post.id)
-                Toast.makeText(requireContext(), getString(R.string.audio_speed_format, newSpeed.toString()), Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.audio_speed_format, newSpeed.toString()),
+                    Toast.LENGTH_SHORT
+                ).show()
             },
             onVideoMuteToggle = { post, playerView ->
-                videoPlayerManager.attachPlayer(playerView, post.media.firstOrNull()?.url.orEmpty(), post.id)
+                videoPlayerManager.attachPlayer(
+                    playerView, post.media.firstOrNull()?.url.orEmpty(), post.id,
+                    poster = (playerView.parent as? View)?.findViewById(R.id.ivVideoThumbnail)
+                )
                 val muted = videoPlayerManager.toggleMute()
                 feedAdapter.updateVideoMuteState(muted)
                 Toast.makeText(
@@ -172,6 +223,9 @@ class FeedFragment : Fragment() {
         )
 
         binding.rvFeed.layoutManager = layoutManager
+        // Khung danh sách match_parent không đổi theo số bài. Tránh đo lại cả khung
+        // khi DiffUtil chèn trang mới; chiều cao từng hàng vẫn được LayoutManager đo riêng.
+        binding.rvFeed.setHasFixedSize(true)
         binding.rvFeed.adapter = feedAdapter
 
         // Lắng nghe cuộn để phân trang vô tận và tự động phát video
@@ -211,7 +265,14 @@ class FeedFragment : Fragment() {
 
         // Nút Tìm kiếm
         binding.btnSearch.setOnClickListener {
-            Toast.makeText(requireContext(), "Tìm kiếm", Toast.LENGTH_SHORT).show()
+            setSearchOpen(true)
+            binding.etFeedSearch.requestFocus()
+            binding.etFeedSearch.post {
+                _binding?.etFeedSearch?.let { input ->
+                    (requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                        .showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+                }
+            }
         }
 
         // Nút Thông báo
@@ -220,15 +281,100 @@ class FeedFragment : Fragment() {
         }
     }
 
+    /** Gắn ô nhập vào state của ViewModel; khôi phục Bundle còn hỗ trợ tạo lại sau process death.
+     * Chỉ chuỗi và mốc cuộn được lưu, dữ liệu feed vẫn tải qua Repository như bình thường.
+     */
+    private fun setupSearch(savedInstanceState: Bundle?) {
+        if (viewModel.searchQuery.value.isEmpty()) {
+            viewModel.setSearchQuery(savedInstanceState?.getString(KEY_SEARCH_QUERY).orEmpty())
+        }
+        @Suppress("DEPRECATION")
+        normalFeedScrollState =
+            savedInstanceState?.getParcelable<Parcelable>(KEY_NORMAL_FEED_SCROLL)
+                ?: normalFeedScrollState
+        lastRenderedSearchQuery = viewModel.appliedSearchQuery.value
+        searchBackCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() = closeSearch()
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            searchBackCallback
+        )
+        binding.etFeedSearch.setText(viewModel.searchQuery.value)
+        binding.etFeedSearch.doAfterTextChanged { text ->
+            val query = text?.toString().orEmpty()
+            if (viewModel.searchQuery.value.isBlank() && query.isNotBlank() &&
+                viewModel.appliedSearchQuery.value.isEmpty()
+            ) {
+                normalFeedScrollState = binding.rvFeed.layoutManager?.onSaveInstanceState()
+            }
+            pauseAllMedia()
+            viewModel.setSearchQuery(query)
+        }
+        binding.etFeedSearch.setOnEditorActionListener { _, action, _ ->
+            if (action == EditorInfo.IME_ACTION_SEARCH) {
+                hideSearchKeyboard()
+                true
+            } else false
+        }
+        binding.btnCloseFeedSearch.setOnClickListener { closeSearch() }
+        setSearchOpen(savedInstanceState?.getBoolean(KEY_SEARCH_OPEN) == true || viewModel.searchQuery.value.isNotEmpty())
+    }
+
+    private fun setSearchOpen(open: Boolean) {
+        searchOpen = open
+        searchBackCallback.isEnabled = open && !isHidden
+        binding.tvLogoTitle.visibility = if (open) View.GONE else View.VISIBLE
+        binding.btnSearch.visibility = if (open) View.GONE else View.VISIBLE
+        binding.etFeedSearch.visibility = if (open) View.VISIBLE else View.GONE
+        binding.btnCloseFeedSearch.visibility = if (open) View.VISIBLE else View.GONE
+    }
+
+    private fun hideSearchKeyboard() {
+        (requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+            .hideSoftInputFromWindow(binding.etFeedSearch.windowToken, 0)
+        binding.etFeedSearch.clearFocus()
+    }
+
+    private fun closeSearch() {
+        hideSearchKeyboard()
+        binding.etFeedSearch.setText("")
+        setSearchOpen(false)
+        binding.btnSearch.requestFocus()
+    }
+
+    private fun updateSearchEmptyState() {
+        binding.tvFeedSearchEmpty.visibility =
+            if (viewModel.appliedSearchQuery.value.isNotEmpty() &&
+                feedAdapter.currentList.isEmpty() && !viewModel.isRefreshing.value
+            ) View.VISIBLE else View.GONE
+    }
+
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 // Quan sát danh sách Feed
                 launch {
                     viewModel.feedItems.collectLatest { items ->
+                        val appliedQuery = viewModel.appliedSearchQuery.value
                         feedAdapter.submitList(items) {
-                            // Sau khi submit list, nếu vừa tải trang đầu thì kiểm tra video autoplay
-                            (_binding?.rvFeed?.layoutManager as? LinearLayoutManager)?.let(::checkAndAutoplayVisibleVideo)
+                            val currentBinding = _binding ?: return@submitList
+                            // Callback cũ không được cuộn hoặc đổi trạng thái rỗng của kết quả mới hơn.
+                            if (appliedQuery != viewModel.appliedSearchQuery.value) return@submitList
+                            if (appliedQuery != lastRenderedSearchQuery) {
+                                if (appliedQuery.isEmpty()) {
+                                    normalFeedScrollState?.let {
+                                        currentBinding.rvFeed.layoutManager?.onRestoreInstanceState(
+                                            it
+                                        )
+                                    }
+                                    normalFeedScrollState = null
+                                } else currentBinding.rvFeed.scrollToPosition(0)
+                                lastRenderedSearchQuery = appliedQuery
+                            }
+                            updateSearchEmptyState()
+                            // Vẫn chọn ứng viên theo chính sách autoplay hiện có sau khi lọc hoặc phục hồi.
+                            (currentBinding.rvFeed.layoutManager as? LinearLayoutManager)?.let(::checkAndAutoplayVisibleVideo)
                         }
                     }
                 }
@@ -237,6 +383,7 @@ class FeedFragment : Fragment() {
                 launch {
                     viewModel.isRefreshing.collectLatest { isRefreshing ->
                         binding.swipeRefresh.isRefreshing = isRefreshing
+                        updateSearchEmptyState()
                     }
                 }
 
@@ -244,7 +391,8 @@ class FeedFragment : Fragment() {
                 launch {
                     viewModel.newPostsCount.collectLatest { count ->
                         if (count > 0) {
-                            binding.tvNewPostsCount.text = resources.getQuantityString(R.plurals.new_posts_chip, count, count)
+                            binding.tvNewPostsCount.text =
+                                resources.getQuantityString(R.plurals.new_posts_chip, count, count)
                             binding.btnNewPostsChip.visibility = View.VISIBLE
                         } else {
                             binding.btnNewPostsChip.visibility = View.GONE
@@ -256,7 +404,8 @@ class FeedFragment : Fragment() {
                 launch {
                     viewModel.unreadNotificationsCount.collectLatest { unreadCount ->
                         if (unreadCount > 0) {
-                            binding.tvNotifBadge.text = getString(R.string.ui_integer_count, unreadCount)
+                            binding.tvNotifBadge.text =
+                                getString(R.string.ui_integer_count, unreadCount)
                             binding.tvNotifBadge.visibility = View.VISIBLE
                         } else {
                             binding.tvNotifBadge.visibility = View.GONE
@@ -344,7 +493,10 @@ class FeedFragment : Fragment() {
             if (item != null) {
                 currentPlayingVideoPostId = item.id
                 val videoUrl = item.media.firstOrNull()?.url ?: ""
-                videoPlayerManager.attachPlayer(bestViewHolder.binding.playerView, videoUrl, item.id)
+                videoPlayerManager.attachPlayer(
+                    bestViewHolder.binding.playerView, videoUrl, item.id,
+                    poster = bestViewHolder.binding.ivVideoThumbnail
+                )
             }
         } else {
             videoPlayerManager.pause()
@@ -386,7 +538,10 @@ class FeedFragment : Fragment() {
     private fun sharePost(post: Post) {
         val sendIntent = Intent().apply {
             action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, "Xem bài viết của ${post.author.displayName} trên MomentBox: momentbox://post/${post.id}")
+            putExtra(
+                Intent.EXTRA_TEXT,
+                "Xem bài viết của ${post.author.displayName} trên MomentBox: momentbox://post/${post.id}"
+            )
             type = "text/plain"
         }
         startActivity(Intent.createChooser(sendIntent, "Chia sẻ bài viết qua"))
@@ -400,15 +555,18 @@ class FeedFragment : Fragment() {
         // Sao chép liên kết deep link
         sheetBinding.menuCopyLink.setOnClickListener {
             val deepLink = "momentbox://post/${post.id}"
-            val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clipboard =
+                requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("MomentBox Post", deepLink))
-            Toast.makeText(requireContext(), "Đã sao chép liên kết bài viết!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Đã sao chép liên kết bài viết!", Toast.LENGTH_SHORT)
+                .show()
             dialog.dismiss()
         }
 
         // Báo cáo bài viết
         sheetBinding.menuReport.setOnClickListener {
-            Toast.makeText(requireContext(), "Đã gửi báo cáo cho quản trị viên", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Đã gửi báo cáo cho quản trị viên", Toast.LENGTH_SHORT)
+                .show()
             dialog.dismiss()
         }
 
@@ -442,6 +600,8 @@ class FeedFragment : Fragment() {
 
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
+        // show/hide không hạ lifecycle của Fragment; chỉ màn Feed đang hiện mới được xử lý Back.
+        if (::searchBackCallback.isInitialized) searchBackCallback.isEnabled = searchOpen && !hidden
         if (hidden) {
             pauseAllMedia()
         } else {
@@ -468,8 +628,14 @@ class FeedFragment : Fragment() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        if (::videoPlayerManager.isInitialized) outState.putLongArray(KEY_PAUSED_VIDEO_IDS, videoPlayerManager.pausedPostIds())
+        if (::videoPlayerManager.isInitialized) outState.putLongArray(
+            KEY_PAUSED_VIDEO_IDS,
+            videoPlayerManager.pausedPostIds()
+        )
         fullscreenPostId?.let { outState.putLong(KEY_FULLSCREEN_POST_ID, it) }
+        outState.putBoolean(KEY_SEARCH_OPEN, searchOpen)
+        outState.putString(KEY_SEARCH_QUERY, viewModel.searchQuery.value)
+        normalFeedScrollState?.let { outState.putParcelable(KEY_NORMAL_FEED_SCROLL, it) }
     }
 
     override fun onDestroyView() {

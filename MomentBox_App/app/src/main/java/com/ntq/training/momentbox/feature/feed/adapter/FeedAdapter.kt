@@ -19,7 +19,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
-import androidx.media3.ui.PlayerView
+import com.ntq.training.momentbox.core.ui.FeedVideoSurface
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.core.media.VoicePlaybackState
 import com.ntq.training.momentbox.databinding.ItemFeedLoadingFooterBinding
 import com.ntq.training.momentbox.databinding.ItemFeedPostPhotoBinding
@@ -40,7 +41,6 @@ import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.domain.model.Story
 import com.ntq.training.momentbox.domain.model.User
 import java.util.Locale
-
 
 class FeedAdapter(
     private val recycledViewPool: RecyclerView.RecycledViewPool,
@@ -57,10 +57,10 @@ class FeedAdapter(
     private val onVoicePlayClick: (Post) -> Unit,
     private val onVoiceSeek: (Post, Float) -> Unit,
     private val onVoiceSpeedClick: (Post) -> Unit,
-    private val onVideoMuteToggle: (Post, PlayerView) -> Unit,
+    private val onVideoMuteToggle: (Post, FeedVideoSurface) -> Unit,
     private val onVideoFullscreenClick: (Post) -> Unit,
     private val onFooterRetryClick: () -> Unit,
-    private val onVideoHolderRecycled: (PlayerView) -> Unit = {},
+    private val onVideoHolderRecycled: (FeedVideoSurface) -> Unit = {},
     private val presentationState: FeedPresentationState = FeedPresentationState()
 ) : ListAdapter<FeedItem, RecyclerView.ViewHolder>(FeedDiffCallback) {
 
@@ -76,6 +76,9 @@ class FeedAdapter(
         const val PAYLOAD_LIKE = "PAYLOAD_LIKE"
         const val PAYLOAD_BOOKMARK = "PAYLOAD_BOOKMARK"
         private const val PAYLOAD_VIDEO_MUTE = "PAYLOAD_VIDEO_MUTE"
+
+        /** Regex hashtag được biên dịch tĩnh một lần duy nhất, tránh phân tích cú pháp lặp lại khi bind caption */
+        private val HASHTAG_REGEX = Regex("#\\w+")
     }
 
     private var currentVoiceState = VoicePlaybackState()
@@ -238,7 +241,7 @@ class FeedAdapter(
                 bindCaption(post)
 
                 Glide.with(ivAuthorAvatar.context)
-                    .load(post.author.avatarUrl)
+                    .load(MediaImageModel.resolve(ivAuthorAvatar.context, post.author.avatarUrl))
                     .placeholder(R.drawable.bg_avatar_placeholder)
                     .error(R.drawable.bg_avatar_placeholder)
                     .circleCrop()
@@ -250,9 +253,12 @@ class FeedAdapter(
                 pageCallback?.let { vpPostPhotos.unregisterOnPageChangeCallback(it) }
                 pageCallback = null
 
-                // Tái sử dụng Adapter nếu danh sách ảnh không đổi (D07)
+                // Tái sử dụng Adapter của ViewPager2 để tránh hủy/tạo lại RecyclerView con bên trong khi bind ViewHolder
                 val currentAdapter = vpPostPhotos.adapter as? PhotoAlbumAdapter
-                if (currentAdapter == null || currentAdapter.images != imageUrls) {
+                if (currentAdapter != null) {
+                    currentAdapter.onPhotoClick = { boundPost?.let(onPostClick) }
+                    currentAdapter.submitImages(imageUrls)
+                } else {
                     vpPostPhotos.adapter = PhotoAlbumAdapter(imageUrls) {
                         boundPost?.let(onPostClick)
                     }
@@ -287,6 +293,9 @@ class FeedAdapter(
                 } else {
                     layoutPhotoCounter.visibility = View.GONE
                     photoIndicator.visibility = View.GONE
+                    if (vpPostPhotos.currentItem != 0) {
+                        vpPostPhotos.setCurrentItem(0, false)
+                    }
                 }
 
                 updateLikeState(post)
@@ -384,7 +393,8 @@ class FeedAdapter(
                 updateMuteDisplay()
 
                 val videoMedia = post.media.firstOrNull()
-                val thumbnailUrl = videoMedia?.url
+                // Giữ poster riêng với URL phát. Khi server có thumbnail, không tải video chỉ để vẽ ảnh bìa.
+                val thumbnailUrl = videoMedia?.thumbnailUrl ?: videoMedia?.url
                 Glide.with(ivVideoThumbnail.context)
                     .load(thumbnailUrl)
                     .placeholder(R.color.black)
@@ -395,7 +405,7 @@ class FeedAdapter(
                 tvVideoDuration.text = String.format(Locale.getDefault(), "%d:%02d", durSec / 60, durSec % 60)
 
                 Glide.with(ivAuthorAvatar.context)
-                    .load(post.author.avatarUrl)
+                    .load(MediaImageModel.resolve(ivAuthorAvatar.context, post.author.avatarUrl))
                     .placeholder(R.drawable.bg_avatar_placeholder)
                     .error(R.drawable.bg_avatar_placeholder)
                     .circleCrop()
@@ -505,7 +515,7 @@ class FeedAdapter(
                 bindCaption(post)
 
                 Glide.with(ivAuthorAvatar.context)
-                    .load(post.author.avatarUrl)
+                    .load(MediaImageModel.resolve(ivAuthorAvatar.context, post.author.avatarUrl))
                     .placeholder(R.drawable.bg_avatar_placeholder)
                     .error(R.drawable.bg_avatar_placeholder)
                     .circleCrop()
@@ -636,7 +646,7 @@ class FeedAdapter(
                 bindCaption(post)
 
                 Glide.with(ivAuthorAvatar.context)
-                    .load(post.author.avatarUrl)
+                    .load(MediaImageModel.resolve(ivAuthorAvatar.context, post.author.avatarUrl))
                     .placeholder(R.drawable.bg_avatar_placeholder)
                     .error(R.drawable.bg_avatar_placeholder)
                     .circleCrop()
@@ -687,7 +697,11 @@ class FeedAdapter(
                 binding.root.context,
                 LinearLayoutManager.HORIZONTAL,
                 false
-            )
+            ).apply {
+                // Phone hiển thị hai card và một phần card thứ ba. Prefetch đủ ba card
+                // để GapWorker có cơ hội chuẩn bị trước khi hàng ngang đi vào viewport.
+                initialPrefetchItemCount = 3
+            }
             binding.rvSuggestions.adapter = adapter
         }
 
@@ -793,9 +807,8 @@ class FeedAdapter(
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
         )
 
-        // Tô màu tím cho các #hashtag
-        val hashtagRegex = Regex("#\\w+")
-        val matches = hashtagRegex.findAll(fullText)
+        // Tô màu tím cho các #hashtag (tái sử dụng Regex tĩnh tránh phân tích cú pháp lặp lại)
+        val matches = HASHTAG_REGEX.findAll(fullText)
         for (match in matches) {
             spannable.setSpan(
                 ForegroundColorSpan(0xFF5B4BDB.toInt()),
@@ -826,10 +839,14 @@ class FeedAdapter(
             if (oldItem is FeedItem.PostItem && newItem is FeedItem.PostItem) {
                 val oldPost = oldItem.post
                 val newPost = newItem.post
-                if (oldPost.isLiked != newPost.isLiked || oldPost.likeCount != newPost.likeCount) {
+                // Payload chỉ hợp lệ khi mọi trường khác giữ nguyên. Refresh có thể đổi nhiều
+                // trường cùng lúc; chỉ bind nút tim khi đó sẽ để caption/ảnh/bookmark cũ trên UI.
+                if ((oldPost.isLiked != newPost.isLiked || oldPost.likeCount != newPost.likeCount) &&
+                    oldPost.copy(isLiked = newPost.isLiked, likeCount = newPost.likeCount) == newPost) {
                     return PAYLOAD_LIKE
                 }
-                if (oldPost.isBookmarked != newPost.isBookmarked) {
+                if (oldPost.isBookmarked != newPost.isBookmarked &&
+                    oldPost.copy(isBookmarked = newPost.isBookmarked) == newPost) {
                     return PAYLOAD_BOOKMARK
                 }
             }

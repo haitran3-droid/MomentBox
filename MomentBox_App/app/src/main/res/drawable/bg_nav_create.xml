@@ -1,22 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    bg_nav_create.xml - Nền nút tạo bài viết trung tâm thanh Bottom Navigation (+ Create CTA)
-
-    [Dành cho Android Intern]:
-    - Theo chuẩn CSS .bn .create trong mockup-src/src/00_head.html:53:
-      width: 54px; height: 46px; border-radius: 16px;
-      background: linear-gradient(135deg, #5B4BDB, #B04BD6 60%, #EC4899);
-      box-shadow: 0 6px 16px rgba(91, 75, 219, 0.35);
-    - Bo góc 16dp và đổ dải màu gradient tím đậm -> tím sáng -> hồng.
--->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <corners android:radius="16dp" />
     <gradient
         android:angle="315"
-        android:startColor="#5B4BDB"
         android:centerColor="#B04BD6"
+        android:centerX="0.6"
         android:endColor="#FF7A59"
+        android:startColor="#5B4BDB"
         android:type="linear" />
     <size
         android:width="54dp"

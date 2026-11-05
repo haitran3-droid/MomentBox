@@ -12,6 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/surface"
+        app:liftOnScrollColor="@color/surface"
         app:elevation="1dp">
 
         <LinearLayout
@@ -35,6 +36,36 @@
                 android:textColor="@color/primary"
                 android:textSize="22sp"
                 android:textStyle="bold" />
+
+            <!-- Ô nhập chỉ thay vùng logo khi mở tìm kiếm; đóng lại giữ bố cục app bar từ mockup.
+                 Chuỗi nhập đi vào StateFlow của ViewModel, không kích hoạt một màn hình hoặc API mới. -->
+            <EditText
+                android:id="@+id/etFeedSearch"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:fontFamily="@font/be_vietnam_pro"
+                android:hint="@string/feed_search_hint"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:importantForAutofill="no"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/btnCloseFeedSearch"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/feed_search_close"
+                android:padding="13dp"
+                android:src="@drawable/ic_close"
+                android:visibility="gone"
+                app:tint="@color/text_primary" />
 
             <!-- Nút Tìm kiếm (Search) -->
             <FrameLayout
@@ -114,6 +145,21 @@
                 android:clipToPadding="false"
                 android:paddingBottom="16dp" />
         </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+        <!-- Thông báo rỗng chỉ dành cho kết quả tìm trong các bài đã tải; không thay footer lỗi mạng. -->
+        <TextView
+            android:id="@+id/tvFeedSearchEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:accessibilityLiveRegion="polite"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:gravity="center"
+            android:padding="24dp"
+            android:text="@string/feed_search_empty"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:visibility="gone" />
 
         <!-- Nút nổi Socket.IO: N bài viết mới (Floating Chip) -->
         <LinearLayout

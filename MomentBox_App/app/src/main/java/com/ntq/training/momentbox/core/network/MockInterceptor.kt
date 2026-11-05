@@ -4,6 +4,7 @@ import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import com.ntq.training.momentbox.data.local.prefs.SettingsStorage
 import com.ntq.training.momentbox.data.local.prefs.TokenStorage
 import com.ntq.training.momentbox.BuildConfig
+import com.ntq.training.momentbox.R
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -65,10 +66,10 @@ class MockInterceptor(
                     "expiresIn": 900,
                     "user": {
                       "id": 1,
-                      "username": "offline_user",
-                      "displayName": "Người Dùng Offline",
-                      "avatarUrl": null,
-                      "email": "offline@momentbox.dev"
+                      "username": "minhanh",
+                      "displayName": "Minh Anh",
+                      "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ma}",
+                      "email": "minhanh@momentbox.dev"
                     }
                   }
                 }
@@ -88,10 +89,10 @@ class MockInterceptor(
                   "success": true,
                   "data": {
                     "id": 1,
-                    "username": "offline_user",
-                    "displayName": "Người Dùng Offline",
-                    "avatarUrl": "https://picsum.photos/seed/offline_avatar/100/100",
-                    "email": "offline@momentbox.dev",
+                    "username": "minhanh",
+                    "displayName": "Minh Anh",
+                    "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ma}",
+                    "email": "minhanh@momentbox.dev",
                     "bio": "Đang dùng chế độ offline",
                     "postCount": 12,
                     "followerCount": 128,
@@ -104,22 +105,22 @@ class MockInterceptor(
                   "success": true,
                   "data": [
                     {
-                      "user": { "id": 2, "username": "lananh", "displayName": "Lan Anh", "avatarUrl": "https://picsum.photos/seed/user_2/100/100", "verified": false },
+                      "user": { "id": 2, "username": "lananh", "displayName": "Lan Anh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_la}", "verified": false },
                       "hasUnseen": true,
                       "items": [{ "id": 201, "url": "https://picsum.photos/seed/story_2/720/1280", "type": "image" }]
                     },
                     {
-                      "user": { "id": 3, "username": "minhquan", "displayName": "Minh Quân", "avatarUrl": "https://picsum.photos/seed/user_3/100/100", "verified": false },
+                      "user": { "id": 3, "username": "minhquan", "displayName": "Minh Quân", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_mq}", "verified": false },
                       "hasUnseen": true,
                       "items": [{ "id": 301, "url": "https://picsum.photos/seed/story_3/720/1280", "type": "image" }]
                     },
                     {
-                      "user": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "https://picsum.photos/seed/user_4/100/100", "verified": true },
+                      "user": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_tv}", "verified": true },
                       "hasUnseen": true,
                       "items": [{ "id": 401, "url": "https://picsum.photos/seed/story_4/720/1280", "type": "image" }]
                     },
                     {
-                      "user": { "id": 5, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "https://picsum.photos/seed/user_5/100/100", "verified": false },
+                      "user": { "id": 5, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ht}", "verified": false },
                       "hasUnseen": false,
                       "items": [{ "id": 501, "url": "https://picsum.photos/seed/story_5/720/1280", "type": "image" }]
                     }
@@ -134,7 +135,7 @@ class MockInterceptor(
                     "id": ${System.currentTimeMillis()},
                     "postId": 101,
                     "parentId": null,
-                    "author": { "id": 1, "username": "offline_user", "displayName": "Người Dùng Offline", "avatarUrl": "https://picsum.photos/seed/offline_avatar/100/100", "verified": false },
+                    "author": { "id": 1, "username": "minhanh", "displayName": "Minh Anh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ma}", "verified": false },
                     "content": "Bình luận offline mẫu",
                     "likeCount": 0,
                     "isLiked": false,
@@ -176,6 +177,8 @@ class MockInterceptor(
     }
 
     private fun feedJson(page: Int): String {
+        // Ảnh đầu bài Đà Lạt dùng đúng artwork mockup đã đóng gói trong app,
+        // giúp đối chiếu S04/S05 ổn định và không phụ thuộc ảnh Picsum thay đổi.
         return if (page > 2) {
             """
                     {
@@ -194,7 +197,7 @@ class MockInterceptor(
                           "post": {
                             "id": 105,
                             "type": "TEXT",
-                            "author": { "id": 5, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "https://picsum.photos/seed/user_5/100/100", "verified": false },
+                            "author": { "id": 5, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ht}", "verified": false },
                             "caption": "Chào buổi tối cả nhà! Chúc mọi người một tuần làm việc hiệu quả và tràn đầy năng lượng nha #momentbox #evening",
                             "tags": ["momentbox", "evening"],
                             "location": "Hà Nội",
@@ -213,7 +216,7 @@ class MockInterceptor(
                           "post": {
                             "id": 106,
                             "type": "VIDEO",
-                            "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "https://picsum.photos/seed/user_4/100/100", "verified": true },
+                            "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_tv}", "verified": true },
                             "caption": "Trải nghiệm phát video luồng HLS trực tiếp với định dạng .m3u8 trên ExoPlayer 🎬 #hls #stream #test",
                             "tags": ["hls", "stream", "test"],
                             "location": "Đà Nẵng",
@@ -243,14 +246,14 @@ class MockInterceptor(
                           "post": {
                             "id": 101,
                             "type": "PHOTO",
-                            "author": { "id": 2, "username": "lananh", "displayName": "Lan Anh", "avatarUrl": "https://picsum.photos/seed/user_2/100/100", "verified": false },
+                            "author": { "id": 2, "username": "lananh", "displayName": "Lan Anh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_la}", "verified": false },
                             "caption": "Sáng sớm ở đồi chè Cầu Đất, sương phủ kín cả thung lũng ☁️🌿 Một trong những buổi sáng đẹp nhất năm. Cảm ơn cả nhà đã dậy sớm cùng mình! #dalat #travel #family",
                             "tags": ["dalat", "travel", "family"],
                             "location": "Đà Lạt",
                             "privacy": "public",
                             "allowComments": true,
                             "media": [
-                              { "type": "image", "url": "https://picsum.photos/seed/dalat_1/720/524" },
+                              { "type": "image", "url": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.art_onboarding_dalat}" },
                               { "type": "image", "url": "https://picsum.photos/seed/dalat_2/720/524" },
                               { "type": "image", "url": "https://picsum.photos/seed/dalat_3/720/524" }
                             ],
@@ -266,7 +269,7 @@ class MockInterceptor(
                           "post": {
                             "id": 102,
                             "type": "VOICE",
-                            "author": { "id": 3, "username": "minhquan", "displayName": "Minh Quân", "avatarUrl": "https://picsum.photos/seed/user_3/100/100", "verified": false },
+                            "author": { "id": 3, "username": "minhquan", "displayName": "Minh Quân", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_mq}", "verified": false },
                             "caption": "Một chút tâm sự tối nay 🎧",
                             "tags": ["podcast", "night"],
                             "location": null,
@@ -285,9 +288,9 @@ class MockInterceptor(
                         {
                           "kind": "suggestions",
                           "users": [
-                            { "id": 11, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "https://picsum.photos/seed/sugg_1/100/100", "verified": false, "isFollowing": false, "mutualCount": 12 },
-                            { "id": 12, "username": "duckhang", "displayName": "Đức Khang", "avatarUrl": "https://picsum.photos/seed/sugg_2/100/100", "verified": false, "isFollowing": true, "mutualCount": 5 },
-                            { "id": 13, "username": "phuonglinh", "displayName": "Phương Linh", "avatarUrl": "https://picsum.photos/seed/sugg_3/100/100", "verified": false, "isFollowing": false, "mutualCount": 4 }
+                            { "id": 11, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ht}", "verified": false, "isFollowing": false, "mutualCount": 12 },
+                            { "id": 12, "username": "duckhang", "displayName": "Đức Khang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_dk}", "verified": false, "isFollowing": true, "mutualCount": 5 },
+                            { "id": 13, "username": "phuonglinh", "displayName": "Phương Linh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_pl}", "verified": false, "isFollowing": false, "mutualCount": 4 }
                           ]
                         },
                         {
@@ -295,7 +298,7 @@ class MockInterceptor(
                           "post": {
                             "id": 103,
                             "type": "VIDEO",
-                            "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "https://picsum.photos/seed/user_4/100/100", "verified": true },
+                            "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_tv}", "verified": true },
                             "caption": "Biển Mỹ Khê lúc hoàng hôn, bình yên đến lạ 🌅🌊 #danang #mykhe #sunset",
                             "tags": ["danang", "mykhe", "sunset"],
                             "location": "Đà Nẵng",
@@ -316,7 +319,7 @@ class MockInterceptor(
                           "post": {
                             "id": 104,
                             "type": "TEXT",
-                            "author": { "id": 2, "username": "lananh", "displayName": "Lan Anh", "avatarUrl": "https://picsum.photos/seed/user_2/100/100", "verified": false },
+                            "author": { "id": 2, "username": "lananh", "displayName": "Lan Anh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_la}", "verified": false },
                             "caption": "Đôi khi chỉ cần một cuốn sách hay và một tách cà phê ấm là đủ cho một ngày mưa rả rích ☕️📖",
                             "tags": ["coffee", "rain"],
                             "location": "Hà Nội",
@@ -346,7 +349,7 @@ class MockInterceptor(
                       "id": 1,
                       "postId": 101,
                       "parentId": null,
-                      "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "https://picsum.photos/seed/user_4/100/100", "verified": true },
+                      "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_tv}", "verified": true },
                       "content": "Đẹp quá chị ơi! Cho em xin địa chỉ đồi chè với 😍",
                       "likeCount": 12,
                       "isLiked": true,
@@ -357,7 +360,7 @@ class MockInterceptor(
                       "id": 2,
                       "postId": 101,
                       "parentId": null,
-                      "author": { "id": 5, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "https://picsum.photos/seed/user_5/100/100", "verified": false },
+                      "author": { "id": 5, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ht}", "verified": false },
                       "content": "Hẹn tháng sau mình đi cùng nha!",
                       "likeCount": 3,
                       "isLiked": false,

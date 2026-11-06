@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@+id/tvHeaderTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/be_vietnam_pro_semibold"
+        android:textSize="12sp"
+        android:letterSpacing="0.07"
+        android:textColor="@color/text_tertiary"
+        tools:text="TUẦN NÀY" />
+
+    <TextView
+        android:id="@+id/tvHeaderCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/be_vietnam_pro_medium"
+        android:textSize="12sp"
+        android:textColor="@color/text_tertiary"
+        tools:text="3 bài viết" />
+
+</LinearLayout>

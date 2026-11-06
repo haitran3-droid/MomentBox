@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginBottom="10dp">
+
+    <!-- Lớp hành động ẩn bên dưới khi vuốt sang trái (Underlay Actions) -->
+    <LinearLayout
+        android:id="@+id/layoutUnderlayActions"
+        android:layout_width="132dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_card_rounded">
+
+        <!-- Nút Ghim -->
+        <LinearLayout
+            android:id="@+id/btnUnderlayPin"
+            android:layout_width="66dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@color/warning"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/ivUnderlayPin"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_push_pin"
+                app:tint="@color/surface" />
+
+            <TextView
+                android:id="@+id/tvUnderlayPin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:textSize="11sp"
+                android:textColor="@color/surface"
+                android:text="@string/journal_action_pin" />
+        </LinearLayout>
+
+        <!-- Nút Xóa -->
+        <LinearLayout
+            android:id="@+id/btnUnderlayDelete"
+            android:layout_width="66dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@color/error"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_delete"
+                app:tint="@color/surface" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:textSize="11sp"
+                android:textColor="@color/surface"
+                android:text="@string/journal_action_delete" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Lớp thẻ chính (Foreground Card) có thể trượt ngang khi vuốt -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardForeground"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="1dp"
+        app:strokeWidth="0dp"
+        app:cardBackgroundColor="@color/surface"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp">
+
+            <!-- Khối hiển thị ngày & thứ theo màu cảm xúc -->
+            <LinearLayout
+                android:id="@+id/layoutDateBadge"
+                android:layout_width="46dp"
+                android:layout_height="56dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/bg_pill_tag">
+
+                <TextView
+                    android:id="@+id/tvBadgeDay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/be_vietnam_pro_bold"
+                    android:textSize="19sp"
+                    android:includeFontPadding="false"
+                    android:lineSpacingExtra="0dp"
+                    tools:text="21" />
+
+                <TextView
+                    android:id="@+id/tvBadgeDayOfWeek"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:textSize="11sp"
+                    android:includeFontPadding="false"
+                    tools:text="T4" />
+            </LinearLayout>
+
+            <!-- Khối nội dung bài viết -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:orientation="vertical">
+
+                <!-- Tiêu đề & Biểu tượng Ghim -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tvEntryTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/be_vietnam_pro_semibold"
+                        android:textSize="15sp"
+                        android:textColor="@color/text_primary"
+                        android:ellipsize="end"
+                        android:singleLine="true"
+                        tools:text="Một ngày ở Đà Lạt" />
+
+                    <ImageView
+                        android:id="@+id/ivPinnedIcon"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="6dp"
+                        android:src="@drawable/ic_push_pin"
+                        app:tint="@color/secondary"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
+                </LinearLayout>
+
+                <!-- Trích dẫn nội dung (tối đa 2 dòng) -->
+                <TextView
+                    android:id="@+id/tvEntryContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="@font/be_vietnam_pro_regular"
+                    android:textSize="13sp"
+                    android:textColor="@color/text_secondary"
+                    android:lineSpacingMultiplier="1.25"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    tools:text="Sáng nay cả nhà dậy từ 5 giờ để lên đồi chè Cầu Đất. Sương mù dày đặc, lạnh nhưng rất đáng…" />
+
+                <!-- Dòng thông tin phụ: Nhãn cảm xúc, số ảnh, số ghi âm, giờ tạo -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <!-- Cảm xúc -->
+                    <TextView
+                        android:id="@+id/tvMoodEmojiAndLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/be_vietnam_pro_medium"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_tertiary"
+                        tools:text="😄 Tuyệt vời" />
+
+                    <!-- Số lượng ảnh đính kèm -->
+                    <LinearLayout
+                        android:id="@+id/layoutPhotoCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_image"
+                            app:tint="@color/text_tertiary" />
+
+                        <TextView
+                            android:id="@+id/tvPhotoCount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="2dp"
+                            android:fontFamily="@font/be_vietnam_pro_medium"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_tertiary"
+                            tools:text="3" />
+                    </LinearLayout>
+
+                    <!-- Số lượng ghi âm đính kèm -->
+                    <LinearLayout
+                        android:id="@+id/layoutAudioCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_mic"
+                            app:tint="@color/text_tertiary" />
+
+                        <TextView
+                            android:id="@+id/tvAudioCount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="2dp"
+                            android:fontFamily="@font/be_vietnam_pro_medium"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_tertiary"
+                            tools:text="1" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <!-- Giờ tạo bài viết -->
+                    <TextView
+                        android:id="@+id/tvEntryTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/be_vietnam_pro_regular"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_tertiary"
+                        tools:text="21:30" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

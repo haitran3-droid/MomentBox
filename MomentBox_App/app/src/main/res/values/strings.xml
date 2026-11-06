@@ -129,10 +129,154 @@
     <string name="audio_speed_format">Tốc độ: %1$sx</string>
     <string name="screen_locked">Đã khóa màn hình điều khiển</string>
     <string name="screen_unlocked">Đã mở khóa</string>
+    <string name="common_back">Quay lại</string>
+    <string name="common_search">Tìm kiếm</string>
     <string name="sound_muted">Đã tắt tiếng</string>
     <string name="sound_unmuted">Đã bật tiếng</string>
     <string name="create_post_coming_soon">Tính năng tạo bài viết đang được phát triển (Milestone M4)</string>
+
+    <!-- M3 S07 Nhật ký -->
+    <string name="journal_title">Nhật ký</string>
+    <string name="journal_search_hint">Tìm theo tiêu đề, nội dung, thẻ…</string>
+    <string name="journal_filter_desc">Lọc &amp; sắp xếp</string>
+    <string name="journal_stats_desc">Thống kê</string>
+    <string name="journal_streak_format">🔥 %1$d ngày</string>
+    <string name="journal_this_week">TUẦN NÀY</string>
+    <string name="journal_posts_count_format">%1$d bài viết</string>
+    <string name="journal_pin">Ghim</string>
+    <string name="journal_unpin">Bỏ ghim</string>
+    <string name="journal_delete">Xóa</string>
+    <string name="journal_empty_title">Chưa có dòng nhật ký nào</string>
+    <string name="journal_empty_desc">Hãy bắt đầu ghi lại những suy nghĩ và cảm xúc của bạn hôm nay</string>
+    <string name="journal_write_button">Viết nhật ký</string>
+    <string name="journal_delete_success">Đã xóa bài viết</string>
+    <string name="journal_undo">Hoàn tác</string>
+    <string name="journal_action_pin">Ghim</string>
+    <string name="journal_action_unpin">Bỏ ghim</string>
+    <string name="journal_action_delete">Xoá</string>
+    <string name="journal_streak_days">🔥 %1$d ngày</string>
+    <string name="journal_entries_count">%1$d bài viết</string>
+
+    <!-- M3 S07b Lọc & Sắp xếp -->
+    <string name="filter_title">Sắp xếp &amp; lọc</string>
+    <string name="filter_reset">Đặt lại</string>
+    <string name="filter_sort_by">Sắp xếp theo</string>
+    <string name="filter_sort_newest">Mới nhất trước</string>
+    <string name="filter_sort_oldest">Cũ nhất trước</string>
+    <string name="filter_sort_mood">Cảm xúc tích cực trước</string>
+    <string name="filter_group_by">Nhóm theo</string>
+    <string name="filter_group_day">Ngày</string>
+    <string name="filter_group_week">Tuần</string>
+    <string name="filter_group_month">Tháng</string>
+    <string name="filter_mood_title">Cảm xúc</string>
+    <string name="filter_attachment_title">Đính kèm</string>
+    <string name="filter_has_photo">Có ảnh</string>
+    <string name="filter_has_audio">Có ghi âm</string>
+    <string name="filter_date_range_title">Khoảng thời gian</string>
+    <string name="filter_apply_count_format">Áp dụng · %1$d kết quả</string>
+    <string name="filter_apply_no_count">Áp dụng</string>
+    <string name="filter_all_time">Tất cả thời gian</string>
+
+    <!-- M3 S08 Viết nhật ký -->
+    <string name="editor_title_new">Nhật ký mới</string>
+    <string name="editor_title_edit">Sửa nhật ký</string>
+    <string name="editor_draft_saved_format">Đã lưu nháp · %1$s</string>
+    <string name="editor_draft_saving">Đang lưu nháp…</string>
+    <string name="editor_draft_unsaved">Chưa lưu</string>
+    <string name="editor_save">Lưu</string>
+    <string name="editor_mood_question">Hôm nay bạn thấy thế nào?</string>
+    <string name="mood_1_name">Tuyệt vời</string>
+    <string name="mood_2_name">Vui</string>
+    <string name="mood_3_name">Bình thường</string>
+    <string name="mood_4_name">Buồn</string>
+    <string name="mood_5_name">Tệ</string>
+    <string name="editor_title_hint">Tiêu đề nhật ký</string>
+    <string name="editor_content_hint">Hôm nay bạn có gì muốn kể?</string>
+    <string name="editor_warning_length">Nội dung vượt quá 5.000 ký tự</string>
+    <string name="editor_photo_add">Thêm</string>
+    <string name="editor_tag_add">Thẻ</string>
+    <string name="editor_tag_dialog_title">Thêm nhãn (Tag)</string>
+    <string name="editor_tag_input_hint">Nhập tên nhãn (ví dụ: dalat, family)</string>
+    <string name="editor_tag_add_action">Thêm</string>
+    <string name="editor_discard_dialog_title">Thay đổi chưa lưu</string>
+    <string name="editor_discard_dialog_desc">Bạn có muốn lưu nháp bài viết này để tiếp tục chỉnh sửa sau không?</string>
+    <string name="editor_discard_dialog_save_draft">Lưu nháp</string>
+    <string name="editor_discard_dialog_discard">Bỏ</string>
+    <string name="editor_discard_dialog_keep_editing">Viết tiếp</string>
+    <string name="editor_restore_draft_title">Khôi phục bản nháp</string>
+    <string name="editor_restore_draft_desc">Bạn có một bản nháp nhật ký chưa hoàn thành. Bạn có muốn khôi phục không?</string>
+    <string name="editor_restore_action">Khôi phục</string>
+    <string name="editor_restore_discard">Bỏ qua</string>
+    <string name="editor_word_count_format">%1$d từ</string>
+    <string name="editor_ambient_rain">Âm thanh nền: Tiếng mưa</string>
+    <string name="editor_ambient_ocean">Âm thanh nền: Tiếng biển</string>
+    <string name="editor_ambient_off">Âm thanh nền: Đã tắt</string>
+    <string name="editor_save_success">Đã lưu nhật ký thành công</string>
+    <string name="editor_save_error">Lỗi lưu nhật ký, vui lòng thử lại</string>
+    <string name="editor_max_photos_warning">Tối đa 10 ảnh đính kèm</string>
+
+    <!-- M3 S09 Thống kê nhật ký -->
+    <string name="stats_title">Thống kê</string>
+    <string name="stats_period_week">Tuần</string>
+    <string name="stats_period_month">Tháng 10</string>
+    <string name="stats_period_year">Năm</string>
+    <string name="stats_card_entries">Bài viết</string>
+    <string name="stats_card_streak">Chuỗi hiện tại</string>
+    <string name="stats_card_words">Số từ</string>
+    <string name="stats_card_audio">Ghi âm</string>
+    <string name="stats_unit_days">ngày</string>
+    <string name="stats_unit_minutes">phút</string>
+    <string name="stats_donut_title">Phân bố cảm xúc</string>
+    <string name="stats_trend_title">Xu hướng cảm xúc</string>
+    <string name="stats_tag_more">+%1$d</string>
+    <string name="stats_tag_item_format">#%1$s · %2$d</string>
+    <string name="stats_delta_up">▲ %1$d</string>
+    <string name="stats_delta_down">▼ %1$d</string>
+    <string name="stats_percentage_format">%1$d%%</string>
+    <string name="stats_share_subject">Báo cáo thống kê nhật ký</string>
+    <string name="stats_share_summary_format">Báo cáo Thống kê Nhật ký - MomentBox\nKỳ: %1$s\nBài viết: %2$d bài\nChuỗi hiện tại: %3$d ngày\nTổng số từ: %4$s từ\nGhi âm: %5$d phút\nĐúc kết: %6$s</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
-    <string name="suggestion_mutual_count">%1$d bạn chung</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">First Fragment</string>
+    <string name="second_fragment_label">Second Fragment</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+
+    <string name="lorem_ipsum">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam in scelerisque sem. Mauris
+        volutpat, dolor id interdum ullamcorper, risus dolor egestas lectus, sit amet mattis purus
+        dui nec risus. Maecenas non sodales nisi, vel dictum dolor. Class aptent taciti sociosqu ad
+        litora torquent per conubia nostra, per inceptos himenaeos. Suspendisse blandit eleifend
+        diam, vel rutrum tellus vulputate quis. Aliquam eget libero aliquet, imperdiet nisl a,
+        ornare ex. Sed rhoncus est ut libero porta lobortis. Fusce in dictum tellus.\n\n
+        Suspendisse interdum ornare ante. Aliquam nec cursus lorem. Morbi id magna felis. Vivamus
+        egestas, est a condimentum egestas, turpis nisl iaculis ipsum, in dictum tellus dolor sed
+        neque. Morbi tellus erat, dapibus ut sem a, iaculis tincidunt dui. Interdum et malesuada
+        fames ac ante ipsum primis in faucibus. Curabitur et eros porttitor, ultricies urna vitae,
+        molestie nibh. Phasellus at commodo eros, non aliquet metus. Sed maximus nisl nec dolor
+        bibendum, vel congue leo egestas.\n\n
+        Sed interdum tortor nibh, in sagittis risus mollis quis. Curabitur mi odio, condimentum sit
+        amet auctor at, mollis non turpis. Nullam pretium libero vestibulum, finibus orci vel,
+        molestie quam. Fusce blandit tincidunt nulla, quis sollicitudin libero facilisis et. Integer
+        interdum nunc ligula, et fermentum metus hendrerit id. Vestibulum lectus felis, dictum at
+        lacinia sit amet, tristique id quam. Cras eu consequat dui. Suspendisse sodales nunc ligula,
+        in lobortis sem porta sed. Integer id ultrices magna, in luctus elit. Sed a pellentesque
+        est.\n\n
+        Aenean nunc velit, lacinia sed dolor sed, ultrices viverra nulla. Etiam a venenatis nibh.
+        Morbi laoreet, tortor sed facilisis varius, nibh orci rhoncus nulla, id elementum leo dui
+        non lorem. Nam mollis ipsum quis auctor varius. Quisque elementum eu libero sed commodo. In
+        eros nisl, imperdiet vel imperdiet et, scelerisque a mauris. Pellentesque varius ex nunc,
+        quis imperdiet eros placerat ac. Duis finibus orci et est auctor tincidunt. Sed non viverra
+        ipsum. Nunc quis augue egestas, cursus lorem at, molestie sem. Morbi a consectetur ipsum, a
+        placerat diam. Etiam vulputate dignissim convallis. Integer faucibus mauris sit amet finibus
+        convallis.\n\n
+        Phasellus in aliquet mi. Pellentesque habitant morbi tristique senectus et netus et
+        malesuada fames ac turpis egestas. In volutpat arcu ut felis sagittis, in finibus massa
+        gravida. Pellentesque id tellus orci. Integer dictum, lorem sed efficitur ullamcorper,
+        libero justo consectetur ipsum, in mollis nisl ex sed nisl. Donec maximus ullamcorper
+        sodales. Praesent bibendum rhoncus tellus nec feugiat. In a ornare nulla. Donec rhoncus
+        libero vel nunc consequat, quis tincidunt nisl eleifend. Cras bibendum enim a justo luctus
+        vestibulum. Fusce dictum libero quis erat maximus, vitae volutpat diam dignissim.
+    </string>
 </resources>

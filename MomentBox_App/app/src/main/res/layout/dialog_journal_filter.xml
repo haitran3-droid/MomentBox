@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_dialog"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="24dp">
+
+    <!-- Tay cầm kéo BottomSheet (Drag Handle) -->
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_pill"
+        android:backgroundTint="@color/outline" />
+
+    <!-- Thanh tiêu đề & Nút "Đặt lại" -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/be_vietnam_pro_bold"
+            android:textSize="19sp"
+            android:textColor="@color/text_primary"
+            android:text="@string/filter_title" />
+
+        <TextView
+            android:id="@+id/btnResetFilter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="6dp"
+            android:fontFamily="@font/be_vietnam_pro_semibold"
+            android:textSize="14sp"
+            android:textColor="@color/primary"
+            android:text="@string/filter_reset"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <!-- 1. SẮP XẾP THEO -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/be_vietnam_pro_semibold"
+        android:textSize="13sp"
+        android:textColor="@color/text_tertiary"
+        android:text="@string/filter_sort_by" />
+
+    <RadioGroup
+        android:id="@+id/rgSortBy"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp">
+
+        <RadioButton
+            android:id="@+id/rbSortNewest"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="14.5sp"
+            android:textColor="@color/text_primary"
+            android:text="@string/filter_sort_newest"
+            android:buttonTint="@color/primary" />
+
+        <RadioButton
+            android:id="@+id/rbSortOldest"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="14.5sp"
+            android:textColor="@color/text_primary"
+            android:text="@string/filter_sort_oldest"
+            android:buttonTint="@color/primary" />
+
+        <RadioButton
+            android:id="@+id/rbSortMood"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="14.5sp"
+            android:textColor="@color/text_primary"
+            android:text="@string/filter_sort_mood"
+            android:buttonTint="@color/primary" />
+    </RadioGroup>
+
+    <!-- 2. NHÓM THEO -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:fontFamily="@font/be_vietnam_pro_semibold"
+        android:textSize="13sp"
+        android:textColor="@color/text_tertiary"
+        android:text="@string/filter_group_by" />
+
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/tgGroupBy"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:layout_marginTop="6dp"
+        app:singleSelection="true"
+        app:selectionRequired="true">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGroupDay"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="13.5sp"
+            android:text="@string/filter_group_day" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGroupWeek"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="13.5sp"
+            android:text="@string/filter_group_week" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGroupMonth"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="13.5sp"
+            android:text="@string/filter_group_month" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <!-- 3. CẢM XÚC -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/be_vietnam_pro_semibold"
+        android:textSize="13sp"
+        android:textColor="@color/text_tertiary"
+        android:text="@string/filter_mood_title" />
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/cgMoods"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        app:chipSpacing="8dp">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipMood1"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="13sp"
+            android:text="😄 Tuyệt vời" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipMood2"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="13sp"
+            android:text="🙂 Vui" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipMood3"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="13sp"
+            android:text="😐 Bình thường" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipMood4"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="13sp"
+            android:text="😢 Buồn" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipMood5"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="13sp"
+            android:text="😡 Tệ" />
+    </com.google.android.material.chip.ChipGroup>
+
+    <!-- 4. ĐÍNH KÈM -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/be_vietnam_pro_semibold"
+        android:textSize="13sp"
+        android:textColor="@color/text_tertiary"
+        android:text="@string/filter_attachment_title" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal">
+
+        <CheckBox
+            android:id="@+id/cbHasPhoto"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="14.5sp"
+            android:textColor="@color/text_primary"
+            android:text="@string/filter_has_photo"
+            android:buttonTint="@color/primary" />
+
+        <CheckBox
+            android:id="@+id/cbHasAudio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:textSize="14.5sp"
+            android:textColor="@color/text_primary"
+            android:text="@string/filter_has_audio"
+            android:buttonTint="@color/primary" />
+    </LinearLayout>
+
+    <!-- 5. KHOẢNG THỜI GIAN -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/be_vietnam_pro_semibold"
+        android:textSize="13sp"
+        android:textColor="@color/text_tertiary"
+        android:text="@string/filter_date_range_title" />
+
+    <LinearLayout
+        android:id="@+id/layoutDateRangePicker"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_field_default"
+        android:paddingStart="12dp"
+        android:paddingEnd="8dp"
+        android:clickable="true"
+        android:focusable="true">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_date_range"
+            app:tint="@color/text_secondary" />
+
+        <TextView
+            android:id="@+id/tvDateRangeText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:fontFamily="@font/be_vietnam_pro_regular"
+            android:textSize="14sp"
+            android:textColor="@color/text_primary"
+            android:text="@string/filter_all_time" />
+
+        <ImageView
+            android:id="@+id/btnClearDateRange"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_close"
+            app:tint="@color/text_tertiary"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </LinearLayout>
+
+    <!-- NÚT ÁP DỤNG KÈM SỐ KẾT QUẢ ĐỘNG (CTA Button) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnApplyFilter"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="22dp"
+        app:cornerRadius="16dp"
+        android:fontFamily="@font/be_vietnam_pro_semibold"
+        android:textSize="15sp"
+        android:textColor="@color/surface"
+        android:text="@string/filter_apply_no_count"
+        app:backgroundTint="@color/primary" />
+
+</LinearLayout>

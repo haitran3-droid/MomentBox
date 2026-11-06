@@ -61,6 +61,20 @@
     <color name="pill_bg">#8C0A0A14</color>
     <color name="overlay_scrim">#80000000</color>
 
+    <!-- M3 Color Tokens -->
+    <color name="mood_1_text">#15803D</color>
+    <color name="mood_2_text">#4D7C0F</color>
+    <color name="mood_3_text">#8A5A00</color>
+    <color name="mood_4_text">#1D4ED8</color>
+    <color name="mood_5_text">#B91C1C</color>
+    <color name="streak_badge_bg">#FFF1E6</color>
+    <color name="streak_badge_text">#C2410C</color>
+    <color name="insight_bg">#FFF8E1</color>
+    <color name="insight_text">#5A4500</color>
+    <color name="insight_icon">#F59E0B</color>
+    <color name="ambient_bar_bg">#1F1A3D</color>
+    <color name="ambient_wave_progress">#FFFFFF</color>
+    <color name="card_shadow_subtle">#0D141428</color>
     <!-- Basic -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>

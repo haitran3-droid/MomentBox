@@ -53,6 +53,8 @@ dependencies {
     // AndroidX & Giao diện người dùng cốt lõi (UI Core)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.navigation.fragment.ktx)
+    implementation(libs.androidx.navigation.ui.ktx)
     implementation(libs.material)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.fragment.ktx)

@@ -22,12 +22,17 @@ import com.ntq.training.momentbox.data.repository.FeedRepository
 import com.ntq.training.momentbox.data.repository.FeedRepositoryImpl
 import com.ntq.training.momentbox.BuildConfig
 import com.ntq.training.momentbox.core.realtime.NotificationScope
+import com.ntq.training.momentbox.data.local.prefs.JournalDataStore
+import com.ntq.training.momentbox.data.repository.JournalRepository
+import com.ntq.training.momentbox.data.repository.JournalRepositoryImpl
 import com.ntq.training.momentbox.domain.model.User
 
 class MomentBoxApp : Application() {
     lateinit var tokenStore: TokenStore
         private set
     lateinit var settingsDataStore: SettingsDataStore
+        private set
+    lateinit var journalDataStore: JournalDataStore
         private set
     lateinit var database: AppDatabase private set
     lateinit var dispatcherProvider: DispatcherProvider
@@ -36,6 +41,7 @@ class MomentBoxApp : Application() {
     lateinit var configRepository: ConfigRepository private set
     lateinit var authRepository: AuthRepository private set
     lateinit var feedRepository: FeedRepository private set
+    lateinit var journalRepository: JournalRepository private set
     override fun onCreate() {
         super.onCreate()
         // Lưu lại tham chiếu tĩnh để truy cập nhanh khi cần ApplicationContext
@@ -44,6 +50,7 @@ class MomentBoxApp : Application() {
         // 1. Khởi tạo tầng lưu trữ cục bộ (Local Storage) và Threading
         tokenStore = TokenStore(this)
         settingsDataStore = SettingsDataStore(this)
+        journalDataStore = JournalDataStore(this)
         database = AppDatabase.getInstance(this)
         dispatcherProvider = DefaultDispatcherProvider()
         socketManager = SocketManager(
@@ -100,6 +107,12 @@ class MomentBoxApp : Application() {
             settingsDataStore = settingsDataStore,
             dispatcher = dispatcherProvider.io,
             invalidateFeedCache = { feedRepository.clearCache() }
+        )
+        journalRepository = JournalRepositoryImpl(
+            context = this,
+            journalDao = database.journalDao(),
+            journalDataStore = journalDataStore,
+            dispatcher = dispatcherProvider.io
         )
     }
 

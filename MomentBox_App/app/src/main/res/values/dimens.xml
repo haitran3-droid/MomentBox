@@ -52,4 +52,5 @@
     <dimen name="text_label">13sp</dimen>
     <dimen name="text_caption">12sp</dimen>
     <dimen name="text_caption_small">10.5sp</dimen>
+    <dimen name="feed_album_height">262dp</dimen>
 </resources>

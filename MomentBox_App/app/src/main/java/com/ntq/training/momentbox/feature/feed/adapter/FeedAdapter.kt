@@ -191,6 +191,23 @@ class FeedAdapter(
             pageCallback?.let { binding.vpPostPhotos.unregisterOnPageChangeCallback(it) }
             pageCallback = null
             boundPost = null
+            binding.ivDoubleTapHeart.animate().cancel()
+            binding.ivDoubleTapHeart.visibility = View.GONE
+        }
+
+        private fun likePhoto() {
+            val post = getPost() ?: return
+            if (!post.isLiked) onLikeClick(post)
+            val heart = binding.ivDoubleTapHeart
+            heart.animate().cancel()
+            heart.alpha = 1f
+            heart.scaleX = 0.5f
+            heart.scaleY = 0.5f
+            heart.visibility = View.VISIBLE
+            heart.animate().scaleX(1.2f).scaleY(1.2f).alpha(0f)
+                .setDuration(450)
+                .withEndAction { heart.visibility = View.GONE }
+                .start()
         }
 
         init {
@@ -256,12 +273,11 @@ class FeedAdapter(
                 // Tái sử dụng Adapter của ViewPager2 để tránh hủy/tạo lại RecyclerView con bên trong khi bind ViewHolder
                 val currentAdapter = vpPostPhotos.adapter as? PhotoAlbumAdapter
                 if (currentAdapter != null) {
-                    currentAdapter.onPhotoClick = { boundPost?.let(onPostClick) }
                     currentAdapter.submitImages(imageUrls)
                 } else {
-                    vpPostPhotos.adapter = PhotoAlbumAdapter(imageUrls) {
-                        boundPost?.let(onPostClick)
-                    }
+                    vpPostPhotos.adapter = PhotoAlbumAdapter(imageUrls, useFeedImageSize = true) {
+                        getPost()?.let(onPostClick)
+                    }.apply { onPhotoDoubleTap = ::likePhoto }
                 }
 
                 if (imageUrls.size > 1) {
@@ -309,6 +325,7 @@ class FeedAdapter(
                 btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
+                    ivLike.clearColorFilter()
                     ivLike.imageTintList = null
                     tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 } else {
@@ -429,6 +446,7 @@ class FeedAdapter(
                 btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
+                    ivLike.clearColorFilter()
                     ivLike.imageTintList = null
                     tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 } else {
@@ -571,6 +589,7 @@ class FeedAdapter(
                 btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
+                    ivLike.clearColorFilter()
                     ivLike.imageTintList = null
                     tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 } else {
@@ -663,6 +682,7 @@ class FeedAdapter(
                 btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
+                    ivLike.clearColorFilter()
                     ivLike.imageTintList = null
                     tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
                 } else {

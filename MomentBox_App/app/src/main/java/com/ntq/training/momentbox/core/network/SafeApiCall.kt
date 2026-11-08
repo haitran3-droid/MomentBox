@@ -13,6 +13,7 @@ import java.net.SocketTimeoutException
 suspend fun <T> safeApiCall(
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     gson: Gson = Gson(),
+    emptySuccess: (() -> T)? = null,
     apiCall: suspend () -> Response<ApiResponse<T>>
 ): Result<T> = withContext(dispatcher) {
     try {
@@ -23,6 +24,8 @@ suspend fun <T> safeApiCall(
             if (body != null && body.success && body.data != null) {
                 // Trường hợp 1: Thành công và có dữ liệu hợp lệ
                 Result.success(body.data)
+            } else if (body?.success == true && emptySuccess != null) {
+                Result.success(emptySuccess())
             } else if (body != null && !body.success && body.error != null) {
                 // Trường hợp 2: HTTP 200 nhưng server báo lỗi nghiệp vụ (success = false)
                 Result.failure(ApiException(mapApiErrorToAppError(body.error, response.code())))

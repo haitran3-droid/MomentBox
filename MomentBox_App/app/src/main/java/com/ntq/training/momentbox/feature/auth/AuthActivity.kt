@@ -288,7 +288,7 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
     }
 
     private fun showDataSourceSelectionDialog() {
-        val sources = arrayOf("MB Server (http://10.0.2.2:3000)", "DummyJSON (https://dummyjson.com)", "Offline (Mock)")
+        val sources = arrayOf("MB Server (${BuildConfig.BASE_URL.trimEnd('/')})", "DummyJSON (https://dummyjson.com)", "Offline (Mock)")
         val keys = arrayOf(
             SettingsDataStore.SOURCE_MB_SERVER,
             SettingsDataStore.SOURCE_DUMMY_JSON,

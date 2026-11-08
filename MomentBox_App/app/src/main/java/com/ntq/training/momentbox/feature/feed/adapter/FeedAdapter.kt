@@ -418,8 +418,7 @@ class FeedAdapter(
                     .centerCrop()
                     .into(ivVideoThumbnail)
 
-                val durSec = ((videoMedia?.durationMs ?: 24000L) / 1000).toInt()
-                tvVideoDuration.text = String.format(Locale.getDefault(), "%d:%02d", durSec / 60, durSec % 60)
+                bindPlaybackProgress(0L, videoMedia?.durationMs)
 
                 Glide.with(ivAuthorAvatar.context)
                     .load(MediaImageModel.resolve(ivAuthorAvatar.context, post.author.avatarUrl))
@@ -432,6 +431,20 @@ class FeedAdapter(
                 updateBookmarkState(post)
                 tvCommentCount.text = root.context.getString(R.string.ui_integer_count, post.commentCount)
             }
+        }
+
+        fun bindPlaybackProgress(positionMs: Long, durationMs: Long?) {
+            val duration = durationMs?.takeIf { it > 0 }
+            val remaining = duration?.let { (it - positionMs).coerceAtLeast(0) }
+            binding.tvVideoDuration.visibility = if (remaining == null) View.GONE else View.VISIBLE
+            if (remaining != null) {
+                val seconds = (remaining + 999L) / 1000L
+                val text = String.format(Locale.getDefault(), "%d:%02d", seconds / 60, seconds % 60)
+                if (binding.tvVideoDuration.text != text) binding.tvVideoDuration.text = text
+            }
+            binding.pbVideoLine.progress = duration?.let {
+                (positionMs.coerceIn(0L, it) * 1000 / it).toInt()
+            } ?: 0
         }
 
         private fun updateMuteDisplay() {

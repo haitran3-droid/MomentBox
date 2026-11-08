@@ -40,6 +40,7 @@ import com.ntq.training.momentbox.domain.model.User
 import com.ntq.training.momentbox.feature.feed.adapter.FeedAdapter
 import com.ntq.training.momentbox.feature.postdetail.PostDetailActivity
 import com.ntq.training.momentbox.feature.videoplayer.VideoPlayerActivity
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -138,6 +139,7 @@ class FeedFragment : Fragment() {
         setupListeners()
         observeViewModel()
         observeVoicePlayback()
+        observeVideoProgress()
     }
 
     /**
@@ -167,6 +169,29 @@ class FeedFragment : Fragment() {
                 )
                 paint.shader = shader
                 binding.tvLogoTitle.invalidate()
+            }
+        }
+    }
+
+    private fun observeVideoProgress() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (true) {
+                    if (!isHidden) {
+                        val list = binding.rvFeed
+                        for (index in 0 until list.childCount) {
+                            val holder = list.getChildViewHolder(list.getChildAt(index))
+                                as? FeedAdapter.VideoPostViewHolder ?: continue
+                            val post = (feedAdapter.currentList.getOrNull(holder.bindingAdapterPosition)
+                                as? FeedItem.PostItem)?.post ?: continue
+                            holder.bindPlaybackProgress(
+                                videoPlayerManager.getCurrentPosition(post.id),
+                                videoPlayerManager.getDuration(post.id) ?: post.media.firstOrNull()?.durationMs
+                            )
+                        }
+                    }
+                    delay(250)
+                }
             }
         }
     }

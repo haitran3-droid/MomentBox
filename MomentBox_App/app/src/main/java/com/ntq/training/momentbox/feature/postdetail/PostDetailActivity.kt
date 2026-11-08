@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.widget.EditText
 import android.view.inputmethod.InputMethodManager
 import android.widget.PopupMenu
 import android.widget.Toast
@@ -172,7 +173,7 @@ class PostDetailActivity : AppCompatActivity() {
             onBookmarkClick = { viewModel.toggleBookmarkPost() },
             onShareClick = { shareCurrentPost() },
             onFollowClick = { viewModel.toggleFollowAuthor() },
-            onSortClick = { showSortPopupMenu(b.root) },
+            onSortClick = ::showSortPopupMenu,
             onPhotoClick = { post, page ->
                 voicePlayerManager?.pauseVoice()
                 if (supportFragmentManager.findFragmentByTag("detailPhotoViewer") == null) {
@@ -190,7 +191,7 @@ class PostDetailActivity : AppCompatActivity() {
 
         commentsAdapter = CommentsAdapter(
             onLikeClick = { comment -> viewModel.toggleLikeComment(comment) },
-            onReplyClick = { comment -> viewModel.setReplyingTo(comment) },
+            onReplyClick = { comment -> startReply(b.etCommentInput, comment) },
             onExpandRepliesClick = { comment -> viewModel.expandReplies(comment) },
             onRetryClick = { comment -> viewModel.retryComment(comment) }
         )
@@ -247,7 +248,7 @@ class PostDetailActivity : AppCompatActivity() {
         // Nút gửi bình luận
         b.btnSendComment.setOnClickListener {
             val content = b.etCommentInput.text.toString()
-            if (content.isNotBlank()) {
+            if (hasCommentBody(content)) {
                 val currentAuthor = Author(
                     id = currentUser?.id ?: 1L,
                     username = currentUser?.username ?: "me",
@@ -262,6 +263,7 @@ class PostDetailActivity : AppCompatActivity() {
         }
 
         b.btnCancelReply.setOnClickListener {
+            viewModel.replyingTo.value?.let { removeReplyMention(b.etCommentInput, it) }
             viewModel.setReplyingTo(null)
         }
 
@@ -287,7 +289,7 @@ class PostDetailActivity : AppCompatActivity() {
 
         commentsAdapter = CommentsAdapter(
             onLikeClick = { comment -> viewModel.toggleLikeComment(comment) },
-            onReplyClick = { comment -> viewModel.setReplyingTo(comment) },
+            onReplyClick = { comment -> startReply(a.etCommentInputA, comment) },
             onExpandRepliesClick = { comment -> viewModel.expandReplies(comment) },
             onRetryClick = { comment -> viewModel.retryComment(comment) }
         )
@@ -297,7 +299,7 @@ class PostDetailActivity : AppCompatActivity() {
 
         a.btnSendCommentA.setOnClickListener {
             val content = a.etCommentInputA.text.toString()
-            if (content.isNotBlank()) {
+            if (hasCommentBody(content)) {
                 val currentAuthor = Author(
                     id = currentUser?.id ?: 1L,
                     username = currentUser?.username ?: "me",
@@ -373,8 +375,6 @@ class PostDetailActivity : AppCompatActivity() {
                             if (replyingComment != null) {
                                 b.layoutReplyingBanner.visibility = View.VISIBLE
                                 b.tvReplyingTo.text = getString(R.string.reply_to, replyingComment.author.displayName)
-                                b.etCommentInput.requestFocus()
-                                showKeyboard(b.etCommentInput)
                             } else {
                                 b.layoutReplyingBanner.visibility = View.GONE
                             }
@@ -459,10 +459,34 @@ class PostDetailActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun startReply(input: EditText, comment: Comment) {
+        viewModel.replyingTo.value?.let { removeReplyMention(input, it) }
+        val mention = replyMention(comment)
+        if (!input.text.startsWith(mention)) input.text.insert(0, mention)
+        input.setSelection(input.length())
+        viewModel.setReplyingTo(comment)
+        input.requestFocus()
+        showKeyboard(input)
+    }
+
+    private fun removeReplyMention(input: EditText, comment: Comment) {
+        val mention = replyMention(comment)
+        if (input.text.startsWith(mention)) input.text.delete(0, mention.length)
+    }
+
+    private fun hasCommentBody(content: String): Boolean {
+        val mention = viewModel.replyingTo.value?.let(::replyMention)
+        return content.isNotBlank() && content.trim() != mention?.trim()
+    }
+
+    private fun replyMention(comment: Comment): String = "@${comment.author.displayName} "
+
     private fun showSortPopupMenu(anchor: View) {
         val popup = PopupMenu(this, anchor)
         popup.menu.add(0, 1, 0, getString(R.string.sort_top))
         popup.menu.add(0, 2, 1, getString(R.string.sort_newest))
+        popup.menu.setGroupCheckable(0, true, true)
+        popup.menu.findItem(if (viewModel.sortMode.value == "newest") 2 else 1).isChecked = true
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> viewModel.setSortMode("top")

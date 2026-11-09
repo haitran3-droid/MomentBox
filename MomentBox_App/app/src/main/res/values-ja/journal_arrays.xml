@@ -1,0 +1,18 @@
+<resources>
+    <string-array name="journal_weekdays_short">
+        <item>月</item>
+        <item>火</item>
+        <item>水</item>
+        <item>木</item>
+        <item>金</item>
+        <item>土</item>
+        <item>日</item>
+    </string-array>
+    <string-array name="journal_mood_names">
+        <item>@string/mood_1_name</item>
+        <item>@string/mood_2_name</item>
+        <item>@string/mood_3_name</item>
+        <item>@string/mood_4_name</item>
+        <item>@string/mood_5_name</item>
+    </string-array>
+</resources>

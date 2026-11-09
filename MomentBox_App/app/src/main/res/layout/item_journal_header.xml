@@ -3,31 +3,35 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
     android:gravity="center_vertical"
+    android:orientation="horizontal"
     android:paddingStart="20dp"
-    android:paddingEnd="20dp"
     android:paddingTop="16dp"
+    android:paddingEnd="20dp"
     android:paddingBottom="8dp">
 
     <TextView
         android:id="@+id/tvHeaderTitle"
+        style="@style/JournalTextSemibold"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:fontFamily="@font/be_vietnam_pro_semibold"
-        android:textSize="12sp"
+        android:includeFontPadding="false"
         android:letterSpacing="0.07"
         android:textColor="@color/text_tertiary"
+        android:textSize="12sp"
         tools:text="TUẦN NÀY" />
 
     <TextView
         android:id="@+id/tvHeaderCount"
+        style="@style/JournalTextMedium"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="@font/be_vietnam_pro_medium"
-        android:textSize="12sp"
+        android:includeFontPadding="false"
         android:textColor="@color/text_tertiary"
+        android:textSize="12sp"
         tools:text="3 bài viết" />
 
 </LinearLayout>

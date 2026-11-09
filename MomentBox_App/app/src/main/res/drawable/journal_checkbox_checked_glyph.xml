@@ -1,0 +1,8 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/journal_checkbox_true" />
+    <item
+        android:width="16dp"
+        android:height="16dp"
+        android:drawable="@drawable/ic_journal_check_white"
+        android:gravity="center" />
+</layer-list>

@@ -9,7 +9,7 @@
     android:fitsSystemWindows="false"
     android:orientation="vertical">
 
-    <!-- App Bar (Cao 56dp theo chuẩn mockup) -->
+    <!-- App Bar-->
     <LinearLayout
         android:id="@+id/app_bar"
         android:layout_width="match_parent"
@@ -25,7 +25,7 @@
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/cancel"
-            android:src="@drawable/ic_close"
+            android:src="@drawable/ic_journal_close"
             app:tint="@color/text_primary" />
 
         <LinearLayout
@@ -37,12 +37,14 @@
 
             <TextView
                 android:id="@+id/tv_editor_title"
+                style="@style/JournalTextSemibold"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:includeFontPadding="false"
                 android:text="@string/editor_title_new"
                 android:textColor="@color/text_primary"
-                android:textSize="18sp" />
+                android:textSize="19sp" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -55,29 +57,36 @@
                     android:layout_width="14dp"
                     android:layout_height="14dp"
                     android:layout_marginEnd="4dp"
-                    android:src="@drawable/ic_cloud_done" />
+                    android:src="@drawable/ic_journal_cloud_done"
+                    app:tint="@color/success" />
 
                 <TextView
                     android:id="@+id/tv_draft_status"
+                    style="@style/JournalTextMedium"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/be_vietnam_pro_regular"
+                    android:fontFamily="@font/be_vietnam_pro_medium"
+                    android:includeFontPadding="false"
                     android:text="@string/editor_draft_saving"
                     android:textColor="@color/text_tertiary"
-                    android:textSize="11.5sp" />
+                    android:textSize="12sp" />
             </LinearLayout>
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_save"
+            style="@style/JournalTextSemibold"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:backgroundTint="@color/primary"
+            android:elevation="0dp"
             android:fontFamily="@font/be_vietnam_pro_semibold"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
+            android:minWidth="0dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:stateListAnimator="@null"
             android:text="@string/editor_save"
             android:textColor="@color/white"
             android:textSize="13sp"
@@ -92,9 +101,12 @@
         android:layout_weight="1"
         android:fillViewport="true">
 
+        <!-- Ring selected vượt wrapper2.5dp; cho phép vẽ qua padding, còn viewport vẫn do ScrollView cắt. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:orientation="vertical"
             android:paddingStart="20dp"
             android:paddingTop="4dp"
@@ -111,40 +123,44 @@
                 android:focusable="true"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="10dp"
-                android:paddingEnd="8dp">
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
 
                 <ImageView
                     android:layout_width="18dp"
                     android:layout_height="18dp"
-                    android:src="@drawable/ic_calendar_month"
+                    android:src="@drawable/ic_journal_calendar_month"
                     app:tint="@color/primary" />
 
                 <TextView
                     android:id="@+id/tv_datetime"
+                    style="@style/JournalTextMedium"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_marginEnd="4dp"
+                    android:layout_marginStart="5dp"
+                    android:layout_marginEnd="5dp"
                     android:fontFamily="@font/be_vietnam_pro_medium"
+                    android:includeFontPadding="false"
                     android:textColor="@color/text_primary"
-                    android:textSize="12.5sp"
+                    android:textSize="13sp"
                     tools:text="Thứ Tư, 21/10/2026 · 21:30" />
 
                 <ImageView
                     android:layout_width="18dp"
                     android:layout_height="18dp"
-                    android:src="@drawable/ic_expand_more"
-                    app:tint="@color/text_tertiary" />
+                    android:src="@drawable/ic_journal_expand_more"
+                    app:tint="@color/text_primary" />
             </LinearLayout>
 
             <!-- Mood Selector Section -->
             <TextView
+                style="@style/JournalTextSemibold"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="10dp"
                 android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:includeFontPadding="false"
                 android:text="@string/editor_mood_question"
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp" />
@@ -153,232 +169,317 @@
                 android:id="@+id/mood_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:gravity="top"
                 android:orientation="horizontal">
 
                 <!-- Mood 1: Tuyệt vời -->
                 <LinearLayout
                     android:id="@+id/layout_mood_1"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:clickable="true"
+                    android:clipChildren="false"
                     android:focusable="true"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <FrameLayout
-                        android:id="@+id/circle_mood_1"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        android:background="@drawable/bg_mood_selected_1">
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                        <FrameLayout
+                            android:id="@+id/circle_mood_1"
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
                             android:layout_gravity="center"
-                            android:text="😄"
-                            android:textSize="26sp" />
+                            android:background="@drawable/bg_mood_selected_1">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:includeFontPadding="false"
+                                android:text="😄"
+                                android:textSize="27sp" />
+                        </FrameLayout>
                     </FrameLayout>
 
                     <TextView
                         android:id="@+id/tv_label_mood_1"
+                        style="@style/JournalTextBold"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="5dp"
                         android:fontFamily="@font/be_vietnam_pro_bold"
+                        android:includeFontPadding="false"
                         android:text="@string/mood_1_name"
                         android:textColor="@color/mood_1_text"
                         android:textSize="11sp" />
                 </LinearLayout>
 
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
                 <!-- Mood 2: Vui -->
                 <LinearLayout
                     android:id="@+id/layout_mood_2"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:clickable="true"
+                    android:clipChildren="false"
                     android:focusable="true"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <FrameLayout
-                        android:id="@+id/circle_mood_2"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        android:background="@drawable/bg_mood_unselected">
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                        <FrameLayout
+                            android:id="@+id/circle_mood_2"
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
                             android:layout_gravity="center"
-                            android:text="🙂"
-                            android:textSize="26sp" />
+                            android:background="@drawable/bg_mood_unselected">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:includeFontPadding="false"
+                                android:text="🙂"
+                                android:textSize="27sp" />
+                        </FrameLayout>
                     </FrameLayout>
 
                     <TextView
                         android:id="@+id/tv_label_mood_2"
+                        style="@style/JournalTextMedium"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="5dp"
                         android:fontFamily="@font/be_vietnam_pro_medium"
+                        android:includeFontPadding="false"
                         android:text="@string/mood_2_name"
                         android:textColor="@color/text_tertiary"
                         android:textSize="11sp" />
                 </LinearLayout>
 
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
                 <!-- Mood 3: Bình thường -->
                 <LinearLayout
                     android:id="@+id/layout_mood_3"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:clickable="true"
+                    android:clipChildren="false"
                     android:focusable="true"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <FrameLayout
-                        android:id="@+id/circle_mood_3"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        android:background="@drawable/bg_mood_unselected">
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                        <FrameLayout
+                            android:id="@+id/circle_mood_3"
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
                             android:layout_gravity="center"
-                            android:text="😐"
-                            android:textSize="26sp" />
+                            android:background="@drawable/bg_mood_unselected">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:includeFontPadding="false"
+                                android:text="😐"
+                                android:textSize="27sp" />
+                        </FrameLayout>
                     </FrameLayout>
 
                     <TextView
                         android:id="@+id/tv_label_mood_3"
+                        style="@style/JournalTextMedium"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="5dp"
                         android:fontFamily="@font/be_vietnam_pro_medium"
+                        android:includeFontPadding="false"
+                        android:singleLine="true"
                         android:text="@string/mood_3_name"
                         android:textColor="@color/text_tertiary"
                         android:textSize="11sp" />
                 </LinearLayout>
 
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
                 <!-- Mood 4: Buồn -->
                 <LinearLayout
                     android:id="@+id/layout_mood_4"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:clickable="true"
+                    android:clipChildren="false"
                     android:focusable="true"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <FrameLayout
-                        android:id="@+id/circle_mood_4"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        android:background="@drawable/bg_mood_unselected">
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                        <FrameLayout
+                            android:id="@+id/circle_mood_4"
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
                             android:layout_gravity="center"
-                            android:text="😢"
-                            android:textSize="26sp" />
+                            android:background="@drawable/bg_mood_unselected">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:includeFontPadding="false"
+                                android:text="😢"
+                                android:textSize="27sp" />
+                        </FrameLayout>
                     </FrameLayout>
 
                     <TextView
                         android:id="@+id/tv_label_mood_4"
+                        style="@style/JournalTextMedium"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="5dp"
                         android:fontFamily="@font/be_vietnam_pro_medium"
+                        android:includeFontPadding="false"
                         android:text="@string/mood_4_name"
                         android:textColor="@color/text_tertiary"
                         android:textSize="11sp" />
                 </LinearLayout>
 
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
                 <!-- Mood 5: Tệ -->
                 <LinearLayout
                     android:id="@+id/layout_mood_5"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:clickable="true"
+                    android:clipChildren="false"
                     android:focusable="true"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <FrameLayout
-                        android:id="@+id/circle_mood_5"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        android:background="@drawable/bg_mood_unselected">
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                        <FrameLayout
+                            android:id="@+id/circle_mood_5"
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
                             android:layout_gravity="center"
-                            android:text="😡"
-                            android:textSize="26sp" />
+                            android:background="@drawable/bg_mood_unselected">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:includeFontPadding="false"
+                                android:text="😡"
+                                android:textSize="27sp" />
+                        </FrameLayout>
                     </FrameLayout>
 
                     <TextView
                         android:id="@+id/tv_label_mood_5"
+                        style="@style/JournalTextMedium"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="5dp"
                         android:fontFamily="@font/be_vietnam_pro_medium"
+                        android:includeFontPadding="false"
                         android:text="@string/mood_5_name"
                         android:textColor="@color/text_tertiary"
                         android:textSize="11sp" />
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Tiêu đề bài viết -->
+            <!-- Tiêu đề22sp: letterSpacing dùng đơn vị em nên CSS-0.3px tương đương-0.3/22. -->
             <EditText
                 android:id="@+id/et_title"
+                style="@style/JournalTextBold"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:background="@null"
                 android:fontFamily="@font/be_vietnam_pro_bold"
                 android:hint="@string/editor_title_hint"
+                android:includeFontPadding="false"
                 android:inputType="textCapSentences"
-                android:letterSpacing="-0.02"
+                android:letterSpacing="-0.0136364"
                 android:maxLength="100"
                 android:maxLines="1"
                 android:singleLine="true"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_tertiary"
+                android:textCursorDrawable="@drawable/journal_text_cursor"
                 android:textSize="22sp" />
 
             <!-- Nội dung bài viết -->
             <EditText
                 android:id="@+id/et_content"
+                style="@style/JournalTextRegular"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="8dp"
                 android:background="@null"
                 android:fontFamily="@font/be_vietnam_pro_regular"
                 android:gravity="top|start"
                 android:hint="@string/editor_content_hint"
+                android:includeFontPadding="false"
                 android:inputType="textMultiLine|textCapSentences"
-                android:lineSpacingMultiplier="1.45"
                 android:minLines="5"
-                android:textColor="@color/text_primary"
+                android:textColor="@color/journal_editor_body"
                 android:textColorHint="@color/text_tertiary"
+                android:textCursorDrawable="@drawable/journal_text_cursor"
                 android:textSize="15sp" />
 
             <!-- Cảnh báo độ dài > 5.000 ký tự (không truncate theo BA) -->
             <TextView
                 android:id="@+id/tv_length_warning"
+                style="@style/JournalTextMedium"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:fontFamily="@font/be_vietnam_pro_medium"
+                android:includeFontPadding="false"
                 android:text="@string/editor_warning_length"
                 android:textColor="@color/warning"
                 android:textSize="12sp"
@@ -414,16 +515,18 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:src="@drawable/ic_add_photo_alternate"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_journal_add_photo_alternate"
                         app:tint="@color/text_tertiary" />
 
                     <TextView
+                        style="@style/JournalTextMedium"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:fontFamily="@font/be_vietnam_pro_medium"
+                        android:includeFontPadding="false"
                         android:text="@string/editor_photo_add"
                         android:textColor="@color/text_tertiary"
                         android:textSize="11sp" />
@@ -448,28 +551,29 @@
                     android:id="@+id/btn_audio_play_pause"
                     android:layout_width="34dp"
                     android:layout_height="34dp"
-                    android:background="@drawable/bg_btn_primary"
-                    android:contentDescription="@string/action_like"
-                    android:src="@drawable/ic_play_arrow"
+                    android:background="@drawable/bg_circle_primary"
+                    android:contentDescription="@string/journal_audio_play"
+                    android:padding="7dp"
+                    android:src="@drawable/ic_journal_play_arrow"
                     app:tint="@color/white" />
 
-                <!-- Placeholder giả lập sóng âm 40 vạch theo mockup -->
-                <View
+                <!-- Sóng âm thanh động hiển thị biên độ thực tế theo mockup (F22) -->
+                <com.ntq.training.momentbox.feature.journal.view.AudioWaveformView
                     android:id="@+id/view_audio_waveform"
                     android:layout_width="0dp"
-                    android:layout_height="20dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="10dp"
                     android:layout_marginEnd="10dp"
-                    android:layout_weight="1"
-                    android:background="@color/primary_variant"
-                    android:alpha="0.25" />
+                    android:layout_weight="1" />
 
                 <TextView
                     android:id="@+id/tv_audio_duration"
+                    style="@style/JournalTextSemibold"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
                     android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:includeFontPadding="false"
                     android:textColor="@color/on_primary_container"
                     android:textSize="12sp"
                     tools:text="0:42" />
@@ -480,7 +584,8 @@
                     android:layout_height="28dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/journal_delete"
-                    android:src="@drawable/ic_close"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_journal_close"
                     app:tint="@color/text_secondary" />
             </LinearLayout>
 
@@ -505,8 +610,8 @@
                 <LinearLayout
                     android:id="@+id/btn_add_tag"
                     android:layout_width="wrap_content"
-                    android:layout_height="28dp"
-                    android:background="@drawable/bg_chip"
+                    android:layout_height="26dp"
+                    android:background="@drawable/bg_journal_editor_add_tag"
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center_vertical"
@@ -518,13 +623,15 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:layout_marginEnd="2dp"
-                        android:src="@drawable/ic_add"
+                        android:src="@drawable/ic_journal_add"
                         app:tint="@color/text_secondary" />
 
                     <TextView
+                        style="@style/JournalTextMedium"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/be_vietnam_pro_medium"
+                        android:includeFontPadding="false"
                         android:text="@string/editor_tag_add"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
@@ -552,14 +659,14 @@
         <FrameLayout
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:background="@drawable/bg_btn_primary">
+            android:background="@drawable/bg_ambient_icon">
 
             <ImageView
                 android:id="@+id/iv_ambient_icon"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_rainy"
+                android:src="@drawable/ic_journal_rainy"
                 app:tint="@color/white" />
         </FrameLayout>
 
@@ -573,9 +680,11 @@
 
             <TextView
                 android:id="@+id/tv_ambient_title"
+                style="@style/JournalTextSemibold"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:includeFontPadding="false"
                 android:text="@string/editor_ambient_rain"
                 android:textColor="@color/white"
                 android:textSize="13sp" />
@@ -591,16 +700,27 @@
                     android:layout_width="14dp"
                     android:layout_height="14dp"
                     android:alpha="0.7"
-                    android:src="@drawable/ic_volume_down"
+                    android:src="@drawable/ic_journal_volume_down"
                     app:tint="@color/white" />
 
                 <SeekBar
                     android:id="@+id/sb_ambient_volume"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_width="0dp"
+                    android:layout_height="14dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:contentDescription="@string/editor_ambient_volume"
                     android:max="100"
+                    android:padding="0dp"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
                     android:progress="60"
+                    android:progressBackgroundTint="@null"
+                    android:progressDrawable="@drawable/bg_journal_ambient_volume_track"
                     android:progressTint="@color/white"
+                    android:splitTrack="false"
+                    android:thumb="@drawable/ambient_volume_thumb"
+                    android:thumbOffset="0dp"
                     android:thumbTint="@color/white" />
             </LinearLayout>
         </LinearLayout>
@@ -610,12 +730,18 @@
             android:layout_width="34dp"
             android:layout_height="34dp"
             android:background="@drawable/bg_circle_white"
-            android:contentDescription="@string/action_like"
-            android:src="@drawable/ic_pause"
+            android:contentDescription="@string/journal_audio_play"
+            android:padding="7dp"
+            android:src="@drawable/ic_journal_pause"
             app:tint="@color/ambient_bar_bg" />
     </LinearLayout>
 
     <!-- Thanh công cụ soạn thảo phía dưới (Bottom Toolbar) -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/outline" />
+
     <LinearLayout
         android:id="@+id/bottom_toolbar"
         android:layout_width="match_parent"
@@ -632,43 +758,47 @@
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/filter_has_photo"
-            android:src="@drawable/ic_photo_camera"
+            android:src="@drawable/ic_journal_image"
             app:tint="@color/text_secondary" />
 
         <ImageButton
             android:id="@+id/btn_tool_camera"
             android:layout_width="40dp"
             android:layout_height="40dp"
+            android:layout_marginStart="2dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/filter_has_photo"
-            android:src="@drawable/ic_photo_camera"
+            android:src="@drawable/ic_journal_photo_camera"
             app:tint="@color/text_secondary" />
 
         <ImageButton
             android:id="@+id/btn_tool_mic"
             android:layout_width="40dp"
             android:layout_height="40dp"
+            android:layout_marginStart="2dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/filter_has_audio"
-            android:src="@drawable/ic_mic"
+            android:src="@drawable/ic_journal_mic"
             app:tint="@color/text_secondary" />
 
         <ImageButton
             android:id="@+id/btn_tool_tag"
             android:layout_width="40dp"
             android:layout_height="40dp"
+            android:layout_marginStart="2dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/editor_tag_add"
-            android:src="@drawable/ic_sell"
+            android:src="@drawable/ic_journal_sell"
             app:tint="@color/text_secondary" />
 
         <ImageButton
             android:id="@+id/btn_tool_ambient"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_journal_ambient_tool"
             android:contentDescription="@string/editor_ambient_rain"
-            android:src="@drawable/ic_headphones"
+            android:src="@drawable/ic_journal_headphones"
             app:tint="@color/primary" />
 
         <Space
@@ -678,10 +808,14 @@
 
         <TextView
             android:id="@+id/tv_word_count"
+            style="@style/JournalTextSemibold"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/be_vietnam_pro_semibold"
-            android:text="0 từ"
+            android:includeFontPadding="false"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="@string/editor_word_count_zero"
             android:textColor="@color/text_tertiary"
             android:textSize="12.5sp" />
     </LinearLayout>

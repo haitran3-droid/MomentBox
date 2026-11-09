@@ -12,14 +12,15 @@ import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.data.local.db.JournalEntryWithDetails
 import com.ntq.training.momentbox.databinding.ItemJournalEntryBinding
 import com.ntq.training.momentbox.databinding.ItemJournalHeaderBinding
+import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.time.Instant
 
-sealed interface JournalListItem{
-    data class Header(val id: String, val title: String, val count: Int): JournalListItem
-    data class Entry(val data: JournalEntryWithDetails): JournalListItem
+sealed interface JournalListItem {
+    data class Header(val id: String, val title: String, val count: Int) : JournalListItem
+    data class Entry(val data: JournalEntryWithDetails) : JournalListItem
 }
 
 class JournalEntriesAdapter(
@@ -57,7 +58,7 @@ class JournalEntriesAdapter(
         private val binding: ItemJournalHeaderBinding
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(header: JournalListItem.Header) {
-            binding.tvHeaderTitle.text = header.title
+            binding.tvHeaderTitle.text = localizedHeader(binding.root.context, header)
             binding.tvHeaderCount.text = binding.root.context.getString(R.string.journal_entries_count, header.count)
         }
     }
@@ -73,6 +74,9 @@ class JournalEntriesAdapter(
         private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
 
         fun bind(entryDetails: JournalEntryWithDetails) {
+            binding.cardForeground.animate().cancel()
+            binding.cardForeground.translationX = 0f
+            binding.layoutUnderlayActions.visibility = View.INVISIBLE
             val entry = entryDetails.entry
             val zone = ZoneId.systemDefault()
             val dateTime = Instant.ofEpochMilli(entry.createdAt).atZone(zone)
@@ -143,16 +147,7 @@ class JournalEntriesAdapter(
         }
 
         private fun formatDayOfWeek(dayOfWeekValue: Int): String {
-            return when (dayOfWeekValue) {
-                1 -> "T2"
-                2 -> "T3"
-                3 -> "T4"
-                4 -> "T5"
-                5 -> "T6"
-                6 -> "T7"
-                7 -> "CN"
-                else -> ""
-            }
+            return context.resources.getStringArray(R.array.journal_weekdays_short).getOrElse(dayOfWeekValue - 1) { "" }
         }
 
         private fun getMoodEmojiAndLabel(mood: Int): String {
@@ -204,6 +199,31 @@ class JournalEntriesAdapter(
     }
 
     companion object {
+        fun localizedHeader(context: Context, header: JournalListItem.Header): String {
+            val clock = (context.applicationContext as? com.ntq.training.momentbox.MomentBoxApp)?.journalClock ?: java.time.Clock.systemDefaultZone()
+            val today = java.time.LocalDate.now(clock)
+            val locale = context.resources.configuration.locales[0]
+            if (header.id.startsWith("header_day_")) {
+                val day = java.time.LocalDate.parse(header.id.removePrefix("header_day_"))
+                return when (day) {
+                    today -> context.getString(R.string.journal_header_today)
+                    today.minusDays(1) -> context.getString(R.string.journal_header_yesterday)
+                    else -> day.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", locale))
+                }
+            }
+            if (header.id.startsWith("header_month_")) return java.time.YearMonth.parse(header.id.removePrefix("header_month_"))
+                .atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", locale)).uppercase(locale)
+            val parts = header.id.removePrefix("header_week_").split("_")
+            val year = parts.getOrNull(0)?.toIntOrNull() ?: return header.title
+            val week = parts.getOrNull(1)?.toIntOrNull() ?: return header.title
+            val fields = java.time.temporal.WeekFields.ISO
+            fun same(date: java.time.LocalDate) = date.get(fields.weekBasedYear()) == year && date.get(fields.weekOfWeekBasedYear()) == week
+            return when {
+                same(today) -> context.getString(R.string.journal_header_this_week)
+                same(today.minusWeeks(1)) -> context.getString(R.string.journal_header_previous_week)
+                else -> context.getString(R.string.journal_header_week_format, week, year)
+            }
+        }
         private const val VIEW_TYPE_HEADER = 0
         private const val VIEW_TYPE_ENTRY = 1
     }

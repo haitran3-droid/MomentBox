@@ -3,6 +3,10 @@ package com.ntq.training.momentbox.feature.journal.editor
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.media.MediaPlayer
+import android.content.Intent
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.os.Bundle
 import android.view.View
 import android.view.animation.OvershootInterpolator
@@ -14,10 +18,12 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
+import androidx.core.widget.TextViewCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -26,13 +32,16 @@ import com.google.android.material.snackbar.Snackbar
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.base.BaseActivity
+import com.ntq.training.momentbox.data.local.db.JournalAttachmentEntity
 import com.ntq.training.momentbox.databinding.ActivityJournalEditorBinding
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(ActivityJournalEditorBinding::inflate) {
 
@@ -40,11 +49,14 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
         const val EXTRA_ENTRY_ID = "extra_entry_id"
         const val EXTRA_DATE_EPOCH_MS = "extra_date_epoch_ms"
         const val EXTRA_MOOD = "extra_mood"
+        const val EXTRA_AUDIO_URI = "extra_audio_uri"
+        const val EXTRA_AUDIO_DURATION_MS = "extra_audio_duration_ms"
+        const val EXTRA_AUDIO_WAVEFORM = "extra_audio_waveform"
     }
 
     private val viewModel: JournalEditorViewModel by viewModels {
         val entryId = intent.getLongExtra(EXTRA_ENTRY_ID, -1L)
-        val dateEpochMs = intent.getLongExtra(EXTRA_DATE_EPOCH_MS, System.currentTimeMillis())
+        val dateEpochMs = intent.getLongExtra(EXTRA_DATE_EPOCH_MS, (application as MomentBoxApp).journalClock.millis())
         val mood = intent.getIntExtra(EXTRA_MOOD, 1)
         JournalEditorViewModel.provideFactory(
             journalRepository = (application as MomentBoxApp).journalRepository,
@@ -57,15 +69,45 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
     private lateinit var ambientController: AmbientAudioController
     private lateinit var photosAdapter: JournalPhotosAdapter
     private lateinit var tagsAdapter: JournalTagsAdapter
+    private val selectedMoodFont by lazy { ResourcesCompat.getFont(this, R.font.be_vietnam_pro_bold) }
+    private val normalMoodFont by lazy { ResourcesCompat.getFont(this, R.font.be_vietnam_pro_medium) }
+    // CSS grayscale(.6) còn40% saturation. Cache Paint/font để không tải lại khi gõ từng ký tự.
+    private val unselectedMoodPaint by lazy {
+        Paint().apply { colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0.4f) }) }
+    }
 
     private var attachmentVoicePlayer: MediaPlayer? = null
     private var isVoicePlaying = false
+
+    private var voicePlaybackPosition: Int = 0
+    private var voicePreparing = false
+    private var voiceGeneration = 0L
+    private var editorForeground = false
+    private var audioIntentConsumed = false
+    private val voiceOwner = Any()
+    private val playbackAudio by lazy { com.ntq.training.momentbox.core.media.AndroidPlaybackAudio.get(this) }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        audioIntentConsumed = savedInstanceState?.getBoolean("audio_intent_consumed") ?: false
+        super.onCreate(savedInstanceState)
+    }
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("audio_intent_consumed", audioIntentConsumed)
+        super.onSaveInstanceState(outState)
+    }
 
     // Image Picker Contract (Hỗ trợ chọn tối đa nhiều ảnh)
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (uris.isNullOrEmpty()) return@registerForActivityResult
         for (uri in uris) {
             viewModel.addPhotoAttachment(uri.toString())
+        }
+    }
+
+    // Audio Attachment Contract (Hỗ trợ chọn file ghi âm / stub M3/M4 - F24)
+    private val pickAudioLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            viewModel.addAudioAttachment(uri.toString(), durationMs = 0L, waveform = emptyList())
         }
     }
 
@@ -96,6 +138,20 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
         setupAmbientBar()
         setupBottomToolbar()
         setupBackHandler()
+        handleAudioIntentExtras(intent)
+    }
+
+    private fun handleAudioIntentExtras(intent: Intent?) {
+        val audioUri = intent?.getStringExtra(EXTRA_AUDIO_URI)
+        if (!audioUri.isNullOrBlank() && !audioIntentConsumed) {
+            audioIntentConsumed = true
+            val duration = intent.getLongExtra(EXTRA_AUDIO_DURATION_MS, 0L)
+            val waveform = intent.getIntegerArrayListExtra(EXTRA_AUDIO_WAVEFORM)?.toList() ?: emptyList()
+            lifecycleScope.launch {
+                viewModel.uiState.first { !it.isLoading }
+                viewModel.addAudioAttachment(audioUri, duration, waveform)
+            }
+        }
     }
 
     private fun setupAppBar() {
@@ -181,6 +237,7 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
     }
 
     private fun setupInputFields() {
+        TextViewCompat.setLineHeight(binding.etContent, (binding.etContent.textSize * 1.62f).roundToInt())
         binding.etTitle.doAfterTextChanged {
             viewModel.onTitleChanged(it?.toString().orEmpty())
         }
@@ -255,10 +312,33 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
 
     private fun toggleVoiceAttachmentPlayback() {
         val audioAtt = viewModel.uiState.value.attachments.find { it.type.equals("audio", ignoreCase = true) } ?: return
-        if (isVoicePlaying) {
+        if (voicePreparing) {
+            stopVoiceAttachmentPlayback()
+        } else if (isVoicePlaying) {
             pauseVoiceAttachmentPlayback()
         } else {
-            startVoiceAttachmentPlayback(audioAtt.localPath)
+            if (attachmentVoicePlayer != null) {
+                resumeVoiceAttachmentPlayback()
+            } else {
+                startVoiceAttachmentPlayback(audioAtt.localPath)
+            }
+        }
+    }
+
+    private fun acquireVoiceFocus(): Boolean = playbackAudio.acquire(voiceOwner, {
+        runOnUiThread { stopVoiceAttachmentPlayback() }
+    }, kind = com.ntq.training.momentbox.core.media.AudioPlaybackKind.VOICE)
+
+    private fun resumeVoiceAttachmentPlayback() {
+        if (!editorForeground || voicePreparing || !acquireVoiceFocus()) return
+        if (ambientController.isPlaying()) {
+            ambientController.pause()
+        }
+        attachmentVoicePlayer?.apply {
+            seekTo(voicePlaybackPosition)
+            start()
+            isVoicePlaying = true
+            binding.btnAudioPlayPause.setImageResource(R.drawable.ic_journal_pause)
         }
     }
 
@@ -268,46 +348,83 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
 
         stopVoiceAttachmentPlayback()
         try {
-            // Tạm dừng ambient trong lúc nghe ghi âm
+            // [Intern]: Tạm dừng ambient khi phát ghi âm theo BA 11.4
             if (ambientController.isPlaying()) {
                 ambientController.pause()
             }
 
-            attachmentVoicePlayer = MediaPlayer().apply {
+            if (!editorForeground || !acquireVoiceFocus()) return
+            val expected = ++voiceGeneration
+            voicePreparing = true
+            attachmentVoicePlayer = MediaPlayer()
+            attachmentVoicePlayer!!.apply {
                 setDataSource(file.absolutePath)
-                prepare()
-                start()
-                setOnCompletionListener {
-                    isVoicePlaying = false
-                    binding.btnAudioPlayPause.setImageResource(R.drawable.ic_play_arrow)
+                setOnPreparedListener { player ->
+                    if (expected != voiceGeneration || !editorForeground || player !== attachmentVoicePlayer) return@setOnPreparedListener
+                    voicePreparing = false
+                    player.seekTo(voicePlaybackPosition)
+                    player.start()
+                    isVoicePlaying = true
+                    binding.btnAudioPlayPause.setImageResource(R.drawable.ic_journal_pause)
                 }
+                setOnCompletionListener {
+                    // Clip đã kết thúc: trả quyền focus ngay, không giữ âm thanh ngoài app tới lúc đóng editor.
+                    playbackAudio.release(voiceOwner)
+                    isVoicePlaying = false
+                    voicePlaybackPosition = 0
+                    binding.btnAudioPlayPause.setImageResource(R.drawable.ic_journal_play_arrow)
+                }
+                setOnErrorListener { _, _, _ ->
+                    stopVoiceAttachmentPlayback()
+                    Snackbar.make(binding.root, R.string.editor_save_error, Snackbar.LENGTH_LONG).show()
+                    true
+                }
+                prepareAsync() // [Intern]: Prepare bất đồng bộ để tránh block Main Thread (F17)
             }
-            isVoicePlaying = true
-            binding.btnAudioPlayPause.setImageResource(R.drawable.ic_pause)
         } catch (_: Exception) {
-            isVoicePlaying = false
-            binding.btnAudioPlayPause.setImageResource(R.drawable.ic_play_arrow)
+            // Lỗi setDataSource có thể xảy ra trước prepareAsync; cũng phải trả focus và release player.
+            stopVoiceAttachmentPlayback()
+            Snackbar.make(binding.root, R.string.editor_save_error, Snackbar.LENGTH_LONG).show()
         }
     }
 
     private fun pauseVoiceAttachmentPlayback() {
-        attachmentVoicePlayer?.pause()
+        if (voicePreparing) { stopVoiceAttachmentPlayback(); return }
+        playbackAudio.release(voiceOwner)
+        attachmentVoicePlayer?.let { player ->
+            if (player.isPlaying) {
+                player.pause()
+                voicePlaybackPosition = player.currentPosition
+            }
+        }
         isVoicePlaying = false
-        binding.btnAudioPlayPause.setImageResource(R.drawable.ic_play_arrow)
+        binding.btnAudioPlayPause.setImageResource(R.drawable.ic_journal_play_arrow)
     }
 
     private fun stopVoiceAttachmentPlayback() {
+        voiceGeneration++
+        voicePreparing = false
+        playbackAudio.release(voiceOwner)
         try {
-            attachmentVoicePlayer?.stop()
-            attachmentVoicePlayer?.release()
+            attachmentVoicePlayer?.let { player ->
+                if (player.isPlaying) {
+                    player.stop()
+                }
+                player.release()
+            }
         } catch (_: Exception) {}
         attachmentVoicePlayer = null
+        voicePlaybackPosition = 0
         isVoicePlaying = false
-        binding.btnAudioPlayPause.setImageResource(R.drawable.ic_play_arrow)
+        binding.btnAudioPlayPause.setImageResource(R.drawable.ic_journal_play_arrow)
     }
 
     private fun setupAmbientBar() {
         binding.btnAmbientPlayPause.setOnClickListener {
+            // [Intern]: Dừng voice khi bật ambient (F17)
+            if (!ambientController.isPlaying() && (isVoicePlaying || voicePreparing)) {
+                pauseVoiceAttachmentPlayback()
+            }
             ambientController.togglePlayPause()
         }
 
@@ -322,11 +439,16 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
         })
 
         ambientController.onPlaybackStateChanged = { isPlaying, sound, volume ->
-            binding.btnAmbientPlayPause.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
+            binding.btnAmbientPlayPause.setImageResource(if (isPlaying) R.drawable.ic_journal_pause else R.drawable.ic_journal_play_arrow)
+            binding.btnAmbientPlayPause.contentDescription = getString(if (isPlaying) R.string.journal_audio_pause else R.string.journal_audio_play)
             binding.sbAmbientVolume.progress = (volume * 100).toInt()
             binding.tvAmbientTitle.setText(sound.titleRes)
             binding.layoutAmbientBar.isVisible = sound != AmbientAudioController.SoundType.OFF
+            binding.btnToolAmbient.isSelected = sound != AmbientAudioController.SoundType.OFF
+            binding.btnToolAmbient.imageTintList = ContextCompat.getColorStateList(this,
+                if (sound != AmbientAudioController.SoundType.OFF) R.color.primary else R.color.text_secondary)
         }
+        ambientController.onPlaybackStateChanged?.invoke(ambientController.isPlaying(), ambientController.getSound(), ambientController.getVolume())
     }
 
     private fun setupBottomToolbar() {
@@ -336,12 +458,12 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
 
         binding.btnToolCamera.setOnClickListener {
             // Ranh giới M4: Thông báo rõ ràng chưa tích hợp Camera S11
-            Toast.makeText(this, "Tính năng chụp ảnh Camera thuộc Milestone M4 (S11)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.journal_camera_next_milestone), Toast.LENGTH_SHORT).show()
         }
 
         binding.btnToolMic.setOnClickListener {
-            // Ranh giới M4: Thông báo rõ ràng chưa tích hợp Recorder S14
-            Toast.makeText(this, "Tính năng ghi âm giọng nói thuộc Milestone M4 (S14)", Toast.LENGTH_SHORT).show()
+            // [Intern]: Kích hoạt Contract chọn tệp âm thanh (Audio Picker Contract F24)
+            pickAudioLauncher.launch("audio/*")
         }
 
         binding.btnToolTag.setOnClickListener {
@@ -354,7 +476,7 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
     }
 
     private fun showAmbientSoundPicker() {
-        val soundOptions = arrayOf("Tiếng mưa", "Tiếng biển", "Tắt âm thanh nền")
+        val soundOptions = arrayOf(getString(R.string.editor_ambient_rain), getString(R.string.editor_ambient_ocean), getString(R.string.editor_ambient_off))
         val sounds = arrayOf(
             AmbientAudioController.SoundType.RAIN,
             AmbientAudioController.SoundType.OCEAN,
@@ -381,6 +503,7 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
     }
 
     private fun handleBackPress() {
+        if (viewModel.uiState.value.isSaving) return
         if (viewModel.uiState.value.isDirty) {
             showUnsavedChangesDialog()
         } else {
@@ -393,12 +516,11 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
             .setTitle(R.string.editor_discard_dialog_title)
             .setMessage(R.string.editor_discard_dialog_desc)
             .setPositiveButton(R.string.editor_discard_dialog_save_draft) { _, _ ->
-                // Kích hoạt lưu nháp ngay lập tức và thoát
-                viewModel.saveEntry()
+                // [Intern]: Lưu nháp vào DataStore và thoát, tuyệt đối KHÔNG commit bài chính thức (F03)
+                viewModel.flushDraftAndClose()
             }
             .setNegativeButton(R.string.editor_discard_dialog_discard) { _, _ ->
                 viewModel.discardDraft()
-                finish()
             }
             .setNeutralButton(R.string.editor_discard_dialog_keep_editing, null)
             .show()
@@ -414,6 +536,7 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
                 }
                 launch {
                     viewModel.saveEvents.collect { result ->
+                        viewModel.consumeSaveResult()
                         if (result.isSuccess) {
                             Toast.makeText(this@JournalEditorActivity, getString(R.string.editor_save_success), Toast.LENGTH_SHORT).show()
                             finish()
@@ -423,11 +546,33 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
                         }
                     }
                 }
+                launch {
+                    viewModel.flushDraftEvents.collect { result ->
+                        viewModel.consumeFlushResult()
+                        when (result) {
+                            is FlushDraftResult.Success -> {
+                                finish()
+                            }
+                            is FlushDraftResult.Failure -> {
+                                Snackbar.make(binding.root, getString(R.string.editor_save_error), Snackbar.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
     private fun renderUiState(state: JournalEditorUiState) {
+        // Không nhận input trong lúc tải/đóng; tránh DB trả muộn ghi đè nội dung vừa gõ.
+        binding.etTitle.isEnabled = !state.isLoading && !state.isLoadFailed && !state.isSaving
+        binding.etContent.isEnabled = !state.isLoading && !state.isLoadFailed && !state.isSaving
+        if (state.error != null) {
+            val snackbar = Snackbar.make(binding.root, getString(R.string.journal_storage_error), Snackbar.LENGTH_LONG)
+            if (state.error == EditorError.LOAD) snackbar.setAction(R.string.journal_retry) { viewModel.retryLoad() }
+            snackbar.show()
+            viewModel.consumeError()
+        }
         // App bar
         binding.tvEditorTitle.text = if (state.entryId != null) getString(R.string.editor_title_edit) else getString(R.string.editor_title_new)
         binding.btnSave.isEnabled = state.canSave
@@ -436,12 +581,12 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
         when (state.draftStatus) {
             is DraftStatus.Saving -> {
                 binding.ivDraftStatusIcon.isVisible = true
-                binding.ivDraftStatusIcon.setImageResource(R.drawable.ic_cloud_done)
+                binding.ivDraftStatusIcon.setImageResource(R.drawable.ic_journal_cloud_done)
                 binding.tvDraftStatus.text = getString(R.string.editor_draft_saving)
             }
             is DraftStatus.Saved -> {
                 binding.ivDraftStatusIcon.isVisible = true
-                binding.ivDraftStatusIcon.setImageResource(R.drawable.ic_cloud_done)
+                binding.ivDraftStatusIcon.setImageResource(R.drawable.ic_journal_cloud_done)
                 val format = SimpleDateFormat("HH:mm", Locale.getDefault())
                 binding.tvDraftStatus.text = getString(R.string.editor_draft_saved_format, format.format(state.draftStatus.savedAtEpochMs))
             }
@@ -452,7 +597,7 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
         }
 
         // Date/Time
-        val dateFormat = SimpleDateFormat("EEEE, dd/MM/yyyy · HH:mm", Locale("vi", "VN"))
+        val dateFormat = SimpleDateFormat("EEEE, dd/MM/yyyy · HH:mm", Locale.getDefault())
         binding.tvDatetime.text = dateFormat.format(state.dateEpochMs)
 
         // Moods
@@ -481,6 +626,8 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
             val seconds = (audio.durationMs / 1000) % 60
             val minutes = (audio.durationMs / 1000) / 60
             binding.tvAudioDuration.text = String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+            // [Intern]: Nối dữ liệu sóng âm waveform từ tệp đính kèm vào View hiển thị (F22)
+            binding.viewAudioWaveform.setWaveform(audio.waveform)
         }
 
         // Tags
@@ -520,14 +667,21 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
             val circle = moodCircles[i]
             val (label, activeColorRes) = moodLabels[i]
 
+            // Wrapper giữ52dp trong flow; ring selected nở ra57dp để stroke2.5dp nằm ngoài
+            // như CSS box-shadow, không đẩy label/title xuống và không đổi tâm giữa các mood.
+            val size = ((if (isSelected) 57f else 52f) * resources.displayMetrics.density).roundToInt()
+            if (circle.layoutParams.width != size) circle.layoutParams = circle.layoutParams.apply { width = size; height = size }
+            circle.alpha = if (isSelected) 1f else 0.75f
+            circle.setLayerType(if (isSelected) View.LAYER_TYPE_NONE else View.LAYER_TYPE_HARDWARE, if (isSelected) null else unselectedMoodPaint)
+            label.typeface = if (isSelected) selectedMoodFont else normalMoodFont
+            label.alpha = 1f
+
             if (isSelected) {
                 circle.setBackgroundResource(selectedDrawables[i])
                 label.setTextColor(ContextCompat.getColor(this, activeColorRes))
-                label.alpha = 1.0f
             } else {
                 circle.setBackgroundResource(R.drawable.bg_mood_unselected)
                 label.setTextColor(ContextCompat.getColor(this, R.color.text_tertiary))
-                label.alpha = 0.75f
             }
         }
     }
@@ -544,6 +698,23 @@ class JournalEditorActivity : BaseActivity<ActivityJournalEditorBinding>(Activit
             }
             .setCancelable(false)
             .show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        editorForeground = true
+        ambientController.setForeground(true)
+    }
+    override fun onPause() {
+        editorForeground = false
+        ambientController.setForeground(false)
+        stopVoiceAttachmentPlayback() // Hủy cả prepareAsync đang pending, callback cũ không được start khi ẩn.
+        super.onPause()
+    }
+    override fun onStop() {
+        ambientController.setForeground(false)
+        stopVoiceAttachmentPlayback()
+        super.onStop()
     }
 
     override fun onDestroy() {

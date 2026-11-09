@@ -34,7 +34,7 @@ class JournalPhotosAdapter(
             Glide.with(binding.ivPhoto.context)
                 .load(file)
                 .override(200, 200)
-                .transform(CenterCrop(), RoundedCorners(12))
+                .transform(CenterCrop())
                 .into(binding.ivPhoto)
 
             binding.btnRemovePhoto.setOnClickListener {

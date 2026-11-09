@@ -14,19 +14,20 @@
         android:layout_width="132dp"
         android:layout_height="match_parent"
         android:layout_gravity="end"
+        android:background="@drawable/bg_card_rounded"
         android:orientation="horizontal"
-        android:background="@drawable/bg_card_rounded">
+        android:visibility="invisible">
 
         <!-- Nút Ghim -->
         <LinearLayout
             android:id="@+id/btnUnderlayPin"
             android:layout_width="66dp"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center"
             android:background="@color/warning"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
 
             <ImageView
                 android:id="@+id/ivUnderlayPin"
@@ -37,13 +38,14 @@
 
             <TextView
                 android:id="@+id/tvUnderlayPin"
+                style="@style/JournalTextSemibold"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:fontFamily="@font/be_vietnam_pro_semibold"
-                android:textSize="11sp"
+                android:text="@string/journal_action_pin"
                 android:textColor="@color/surface"
-                android:text="@string/journal_action_pin" />
+                android:textSize="11sp" />
         </LinearLayout>
 
         <!-- Nút Xóa -->
@@ -51,11 +53,11 @@
             android:id="@+id/btnUnderlayDelete"
             android:layout_width="66dp"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center"
             android:background="@color/error"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
 
             <ImageView
                 android:layout_width="20dp"
@@ -64,13 +66,14 @@
                 app:tint="@color/surface" />
 
             <TextView
+                style="@style/JournalTextSemibold"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:fontFamily="@font/be_vietnam_pro_semibold"
-                android:textSize="11sp"
+                android:text="@string/journal_action_delete"
                 android:textColor="@color/surface"
-                android:text="@string/journal_action_delete" />
+                android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>
 
@@ -79,12 +82,12 @@
         android:id="@+id/cardForeground"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="18dp"
-        app:cardElevation="1dp"
-        app:strokeWidth="0dp"
-        app:cardBackgroundColor="@color/surface"
         android:clickable="true"
-        android:focusable="true">
+        android:focusable="true"
+        app:cardBackgroundColor="@color/surface"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="0dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -97,28 +100,30 @@
                 android:id="@+id/layoutDateBadge"
                 android:layout_width="46dp"
                 android:layout_height="56dp"
-                android:orientation="vertical"
+                android:background="@drawable/bg_pill_tag"
                 android:gravity="center"
-                android:background="@drawable/bg_pill_tag">
+                android:orientation="vertical">
 
                 <TextView
                     android:id="@+id/tvBadgeDay"
+                    style="@style/JournalTextBold"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/be_vietnam_pro_bold"
-                    android:textSize="19sp"
                     android:includeFontPadding="false"
                     android:lineSpacingExtra="0dp"
+                    android:textSize="19sp"
                     tools:text="21" />
 
                 <TextView
                     android:id="@+id/tvBadgeDayOfWeek"
+                    style="@style/JournalTextSemibold"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:fontFamily="@font/be_vietnam_pro_semibold"
-                    android:textSize="11sp"
                     android:includeFontPadding="false"
+                    android:textSize="11sp"
                     tools:text="T4" />
             </LinearLayout>
 
@@ -126,27 +131,34 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:layout_marginStart="12dp"
+                android:layout_weight="1"
                 android:orientation="vertical">
 
                 <!-- Tiêu đề & Biểu tượng Ghim -->
-                <LinearLayout
+                <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
                     <TextView
                         android:id="@+id/tvEntryTitle"
-                        android:layout_width="0dp"
+                        style="@style/JournalTextSemibold"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:fontFamily="@font/be_vietnam_pro_semibold"
-                        android:textSize="15sp"
-                        android:textColor="@color/text_primary"
                         android:ellipsize="end"
+                        android:fontFamily="@font/be_vietnam_pro_semibold"
                         android:singleLine="true"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
+                        app:layout_constrainedWidth="true"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/ivPinnedIcon"
+                        app:layout_constraintHorizontal_bias="0"
+                        app:layout_constraintHorizontal_chainStyle="packed"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
                         tools:text="Một ngày ở Đà Lạt" />
 
                     <ImageView
@@ -155,23 +167,28 @@
                         android:layout_height="16dp"
                         android:layout_marginStart="6dp"
                         android:src="@drawable/ic_push_pin"
-                        app:tint="@color/secondary"
                         android:visibility="gone"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tvEntryTitle"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:tint="@color/secondary"
                         tools:visibility="visible" />
-                </LinearLayout>
+                </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <!-- Trích dẫn nội dung (tối đa 2 dòng) -->
                 <TextView
                     android:id="@+id/tvEntryContent"
+                    style="@style/JournalTextRegular"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
+                    android:ellipsize="end"
                     android:fontFamily="@font/be_vietnam_pro_regular"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary"
                     android:lineSpacingMultiplier="1.25"
                     android:maxLines="2"
-                    android:ellipsize="end"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
                     tools:text="Sáng nay cả nhà dậy từ 5 giờ để lên đồi chè Cầu Đất. Sương mù dày đặc, lạnh nhưng rất đáng…" />
 
                 <!-- Dòng thông tin phụ: Nhãn cảm xúc, số ảnh, số ghi âm, giờ tạo -->
@@ -185,11 +202,12 @@
                     <!-- Cảm xúc -->
                     <TextView
                         android:id="@+id/tvMoodEmojiAndLabel"
+                        style="@style/JournalTextMedium"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/be_vietnam_pro_medium"
-                        android:textSize="12sp"
                         android:textColor="@color/text_tertiary"
+                        android:textSize="12sp"
                         tools:text="😄 Tuyệt vời" />
 
                     <!-- Số lượng ảnh đính kèm -->
@@ -206,17 +224,18 @@
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
-                            android:src="@drawable/ic_image"
+                            android:src="@drawable/ic_journal_image"
                             app:tint="@color/text_tertiary" />
 
                         <TextView
                             android:id="@+id/tvPhotoCount"
+                            style="@style/JournalTextMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="2dp"
                             android:fontFamily="@font/be_vietnam_pro_medium"
-                            android:textSize="12sp"
                             android:textColor="@color/text_tertiary"
+                            android:textSize="12sp"
                             tools:text="3" />
                     </LinearLayout>
 
@@ -234,17 +253,18 @@
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
-                            android:src="@drawable/ic_mic"
+                            android:src="@drawable/ic_journal_mic"
                             app:tint="@color/text_tertiary" />
 
                         <TextView
                             android:id="@+id/tvAudioCount"
+                            style="@style/JournalTextMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="2dp"
                             android:fontFamily="@font/be_vietnam_pro_medium"
-                            android:textSize="12sp"
                             android:textColor="@color/text_tertiary"
+                            android:textSize="12sp"
                             tools:text="1" />
                     </LinearLayout>
 
@@ -256,11 +276,12 @@
                     <!-- Giờ tạo bài viết -->
                     <TextView
                         android:id="@+id/tvEntryTime"
+                        style="@style/JournalTextRegular"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/be_vietnam_pro_regular"
-                        android:textSize="12sp"
                         android:textColor="@color/text_tertiary"
+                        android:textSize="12sp"
                         tools:text="21:30" />
                 </LinearLayout>
 

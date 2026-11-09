@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
-    android:layout_height="28dp"
+    android:layout_height="26dp"
     android:layout_marginEnd="8dp"
     android:layout_marginBottom="6dp"
     android:background="@drawable/bg_pill_tag"
@@ -12,17 +12,18 @@
 
     <TextView
         android:id="@+id/tv_tag_name"
+        style="@style/JournalTextSemibold"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:fontFamily="@font/be_vietnam_pro_semibold"
         android:textColor="@color/on_primary_container"
-        android:textSize="12sp"
-        android:fontFamily="@font/be_vietnam_pro_medium" />
+        android:textSize="12sp" />
 
     <ImageView
         android:id="@+id/btn_remove_tag"
         android:layout_width="16dp"
         android:layout_height="16dp"
         android:layout_marginStart="4dp"
-        android:src="@drawable/ic_close"
-        android:contentDescription="@string/journal_delete" />
+        android:contentDescription="@string/journal_delete"
+        android:src="@drawable/ic_journal_close" />
 </LinearLayout>

@@ -13,8 +13,11 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.ConcatAdapter
+import com.ntq.training.momentbox.databinding.ItemJournalOverviewBinding
+import com.ntq.training.momentbox.feature.journal.JournalStickyHeader
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
@@ -24,10 +27,10 @@ import com.ntq.training.momentbox.feature.journal.JournalEvent
 import com.ntq.training.momentbox.feature.journal.JournalListItem
 import com.ntq.training.momentbox.feature.journal.JournalSwipeCallback
 import com.ntq.training.momentbox.feature.journal.JournalViewModel
+import com.ntq.training.momentbox.feature.journal.editor.JournalEditorActivity
 import com.ntq.training.momentbox.feature.journal.filter.JournalFilterBottomSheetDialogFragment
 import com.ntq.training.momentbox.feature.journal.stats.JournalStatsActivity
 import kotlinx.coroutines.launch
-import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -41,11 +44,13 @@ class JournalFragment : Fragment() {
 
     private val viewModel: JournalViewModel by viewModels {
         val app = requireActivity().application as MomentBoxApp
-        JournalViewModel.provideFactory(app.journalRepository)
+        JournalViewModel.provideFactory(app.journalRepository, app.journalClock)
     }
 
+    private lateinit var overview: ItemJournalOverviewBinding
+    private lateinit var swipeCallback: JournalSwipeCallback
     private lateinit var adapter: JournalEntriesAdapter
-    private val monthFormatter = DateTimeFormatter.ofPattern("'Tháng' M, yyyy", Locale.getDefault())
+    private val monthFormatter = DateTimeFormatter.ofPattern(if (Locale.getDefault().language == "vi") "LLLL, yyyy" else "LLLL yyyy", Locale.getDefault())
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -75,23 +80,35 @@ class JournalFragment : Fragment() {
                 startActivity(intent)
             },
             onPinClick = { entryId ->
+                swipeCallback.closeRevealed()
                 viewModel.togglePin(entryId)
             },
             onDeleteClick = { entryId ->
+                swipeCallback.closeRevealed()
                 viewModel.softDeleteEntry(entryId)
             }
         )
 
         binding.rvJournalEntries.layoutManager = LinearLayoutManager(requireContext())
-        binding.rvJournalEntries.adapter = adapter
+        overview = ItemJournalOverviewBinding.inflate(layoutInflater, binding.rvJournalEntries, false)
+        val overviewAdapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+            override fun getItemCount() = 1
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = object : RecyclerView.ViewHolder(overview.root) {}
+            override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) = Unit
+        }
+        binding.rvJournalEntries.adapter = ConcatAdapter(overviewAdapter, adapter)
+        binding.rvJournalEntries.addItemDecoration(JournalStickyHeader(adapter, 1))
 
         // Gắn thao tác vuốt sang trái lộ Ghim/Xóa
-        val swipeCallback = JournalSwipeCallback(requireContext())
-        ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvJournalEntries)
+        swipeCallback = JournalSwipeCallback(requireContext()) { revealed ->
+            // FAB che đúng tâm nút Ghim/Xóa ở cuối viewport: ẩn tạm khi đang reveal, không đổi kích thước list.
+            binding.fabWriteJournal.visibility = if (revealed) View.INVISIBLE else View.VISIBLE
+        }
+        binding.rvJournalEntries.addOnItemTouchListener(swipeCallback)
     }
 
     private fun setupCalendarView() {
-        val calendarView = binding.moodCalendarView
+        val calendarView = overview.moodCalendarView
         updateCalendarHeader(calendarView.getYearMonth())
 
         calendarView.onMonthChangedListener = { yearMonth ->
@@ -100,6 +117,7 @@ class JournalFragment : Fragment() {
         }
 
         calendarView.onDayClickListener = { date, hasEntry ->
+            viewModel.onCalendarDateSelected(date)
             if (hasEntry) {
                 // Cuộn danh sách đến vị trí bài viết của ngày này
                 scrollToDate(date)
@@ -114,40 +132,41 @@ class JournalFragment : Fragment() {
             }
         }
 
-        binding.btnPrevMonth.setOnClickListener {
+        overview.btnPrevMonth.setOnClickListener {
             calendarView.goToPreviousMonth()
         }
 
-        binding.btnNextMonth.setOnClickListener {
+        overview.btnNextMonth.setOnClickListener {
             calendarView.goToNextMonth()
         }
     }
 
     private fun updateCalendarHeader(yearMonth: YearMonth) {
         val date = yearMonth.atDay(1)
-        binding.tvCalendarMonth.text = date.format(monthFormatter)
+        overview.tvCalendarMonth.text = date.format(monthFormatter).replaceFirstChar { it.titlecase(Locale.getDefault()) }
 
-        val canNext = binding.moodCalendarView.canGoToNextMonth()
-        binding.btnNextMonth.isEnabled = canNext
-        binding.btnNextMonth.alpha = if (canNext) 1.0f else 0.35f
+        val canNext = overview.moodCalendarView.canGoToNextMonth()
+        overview.btnNextMonth.isEnabled = canNext
+        overview.btnNextMonth.alpha = if (canNext) 1.0f else 0.35f
     }
 
-    private fun scrollToDate(date: LocalDate) {
-        val items = adapter.currentList
-        val zone = ZoneId.systemDefault()
-        for (index in items.indices) {
-            val item = items[index]
-            if (item is JournalListItem.Entry) {
-                val entryDate = Instant.ofEpochMilli(item.data.entry.createdAt).atZone(zone).toLocalDate()
-                if (entryDate.isEqual(date)) {
-                    binding.rvJournalEntries.smoothScrollToPosition(index)
-                    break
-                }
-            }
+    private fun scrollToDate(date: LocalDate) { viewModel.scrollToDate(date) }
+
+    private fun applyScrollTarget() {
+        val id = viewModel.scrollTarget.value ?: return
+        val position = adapter.currentList.indexOfFirst { it is JournalListItem.Entry && it.data.entry.id == id }
+        if (position >= 0) {
+            (binding.rvJournalEntries.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(position + 1, 48)
+            viewModel.consumeScrollTarget()
         }
     }
 
     private fun setupToolbarAndSearch() {
+        binding.etSearchQuery.setText(viewModel.searchQuery.value)
+        if (viewModel.searchQuery.value.isNotEmpty()) {
+            binding.layoutNormalToolbar.visibility = View.GONE
+            binding.layoutSearchInput.visibility = View.VISIBLE
+        }
         // Nút mở tìm kiếm
         binding.btnSearch.setOnClickListener {
             binding.layoutNormalToolbar.visibility = View.GONE
@@ -178,12 +197,13 @@ class JournalFragment : Fragment() {
 
         // Nút mở Bộ lọc S07b
         binding.btnFilter.setOnClickListener {
-            val filterBottomSheet = JournalFilterBottomSheetDialogFragment.newInstance()
+            val currentQuery = viewModel.searchQuery.value.trim().ifEmpty { null }
+            val filterBottomSheet = JournalFilterBottomSheetDialogFragment.newInstance(currentQuery)
             filterBottomSheet.show(parentFragmentManager, JournalFilterBottomSheetDialogFragment.TAG)
         }
 
         // Nút viết bài khi danh sách trống
-        binding.btnEmptyWrite.setOnClickListener {
+        overview.btnEmptyWrite.setOnClickListener {
             val intent = Intent(requireContext(), JournalEditorActivity::class.java)
             startActivity(intent)
         }
@@ -195,14 +215,14 @@ class JournalFragment : Fragment() {
             startActivity(intent)
         }
 
-        // Thu gọn/mở rộng FAB khi cuộn danh sách
-        binding.nestedScrollView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
-            if (scrollY > oldScrollY + 12 && binding.fabWriteJournal.isExtended) {
-                binding.fabWriteJournal.shrink()
-            } else if (scrollY < oldScrollY - 12 && !binding.fabWriteJournal.isExtended) {
-                binding.fabWriteJournal.extend()
+        binding.rvJournalEntries.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                if (dy != 0) swipeCallback.closeRevealed()
+                if (dy > 12) binding.fabWriteJournal.shrink() else if (dy < -12) binding.fabWriteJournal.extend()
+                val manager = recyclerView.layoutManager as LinearLayoutManager
+                if (dy > 0 && manager.findLastVisibleItemPosition() >= manager.itemCount - 5) viewModel.loadNextPage()
             }
-        }
+        })
     }
 
     private fun observeViewModel() {
@@ -210,23 +230,30 @@ class JournalFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.entriesFlow.collect { items ->
-                        adapter.submitList(items)
+                        adapter.submitList(items) { applyScrollTarget() }
                         val isEmpty = items.isEmpty()
-                        binding.layoutEmptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
-                        binding.rvJournalEntries.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                        overview.layoutEmptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+
                     }
                 }
 
                 launch {
+                    kotlinx.coroutines.flow.combine(viewModel.calendarYearMonth, viewModel.selectedCalendarDate) { month, selected -> month to selected }.collect { (month, selected) ->
+                        overview.moodCalendarView.restoreCalendarState(month, selected)
+                        updateCalendarHeader(month)
+                    }
+                }
+                launch { viewModel.scrollTarget.collect { applyScrollTarget() } }
+                launch {
                     viewModel.calendarMoodsFlow.collect { moods ->
-                        binding.moodCalendarView.setDayMoods(moods)
+                        overview.moodCalendarView.setDayMoods(moods)
                     }
                 }
 
                 launch {
                     viewModel.streakDaysFlow.collect { streakDays ->
-                        binding.tvCalendarStreak.text = getString(R.string.journal_streak_days, streakDays)
-                        binding.tvCalendarStreak.visibility = if (streakDays > 0) View.VISIBLE else View.GONE
+                        overview.tvCalendarStreak.text = getString(R.string.journal_streak_days, streakDays)
+                        overview.tvCalendarStreak.visibility = if (streakDays > 0) View.VISIBLE else View.GONE
                     }
                 }
 

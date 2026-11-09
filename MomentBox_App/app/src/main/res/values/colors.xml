@@ -62,6 +62,7 @@
     <color name="overlay_scrim">#80000000</color>
 
     <!-- M3 Color Tokens -->
+    <color name="journal_editor_body">#33333F</color>
     <color name="mood_1_text">#15803D</color>
     <color name="mood_2_text">#4D7C0F</color>
     <color name="mood_3_text">#8A5A00</color>

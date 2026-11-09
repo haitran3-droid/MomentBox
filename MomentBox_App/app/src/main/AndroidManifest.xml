@@ -80,8 +80,10 @@
         <activity
             android:name=".feature.journal.editor.JournalEditorActivity"
             android:exported="false"
-            android:theme="@style/Theme.MomentBox"
             android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".feature.journal.stats.JournalStatsActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

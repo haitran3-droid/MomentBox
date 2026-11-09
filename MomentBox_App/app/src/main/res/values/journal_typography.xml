@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Style trực tiếp tách theo API: Material có thể chuẩn hóa file bold về weight 400; API28+ khai báo weight rõ, API24 dùng font/style tương thích. -->
+    <style name="JournalTextBold" parent="">
+        <item name="android:fontFamily">@font/be_vietnam_pro_bold</item>
+        <item name="fontFamily">@font/be_vietnam_pro_bold</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="JournalTextSemibold" parent="">
+        <item name="android:fontFamily">@font/be_vietnam_pro_semibold</item>
+        <item name="fontFamily">@font/be_vietnam_pro_semibold</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+    <style name="JournalTextMedium" parent="">
+        <item name="android:fontFamily">@font/be_vietnam_pro_medium</item>
+        <item name="fontFamily">@font/be_vietnam_pro_medium</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+    <style name="JournalTextRegular" parent="">
+        <item name="android:fontFamily">@font/be_vietnam_pro_regular</item>
+        <item name="fontFamily">@font/be_vietnam_pro_regular</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+    <style name="JournalWidgetWidgetMomentBoxButtonSegmentedSemibold" parent="Widget.MomentBox.Button.Segmented">
+        <item name="android:fontFamily">@font/be_vietnam_pro_semibold</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+    <style name="JournalWidgetWidgetMomentBoxButtonSegmentedMedium" parent="Widget.MomentBox.Button.Segmented">
+        <item name="android:fontFamily">@font/be_vietnam_pro_medium</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+    <style name="JournalWidgetWidgetMomentBoxChipJournalFilterMedium" parent="Widget.MomentBox.Chip.JournalFilter">
+        <item name="android:fontFamily">@font/be_vietnam_pro_medium</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+</resources>

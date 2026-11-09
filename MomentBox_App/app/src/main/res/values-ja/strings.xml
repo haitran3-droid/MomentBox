@@ -1,12 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    values-ja/strings.xml - Tài nguyên chuỗi tiếng Nhật (Japanese Localization).
-
-    [Dành cho Android Intern]:
-    - Khi thiết bị hoặc người dùng chọn ngôn ngữ là tiếng Nhật (`ja`), hệ điều hành sẽ tự động
-      tìm kiếm các chuỗi trong thư mục `values-ja/` để nạp vào giao diện thay thế cho `values/strings.xml`.
-    - Mọi khóa `<string name="...">` phải khớp chính xác 100% với file gốc trong `values/strings.xml`.
--->
 <resources>
     <string name="app_name">MomentBox</string>
 
@@ -138,5 +130,128 @@
     <string name="sound_muted">消音</string>
     <string name="sound_unmuted">音声を再生</string>
     <string name="create_post_coming_soon">投稿機能は近日公開予定です (Milestone M4)</string>
-    <string name="suggestion_mutual_count">共通の友達 %1$d人</string>
+
+    <!-- M3 Strings (JA) -->
+    <string name="common_back">戻る</string>
+    <string name="common_search">検索</string>
+    <string name="journal_title">日記</string>
+    <string name="journal_search_hint">タイトル、本文、タグで検索…</string>
+    <string name="journal_filter_desc">フィルターと並び替え</string>
+    <string name="journal_stats_desc">統計</string>
+    <string name="journal_streak_format">🔥 %1$d日</string>
+    <string name="journal_this_week">今週</string>
+    <string name="journal_posts_count_format">%1$d件のエントリ</string>
+    <string name="journal_pin">固定</string>
+    <string name="journal_unpin">固定解除</string>
+    <string name="journal_delete">削除</string>
+    <string name="journal_empty_title">日記のエントリがまだありません</string>
+    <string name="journal_empty_desc">今日の思考や感情を記録し始めましょう</string>
+    <string name="journal_write_button">日記を書く</string>
+    <string name="journal_delete_success">エントリを削除しました</string>
+    <string name="journal_undo">元に戻す</string>
+    <string name="journal_action_pin">固定</string>
+    <string name="journal_action_unpin">固定解除</string>
+    <string name="journal_action_delete">削除</string>
+    <string name="journal_streak_days">🔥 %1$d日</string>
+    <string name="journal_entries_count">%1$d件のエントリ</string>
+    <string name="filter_title">並び替えとフィルター</string>
+    <string name="filter_reset">リセット</string>
+    <string name="filter_sort_by">並び替え基準</string>
+    <string name="filter_sort_newest">新しい順</string>
+    <string name="filter_sort_oldest">古い順</string>
+    <string name="filter_sort_mood">ポジティブな気分順</string>
+    <string name="filter_group_by">グループ化</string>
+    <string name="filter_group_day">日</string>
+    <string name="filter_group_week">週</string>
+    <string name="filter_group_month">月</string>
+    <string name="filter_mood_title">気分</string>
+    <string name="filter_attachment_title">添付ファイル</string>
+    <string name="filter_has_photo">写真あり</string>
+    <string name="filter_has_audio">音声あり</string>
+    <string name="filter_date_range_title">期間</string>
+    <string name="filter_apply_count_format">適用 · %1$d件の結果</string>
+    <string name="filter_apply_no_count">適用</string>
+    <string name="filter_all_time">すべての期間</string>
+    <string name="editor_title_new">新しい日記</string>
+    <string name="editor_title_edit">日記を編集</string>
+    <string name="editor_draft_saved_format">下書き保存 · %1$s</string>
+    <string name="editor_draft_saving">下書き保存中…</string>
+    <string name="editor_draft_unsaved">未保存</string>
+    <string name="editor_save">保存</string>
+    <string name="editor_mood_question">今日の気分はどうですか？</string>
+    <string name="mood_1_name">最高</string>
+    <string name="mood_2_name">良い</string>
+    <string name="mood_3_name">普通</string>
+    <string name="mood_4_name">悲しい</string>
+    <string name="mood_5_name">最悪</string>
+    <string name="editor_title_hint">日記のタイトル</string>
+    <string name="editor_content_hint">今日何がありましたか？</string>
+    <string name="editor_warning_length">本文が5,000文字を超えています</string>
+    <string name="editor_photo_add">追加</string>
+    <string name="editor_tag_add">タグ</string>
+    <string name="editor_tag_dialog_title">タグを追加</string>
+    <string name="editor_tag_input_hint">タグ名を入力（例：dalat, family）</string>
+    <string name="editor_tag_add_action">追加</string>
+    <string name="editor_discard_dialog_title">未保存の変更</string>
+    <string name="editor_discard_dialog_desc">後で編集を続けるためにこの下書きを保存しますか？</string>
+    <string name="editor_discard_dialog_save_draft">下書き保存</string>
+    <string name="editor_discard_dialog_discard">破棄</string>
+    <string name="editor_discard_dialog_keep_editing">編集を続ける</string>
+    <string name="editor_restore_draft_title">下書きを復元</string>
+    <string name="editor_restore_draft_desc">未完成の日記の下書きがあります。復元しますか？</string>
+    <string name="editor_restore_action">復元</string>
+    <string name="editor_restore_discard">破棄</string>
+    <string name="editor_word_count_format">%1$d語</string>
+    <string name="editor_ambient_picker_title">環境音を選択</string>
+    <string name="editor_ambient_rain">環境音：雨の音</string>
+    <string name="editor_ambient_ocean">環境音：波の音</string>
+    <string name="editor_ambient_off">環境音：オフ</string>
+    <string name="editor_save_success">日記を正常に保存しました</string>
+    <string name="editor_save_error">日記の保存に失敗しました。もう一度お試しください</string>
+    <string name="editor_max_photos_warning">添付写真は最大10枚までです</string>
+    <string name="stats_title">統計</string>
+    <string name="stats_period_week">週</string>
+    <string name="stats_period_month">%1$d月</string>
+    <string name="stats_period_year">年</string>
+    <string name="stats_card_entries">エントリ</string>
+    <string name="stats_card_streak">現在の継続日数</string>
+    <string name="stats_card_words">単語数</string>
+    <string name="stats_card_audio">録音</string>
+    <string name="stats_unit_days">日</string>
+    <string name="stats_unit_minutes">分</string>
+    <string name="stats_donut_title">気分の分布</string>
+    <string name="stats_trend_title">気分の傾向</string>
+    <string name="stats_tag_more">+%1$d</string>
+    <string name="stats_tag_item_format">#%1$s · %2$d</string>
+    <string name="stats_delta_up">▲ %1$d</string>
+    <string name="stats_delta_down">▼ %1$d</string>
+    <string name="stats_percentage_format">%1$d%%</string>
+    <string name="stats_share_subject">日記統計レポート</string>
+    <string name="stats_share_summary_format">日記統計レポート - MomentBox\n期間：%1$s\nエントリ数：%2$d\n継続日数：%3$d日\n総単語数：%4$s語\n録音時間：%5$d分\nインサイト：%6$s</string>
+
+    <string name="journal_period_previous">前の期間</string>
+    <string name="journal_period_next">次の期間</string>
+    <string name="journal_insight_empty">日記を続けて感情のパターンを見つけましょう。</string>
+    <string name="journal_insight_weekend">週末は気分が良く（+%1$d%%）、%2$sに最も多く書いています。</string>
+    <string name="journal_insight_habit">%1$sに最も多く書いており、%2$d件の日記があります。</string>
+    <string name="journal_header_today">今日</string>
+    <string name="journal_header_yesterday">昨日</string>
+    <string name="journal_header_this_week">今週</string>
+    <string name="journal_header_previous_week">先週</string>
+    <string name="journal_header_week_format">第%1$d週（%2$d年）</string>
+    <string name="journal_camera_next_milestone">カメラはM4で統合されます。</string>
+    <string name="editor_word_count_zero">0語</string>
+    <string name="journal_storage_error">データを読み書きできません。再試行してください。</string>
+    <string name="journal_retry">再試行</string>
+    <string name="journal_mood_chip_1">😄 最高</string>
+    <string name="journal_mood_chip_2">🙂 良い</string>
+    <string name="journal_mood_chip_3">😐 普通</string>
+    <string name="journal_mood_chip_4">😢 悲しい</string>
+    <string name="journal_mood_chip_5">😡 最悪</string>
+    <string name="journal_day_mood_description">%1$s、%2$s</string>
+    <string name="journal_sector_description">%1$s、%2$d件、%3$d%%</string>
+    <string name="journal_audio_play">音声を再生</string><string name="journal_audio_pause">音声を一時停止</string>
+    <string name="editor_ambient_volume">環境音の音量</string>
+    <string name="journal_insight_weekend_styled"><b>週末は気分が良く</b>（+^1%）、<b>^2</b>に最も多く書いています。</string>
+    <string name="journal_insight_habit_styled"><b>^1</b>に最も多く書いており、^2件の日記があります。</string>
 </resources>

@@ -1,6 +1,22 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Theme.MomentBox" parent="Theme.Material3.Light.NoActionBar">
+    <!--
+        Theme.MomentBox - Theme giao diện cơ sở của toàn bộ ứng dụng (dựa trên Material 3).
+
+        [Dành cho Android Intern]:
+        - Kế thừa từ `Theme.Material3.Light.NoActionBar`: Loại bỏ Action Bar cũ để tự quản lý Toolbar/TopAppBar.
+        - Thiết lập bảng màu chuẩn Material 3:
+          * `colorPrimary`: tím #5B4BDB; `colorSecondary`: cam san hô #FF7A59.
+          * `colorPrimaryContainer`, `colorOnPrimaryContainer`: Dùng cho các container nổi bật nhẹ nhàng.
+          * `android:windowBackground`: Màu nền #F6F6FA qua resource background.
+          * `android:textColorPrimary`, `android:textColorSecondary`: Phân cấp văn bản chính/phụ.
+        - Typography: Font mặc định Be Vietnam Pro; hệ thống có thể dùng fallback cho glyph ngoài font.
+        - Edge-to-Edge:
+          * `android:statusBarColor` và `android:navigationBarColor` được đặt thành transparent
+            kết hợp với `enableEdgeToEdge()` trong BaseActivity để giao diện tràn viền ra sau các thanh hệ thống.
+    -->
+    <style name="Theme.MomentBox" parent="Base.Theme.MomentBox" />
+
+    <style name="Base.Theme.MomentBox" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/white</item>
         <item name="colorPrimaryContainer">@color/primary_container</item>
@@ -16,6 +32,18 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
+    <!--
+        Theme.MomentBox.Splash - Theme khởi động (SplashScreen API) cho Android < 12.
+
+        [Dành cho Android Intern]:
+        - Kế thừa từ `Theme.SplashScreen` (thư viện androidx.core:core-splashscreen).
+        - `windowSplashScreenBackground`: Nền tím từ resource primary cho launch surface.
+        - `windowSplashScreenAnimatedIcon`: Icon hiển thị ở giữa màn hình chờ nạp tiến trình.
+        - `postSplashScreenTheme`: Tự động chuyển về Theme.MomentBox sau khi Splash API hoàn tất.
+        - Lưu ý kiến trúc: Đây là "OS Launch Surface". Sau khi OS chuyển quyền điều khiển cho SplashActivity,
+          SplashActivity hiển thị SplashBackdropLayout theo lựa chọn dùng custom Splash của người dùng.
+          Thiết kế tham chiếu nằm trong mockups và mockup-src của repo; độ khớp cần kiểm tra bằng ảnh thật.
+    -->
     <style name="Theme.MomentBox.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/primary</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
@@ -28,5 +56,44 @@
         <item name="android:windowBackground">@color/video_dark_bg</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <!-- Style cho nút trong Segmented Control (khớp CSS .seg>div trong 00_head.html) -->
+    <style name="Widget.MomentBox.Button.Segmented" parent="Widget.Material3.Button.UnelevatedButton">
+        <!-- Không giữ padding24dp mặc định của Material: nhãn Tháng10 cần đủ chỗ ở width360dp. -->
+        <item name="android:paddingStart">0dp</item>
+        <item name="android:paddingEnd">0dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="backgroundTint">@color/sl_segmented_btn_bg</item>
+        <item name="android:textColor">@color/sl_segmented_btn_text</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="cornerRadius">9dp</item>
+        <item name="elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="rippleColor">@color/primary_container</item>
+    </style>
+
+    <style name="Widget.MomentBox.Chip.JournalFilter" parent="Widget.Material3.Chip.Filter">
+        <item name="checkedIconTint">@color/on_primary_container</item>
+        <item name="chipCornerRadius">16dp</item>
+        <item name="chipMinHeight">32dp</item>
+        <item name="ensureMinTouchTargetSize">false</item>
+        <item name="chipBackgroundColor">@color/sl_journal_chip_bg</item>
+        <item name="chipStrokeColor">@color/sl_journal_chip_stroke</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="android:textColor">@color/sl_journal_chip_text</item>
+        <item name="android:fontFamily">@font/be_vietnam_pro_medium</item>
+        <item name="android:textSize">13sp</item>
+        <item name="chipStartPadding">12dp</item>
+        <item name="chipEndPadding">12dp</item>
+        <item name="textStartPadding">0dp</item>
+        <item name="textEndPadding">0dp</item>
+        <item name="iconStartPadding">0dp</item>
+        <item name="iconEndPadding">5dp</item>
+        <item name="checkedIconVisible">true</item>
     </style>
 </resources>

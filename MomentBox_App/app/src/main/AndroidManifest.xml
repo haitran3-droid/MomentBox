@@ -32,6 +32,7 @@
             android:theme="@style/Theme.MomentBox.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -72,11 +73,17 @@
                     android:scheme="https" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".feature.videoplayer.VideoPlayerActivity"
             android:exported="false"
             android:theme="@style/Theme.MomentBox.VideoPlayer" />
+        <activity
+            android:name=".feature.journal.editor.JournalEditorActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".feature.journal.stats.JournalStatsActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

@@ -22,12 +22,19 @@ import com.ntq.training.momentbox.data.repository.FeedRepository
 import com.ntq.training.momentbox.data.repository.FeedRepositoryImpl
 import com.ntq.training.momentbox.BuildConfig
 import com.ntq.training.momentbox.core.realtime.NotificationScope
+import com.ntq.training.momentbox.data.local.prefs.JournalDataStore
+import com.ntq.training.momentbox.data.repository.JournalRepository
+import com.ntq.training.momentbox.data.repository.JournalRepositoryImpl
 import com.ntq.training.momentbox.domain.model.User
+import java.time.Clock
 
 class MomentBoxApp : Application() {
+    var journalClock: Clock = Clock.systemDefaultZone()
     lateinit var tokenStore: TokenStore
         private set
     lateinit var settingsDataStore: SettingsDataStore
+        private set
+    lateinit var journalDataStore: JournalDataStore
         private set
     lateinit var database: AppDatabase private set
     lateinit var dispatcherProvider: DispatcherProvider
@@ -36,6 +43,7 @@ class MomentBoxApp : Application() {
     lateinit var configRepository: ConfigRepository private set
     lateinit var authRepository: AuthRepository private set
     lateinit var feedRepository: FeedRepository private set
+    lateinit var journalRepository: JournalRepository private set
     override fun onCreate() {
         super.onCreate()
         // Lưu lại tham chiếu tĩnh để truy cập nhanh khi cần ApplicationContext
@@ -44,19 +52,22 @@ class MomentBoxApp : Application() {
         // 1. Khởi tạo tầng lưu trữ cục bộ (Local Storage) và Threading
         tokenStore = TokenStore(this)
         settingsDataStore = SettingsDataStore(this)
+        journalDataStore = JournalDataStore(this)
         database = AppDatabase.getInstance(this)
         dispatcherProvider = DefaultDispatcherProvider()
         socketManager = SocketManager(
             tokenStore = tokenStore,
             settingsStorage = settingsDataStore,
             notificationDao = database.notificationDao(),
-            baseUrlProvider = { BuildConfig.BASE_URL},
+            baseUrlProvider = { BuildConfig.BASE_URL },
             notificationScopeProvider = {
                 val json = settingsDataStore.getSavedUserJson()
-                val user = json?.let{
-                    try{
+                val user = json?.let {
+                    try {
                         Gson().fromJson(it, User::class.java)
-                    }catch (_: Exception){null}
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
                 user?.let {
                     NotificationScope(it.id.toString(), settingsDataStore.getDataSource())
@@ -67,7 +78,8 @@ class MomentBoxApp : Application() {
         // 2. Khởi tạo OkHttpClient thông qua NetworkModule:
         // - authenticatedClient: Có gắn AuthInterceptor, TokenAuthenticator phục vụ các API cần xác thực
         // - configClient: Client gọn nhẹ không gắn xác thực, chuyên dùng tải cấu hình ban đầu
-        val authenticatedClient = NetworkModule.provideOkHttpClient(this, tokenStore, settingsDataStore)
+        val authenticatedClient =
+            NetworkModule.provideOkHttpClient(this, tokenStore, settingsDataStore)
         val configClient = NetworkModule.provideConfigOkHttpClient(this, settingsDataStore)
 
         // 3. Khởi tạo các instance Retrofit tương ứng với từng nguồn dữ liệu (MB Server, DummyJSON)
@@ -100,6 +112,12 @@ class MomentBoxApp : Application() {
             settingsDataStore = settingsDataStore,
             dispatcher = dispatcherProvider.io,
             invalidateFeedCache = { feedRepository.clearCache() }
+        )
+        journalRepository = JournalRepositoryImpl(
+            context = this,
+            journalDao = database.journalDao(),
+            journalDataStore = journalDataStore,
+            dispatcher = dispatcherProvider.io
         )
     }
 

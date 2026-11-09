@@ -17,6 +17,7 @@ mockup-src/mockups.html
 mockup-src/screens.json
 
 # Android / Gradle artifacts
+.kotlin/
 .gradle/
 **/.gradle/
 build/

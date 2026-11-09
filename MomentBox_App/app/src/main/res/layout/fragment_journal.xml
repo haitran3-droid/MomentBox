@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Thanh tiêu đề Toolbar (Action Bar) -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="12dp">
+
+            <!-- Trạng thái bình thường: Tiêu đề "Nhật ký" & Các nút chức năng -->
+            <LinearLayout
+                android:id="@+id/layoutNormalToolbar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvJournalTitle"
+                    style="@style/JournalTextBold"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/be_vietnam_pro_bold"
+                    android:text="@string/journal_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="24sp" />
+
+                <!-- Nút Tìm kiếm -->
+                <ImageView
+                    android:id="@+id/btnSearch"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/common_search"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_journal_search"
+                    app:tint="@color/text_primary" />
+
+                <!-- Nút Thống kê (Mở S09) -->
+                <ImageView
+                    android:id="@+id/btnInsights"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/stats_title"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_journal_insights"
+                    app:tint="@color/text_primary" />
+
+                <!-- Nút Lọc (Mở S07b) kèm chấm cam trạng thái -->
+                <FrameLayout
+                    android:id="@+id/btnFilterContainer"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="4dp">
+
+                    <ImageView
+                        android:id="@+id/btnFilter"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/filter_title"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_journal_tune"
+                        app:tint="@color/text_primary" />
+
+                    <!-- Dấu chấm tròn màu cam hiển thị khi bộ lọc đang hoạt động -->
+                    <View
+                        android:id="@+id/viewFilterActiveDot"
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="6dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_badge"
+                        android:backgroundTint="@color/secondary"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <!-- Trạng thái tìm kiếm (Khi người dùng bấm vào icon tìm kiếm) -->
+            <LinearLayout
+                android:id="@+id/layoutSearchInput"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_gravity="center_vertical"
+                android:background="@drawable/bg_field_default"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="8dp"
+                android:visibility="gone"
+                tools:visibility="gone">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_journal_search"
+                    app:tint="@color/text_tertiary" />
+
+                <EditText
+                    android:id="@+id/etSearchQuery"
+                    style="@style/JournalTextRegular"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:background="@null"
+                    android:fontFamily="@font/be_vietnam_pro_regular"
+                    android:hint="@string/journal_search_hint"
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:singleLine="true"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_tertiary"
+                    android:textSize="14sp" />
+
+                <ImageView
+                    android:id="@+id/btnCloseSearch"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_close"
+                    app:tint="@color/text_secondary" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Một scroll owner để RecyclerView tái sử dụng card và sticky header đúng viewport. -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvJournalEntries"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingBottom="88dp" />
+
+
+    </LinearLayout>
+
+    <!-- Nút FloatingActionButton mở rộng "Viết nhật ký" -->
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/fabWriteJournal"
+        style="@style/JournalTextSemibold"
+        android:layout_width="wrap_content"
+        android:layout_height="54dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:fontFamily="@font/be_vietnam_pro_semibold"
+        android:paddingStart="16dp"
+        android:paddingEnd="20dp"
+        android:text="@string/journal_write_button"
+        android:textColor="@color/surface"
+        android:textSize="14.5sp"
+        app:backgroundTint="@color/primary"
+        app:cornerRadius="18dp"
+        app:elevation="8dp"
+        app:icon="@drawable/ic_journal_edit"
+        app:iconPadding="8dp"
+        app:iconSize="24dp"
+        app:iconTint="@color/surface" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

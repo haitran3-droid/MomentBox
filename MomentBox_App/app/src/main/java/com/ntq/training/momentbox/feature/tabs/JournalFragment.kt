@@ -201,12 +201,6 @@ class JournalFragment : Fragment() {
             val filterBottomSheet = JournalFilterBottomSheetDialogFragment.newInstance(currentQuery)
             filterBottomSheet.show(parentFragmentManager, JournalFilterBottomSheetDialogFragment.TAG)
         }
-
-        // Nút viết bài khi danh sách trống
-        overview.btnEmptyWrite.setOnClickListener {
-            val intent = Intent(requireContext(), JournalEditorActivity::class.java)
-            startActivity(intent)
-        }
     }
 
     private fun setupFab() {

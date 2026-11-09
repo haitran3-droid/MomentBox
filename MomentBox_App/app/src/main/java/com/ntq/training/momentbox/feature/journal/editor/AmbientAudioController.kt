@@ -36,8 +36,8 @@ class AmbientAudioController(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
     enum class SoundType(val assetPath: String, val titleRes: Int) {
-        RAIN("audio/ambient-rain.wav", R.string.editor_ambient_rain),
-        OCEAN("audio/ambient-ocean.wav", R.string.editor_ambient_ocean), OFF(
+        RAIN("ambient-rain.wav", R.string.editor_ambient_rain),
+        OCEAN("ambient-ocean.wav", R.string.editor_ambient_ocean), OFF(
             "",
             R.string.editor_ambient_off
         )

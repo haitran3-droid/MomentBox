@@ -205,6 +205,7 @@
     <string name="editor_restore_action">Restore</string>
     <string name="editor_restore_discard">Discard</string>
     <string name="editor_word_count_format">%1$d words</string>
+    <string name="editor_ambient_picker_title">Choose ambient sound</string>
     <string name="editor_ambient_rain">Ambient: Rain</string>
     <string name="editor_ambient_ocean">Ambient: Ocean</string>
     <string name="editor_ambient_off">Ambient: Off</string>

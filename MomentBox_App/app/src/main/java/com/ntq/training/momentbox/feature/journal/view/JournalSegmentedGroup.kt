@@ -23,15 +23,25 @@ class JournalSegmentedGroup @JvmOverloads constructor(
         )
     }
 
+    init {
+        addOnButtonCheckedListener { group, buttonId, _ ->
+            group.findViewById<MaterialButton>(buttonId)?.let(::updateCheckedAppearance)
+        }
+    }
+
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
         val radius = 9f * resources.displayMetrics.density
         for (i in 0 until childCount) (getChildAt(i) as? MaterialButton)?.let { button ->
             button.shapeAppearanceModel =
                 button.shapeAppearanceModel.toBuilder().setAllCornerSizes(radius).build()
-            // Gán Typeface trực tiếp giữ đúng weight500/600 sau khi Material xử lý style mặc định.
-            button.typeface = if (button.isChecked) semibold else medium
-            button.elevation = if (button.isChecked) resources.displayMetrics.density else 0f
+            updateCheckedAppearance(button)
         }
+    }
+
+    private fun updateCheckedAppearance(button: MaterialButton) {
+        // Gán Typeface trực tiếp giữ đúng weight500/600 sau khi Material xử lý style mặc định.
+        button.typeface = if (button.isChecked) semibold else medium
+        button.elevation = if (button.isChecked) resources.displayMetrics.density else 0f
     }
 }

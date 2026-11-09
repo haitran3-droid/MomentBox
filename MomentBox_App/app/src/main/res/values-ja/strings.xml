@@ -202,6 +202,7 @@
     <string name="editor_restore_action">復元</string>
     <string name="editor_restore_discard">破棄</string>
     <string name="editor_word_count_format">%1$d語</string>
+    <string name="editor_ambient_picker_title">環境音を選択</string>
     <string name="editor_ambient_rain">環境音：雨の音</string>
     <string name="editor_ambient_ocean">環境音：波の音</string>
     <string name="editor_ambient_off">環境音：オフ</string>

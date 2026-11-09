@@ -209,6 +209,7 @@
     <string name="editor_restore_action">Khôi phục</string>
     <string name="editor_restore_discard">Bỏ qua</string>
     <string name="editor_word_count_format">%1$d từ</string>
+    <string name="editor_ambient_picker_title">Chọn âm thanh nền</string>
     <string name="editor_ambient_rain">Âm thanh nền: Tiếng mưa</string>
     <string name="editor_ambient_ocean">Âm thanh nền: Tiếng biển</string>
     <string name="editor_ambient_off">Âm thanh nền: Đã tắt</string>

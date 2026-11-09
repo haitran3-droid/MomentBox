@@ -65,7 +65,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="6dp"
                     android:src="@drawable/ic_journal_chevron_right"
-                    app:tint="@color/text_tertiary" />
+                    app:tint="@color/text_primary" />
 
                 <!-- Huy hiệu chuỗi ngày viết liên tục (Streak) -->
                 <TextView
@@ -132,18 +132,6 @@
             android:text="@string/journal_empty_desc"
             android:textColor="@color/text_secondary"
             android:textSize="13sp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnEmptyWrite"
-            style="@style/JournalTextSemibold"
-            android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:layout_marginTop="16dp"
-            android:fontFamily="@font/be_vietnam_pro_semibold"
-            android:text="@string/journal_write_button"
-            android:textSize="14sp"
-            app:backgroundTint="@color/primary"
-            app:cornerRadius="14dp" />
     </LinearLayout>
 
 

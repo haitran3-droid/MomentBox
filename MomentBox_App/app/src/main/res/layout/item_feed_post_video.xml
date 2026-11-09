@@ -157,10 +157,9 @@ android:paddingBottom="10dp">
         android:layout_width="match_parent"
         android:layout_height="3dp"
         android:layout_gravity="bottom"
-        android:max="100"
-        android:progress="38"
-        android:progressBackgroundTint="#59FFFFFF"
-        android:progressTint="@color/white" />
+        android:max="1000"
+        android:progressBackgroundTint="@color/black"
+        android:progressTint="@color/secondary" />
 </FrameLayout>
 
 <!-- Hàng nút tương tác: Like, Comment, Share, Bookmark -->

@@ -25,7 +25,7 @@ class PostHeaderAdapter(
     private val onBookmarkClick: () -> Unit,
     private val onShareClick: () -> Unit,
     private val onFollowClick: () -> Unit,
-    private val onSortClick: () -> Unit,
+    private val onSortClick: (View) -> Unit,
     private val onPhotoClick: (Post, Int) -> Unit = { _, _ -> },
     private val onVideoClick: (Post) -> Unit = {},
     private val onVoicePlayClick: (Post) -> Unit = {},
@@ -36,6 +36,8 @@ class PostHeaderAdapter(
 ) : RecyclerView.Adapter<PostHeaderAdapter.HeaderViewHolder>() {
 
     companion object {
+        private val TAG_REGEX = Regex("""[\p{L}\p{M}\p{N}_]+""")
+        private val HASHTAG_REGEX = Regex("#" + TAG_REGEX.pattern)
         /** ViewType riêng biệt cho Header bài viết trong ConcatAdapter */
         const val VIEW_TYPE_HEADER = 1001
     }
@@ -120,7 +122,7 @@ class PostHeaderAdapter(
             binding.btnDetailBookmark.setOnClickListener { onBookmarkClick() }
             binding.btnDetailShare.setOnClickListener { onShareClick() }
             binding.btnDetailFollow.setOnClickListener { onFollowClick() }
-            binding.btnSortComments.setOnClickListener { onSortClick() }
+            binding.btnSortComments.setOnClickListener { onSortClick(it) }
             binding.detailVideoContainer.setOnClickListener { boundPost?.let(onVideoClick) }
             binding.btnDetailVoicePlay.setOnClickListener { boundPost?.let(onVoicePlayClick) }
             binding.tvDetailVoiceError.setOnClickListener { boundPost?.let(onVoicePlayClick) }
@@ -149,7 +151,7 @@ class PostHeaderAdapter(
         with(holder.binding) {
             tvDetailAuthorName.text = currentPost.author.displayName
             PostMetadata.bind(tvDetailPostMeta, currentPost)
-            tvDetailCaption.text = buildSpannableCaption(currentPost.caption)
+            tvDetailCaption.text = buildSpannableCaption(currentPost)
 
             // Nút theo dõi tác giả
             // Chưa biết tài khoản thì chưa hiện thao tác; bài của mình không có hành động tự follow.
@@ -274,10 +276,17 @@ class PostHeaderAdapter(
                 state.currentPositionMs / 1000 % 60, duration / 60000, duration / 1000 % 60)
     }
 
-    private fun buildSpannableCaption(caption: String): SpannableString {
+    private fun buildSpannableCaption(post: Post): SpannableString {
+        val inlineTags = HASHTAG_REGEX.findAll(post.caption)
+            .map { it.value.drop(1).lowercase() }.toMutableSet()
+        val missingTags = post.tags.map { it.trim().removePrefix("#") }
+            .filter { TAG_REGEX.matches(it) && inlineTags.add(it.lowercase()) }
+        val caption = if (missingTags.isEmpty()) post.caption else {
+            listOf(post.caption, missingTags.joinToString(" ") { "#$it" })
+                .filter { it.isNotBlank() }.joinToString("\n")
+        }
         val spannable = SpannableString(caption)
-        val hashtagRegex = Regex("#\\w+")
-        val matches = hashtagRegex.findAll(caption)
+        val matches = HASHTAG_REGEX.findAll(caption)
         for (match in matches) {
             spannable.setSpan(
                 ForegroundColorSpan(0xFF5B4BDB.toInt()),

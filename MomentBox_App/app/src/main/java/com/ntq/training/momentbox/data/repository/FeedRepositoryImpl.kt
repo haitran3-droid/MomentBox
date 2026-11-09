@@ -582,10 +582,15 @@ class FeedRepositoryImpl(
             return@scoped Result.success(targetLiked)
         }
 
-        val result: Result<CommentLikeResponseDto> = if (targetLiked) {
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.likeComment(commentId, SessionRequest(scope.generation)) }
-        } else {
-            safeApiCall(dispatcher = dispatcher, gson = gson) { feedApi.unlikeComment(commentId, SessionRequest(scope.generation)) }
+        val result = safeApiCall(
+            dispatcher = dispatcher,
+            gson = gson,
+            // MB Server acknowledges the mutation with success: true and data: null.
+            emptySuccess = { CommentLikeResponseDto(isLiked = targetLiked) }
+        ) {
+            val request = SessionRequest(scope.generation)
+            if (targetLiked) feedApi.likeComment(commentId, request)
+            else feedApi.unlikeComment(commentId, request)
         }
         if (result.isSuccess) {
             val dto = result.getOrThrow()

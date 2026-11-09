@@ -236,6 +236,9 @@ class FeedVideoPlayerManager(
     /**
      * Lấy vị trí phát hiện tại (mili-giây) để bàn giao cho S06 VideoPlayerActivity.
      */
+    fun getDuration(postId: Long): Long? =
+        exoPlayer?.duration?.takeIf { currentPostId == postId && it > 0 }
+
     fun getCurrentPosition(postId: Long): Long {
         return if (currentPostId == postId) {
             exoPlayer?.currentPosition ?: 0L

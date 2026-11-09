@@ -124,6 +124,7 @@ class CommentsAdapter(
                 // Like icon & count
                 if (comment.isLiked) {
                     ivCommentLike.setImageResource(R.drawable.ic_favorite_filled)
+                    ivCommentLike.clearColorFilter()
                     ivCommentLike.imageTintList = null
                     tvCommentLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
                 } else {
@@ -192,6 +193,7 @@ class CommentsAdapter(
 
                 if (reply.isLiked) {
                     ivReplyLike.setImageResource(R.drawable.ic_favorite_filled)
+                    ivReplyLike.clearColorFilter()
                     ivReplyLike.imageTintList = null
                     tvReplyLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
                 } else {

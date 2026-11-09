@@ -182,6 +182,7 @@ class PostHeaderAdapter(
             // Trạng thái Thích
             if (currentPost.isLiked) {
                 ivDetailLike.setImageResource(R.drawable.ic_favorite_filled)
+                ivDetailLike.clearColorFilter()
                 ivDetailLike.imageTintList = null
                 tvDetailLikeCount.setTextColor(ContextCompat.getColor(context, R.color.text_primary))
             } else {

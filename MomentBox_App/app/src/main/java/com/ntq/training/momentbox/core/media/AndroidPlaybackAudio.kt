@@ -26,6 +26,13 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         }
     }
 
+    fun acquireOwnership(owner: Any, onInterrupted: () -> Unit): Boolean {
+        if (!ownership.acquire(owner, onInterrupted, true)) return false
+        abandonPlatformFocus()
+        unregisterNoisyReceiver()
+        return true
+    }
+
     override fun acquire(
         owner: Any,
         onInterrupted: () -> Unit,
@@ -45,8 +52,10 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         else AudioAttributes.CONTENT_TYPE_MOVIE
         val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val request = AudioFocusRequest.Builder(gain)
-                .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(contentType).build())
+                .setAudioAttributes(
+                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(contentType).build()
+                )
                 .setWillPauseWhenDucked(true)
                 .setOnAudioFocusChangeListener(listener, Handler(Looper.getMainLooper()))
                 .build()
@@ -62,15 +71,19 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
             return false
         }
         if (!receiverRegistered) {
-            ContextCompat.registerReceiver(context, noisyReceiver,
-                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), ContextCompat.RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(
+                context,
+                noisyReceiver,
+                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
             receiverRegistered = true
         }
         return true
     }
 
     override fun release(owner: Any) {
-        if(!ownership.isOwner(owner)) return
+        if (!ownership.isOwner(owner)) return
         ownership.release(owner)
         abandonPlatformFocus()
         unregisterNoisyReceiver()
@@ -105,7 +118,9 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         @Volatile
         private var instance: AndroidPlaybackAudio? = null
         fun get(context: Context): AndroidPlaybackAudio = instance ?: synchronized(this) {
-            instance ?: AndroidPlaybackAudio(context.applicationContext as Application).also { instance = it }
+            instance ?: AndroidPlaybackAudio(context.applicationContext as Application).also {
+                instance = it
+            }
         }
     }
 }

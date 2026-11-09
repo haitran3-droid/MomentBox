@@ -1,6 +1,8 @@
 package com.ntq.training.momentbox.data.local.prefs
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
@@ -25,7 +27,9 @@ data class JournalDraft(
     val tags: List<String> = emptyList(),
     val attachments: List<JournalAttachmentDraft> = emptyList(),
     val savedAtEpochMs: Long = System.currentTimeMillis(),
-    val revision: Long = 0L
+    val revision: Long = 0L,
+    val pendingCommitId: Long? = null,
+    val cleanupPaths: List<String>? = emptyList()
 )
 
 data class JournalFilterState(
@@ -84,7 +88,10 @@ data class JournalFilterState(
     }
 }
 
-class JournalDataStore(private val context: Context) {
+class JournalDataStore(
+    private val context: Context,
+    private val store: DataStore<Preferences> = context.dataStore
+) {
     private val gson = Gson()
 
     companion object {
@@ -92,7 +99,7 @@ class JournalDataStore(private val context: Context) {
         val KEY_JOURNAL_FILTER = stringPreferencesKey("journal_filter")
     }
 
-    val draftFlow: Flow<JournalDraft?> = context.dataStore.data.map { prefs ->
+    val draftFlow: Flow<JournalDraft?> = store.data.map { prefs ->
         val json = prefs[KEY_JOURNAL_DRAFT]
         if (json.isNullOrBlank()) null else {
             try {
@@ -102,7 +109,7 @@ class JournalDataStore(private val context: Context) {
             }
         }
     }
-    val filterFlow: Flow<JournalFilterState> = context.dataStore.data.map { prefs ->
+    val filterFlow: Flow<JournalFilterState> = store.data.map { prefs ->
         val json = prefs[KEY_JOURNAL_FILTER]
         if (json.isNullOrBlank()) JournalFilterState.DEFAULT else {
             try {
@@ -115,7 +122,7 @@ class JournalDataStore(private val context: Context) {
 
     suspend fun saveDraft(draft: JournalDraft) {
         val json = gson.toJson(draft)
-        context.dataStore.edit { prefs ->
+        store.edit { prefs ->
             prefs[KEY_JOURNAL_DRAFT] = json
         }
     }
@@ -125,14 +132,14 @@ class JournalDataStore(private val context: Context) {
     }
 
     suspend fun clearDraft() {
-        context.dataStore.edit { prefs ->
+        store.edit { prefs ->
             prefs.remove(KEY_JOURNAL_DRAFT)
         }
     }
 
     suspend fun saveFilter(filter: JournalFilterState) {
         val json = gson.toJson(filter)
-        context.dataStore.edit { prefs ->
+        store.edit { prefs ->
             prefs[KEY_JOURNAL_FILTER] = json
         }
     }

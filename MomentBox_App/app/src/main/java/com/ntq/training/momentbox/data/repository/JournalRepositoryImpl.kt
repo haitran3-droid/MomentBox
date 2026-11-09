@@ -11,6 +11,10 @@ import com.ntq.training.momentbox.data.local.db.TagCount
 import com.ntq.training.momentbox.data.local.prefs.JournalDataStore
 import com.ntq.training.momentbox.data.local.prefs.JournalDraft
 import com.ntq.training.momentbox.data.local.prefs.JournalFilterState
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -24,7 +28,29 @@ class JournalRepositoryImpl(
     private val journalDao: JournalDao,
     private val journalDataStore: JournalDataStore,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
-) : JournalRepository {
+) : JournalRepository, java.io.Closeable {
+    private val deletionMutex = kotlinx.coroutines.sync.Mutex()
+    private val cleanupScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + dispatcher)
+    private val deletionScheduler = JournalDeletionScheduler(this, cleanupScope)
+    override fun close() { cleanupScope.coroutineContext[kotlinx.coroutines.Job]?.cancel() }
+    override val handlesDeletionDeadlines = true
+    override fun observePendingDeletes() = journalDao.observePendingDeletes()
+
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    override fun observeAtomicPages(query: String?, filter: JournalFilterState, pages: Int): Flow<JournalPageSnapshot> =
+        journalDao.observeJournalChanges(androidx.sqlite.db.SimpleSQLiteQuery("SELECT 1")).mapLatest {
+            withContext(dispatcher) {
+                journalDao.readPageSnapshot(escapeSqlLikePattern(query), filter.selectedMoods, filter.selectedMoods.isEmpty(), filter.hasPhoto,
+                    filter.hasAudio, filter.fromDateEpochMs ?: 0L, filter.toDateEpochMs ?: Long.MAX_VALUE, filter.sort, pages)
+            }
+        }
+
+    override fun observeWrittenDays() = journalDao.observeWrittenDays()
+    override fun observeDayCounts(query: String?, filter: JournalFilterState) = journalDao.observeDayCounts(
+        escapeSqlLikePattern(query), filter.selectedMoods, filter.selectedMoods.isEmpty(), filter.hasPhoto,
+        filter.hasAudio, filter.fromDateEpochMs ?: 0L, filter.toDateEpochMs ?: Long.MAX_VALUE)
+
     override fun observeEntries(
         query: String?,
         filter: JournalFilterState,
@@ -58,6 +84,7 @@ class JournalRepositoryImpl(
         val moodsEmpty = filter.selectedMoods.isEmpty()
         val from = filter.fromDateEpochMs ?: 0L
         val to = filter.toDateEpochMs ?: Long.MAX_VALUE
+
         return journalDao.countEntries(
             query = safeQuery,
             moods = filter.selectedMoods,
@@ -81,10 +108,9 @@ class JournalRepositoryImpl(
         return journalDao.distinctTags()
     }
 
-    override suspend fun getEntryById(id: Long): JournalEntryWithDetails? =
-        withContext(dispatcher) {
-            journalDao.getEntryById(id)
-        }
+    override suspend fun getEntryById(id: Long): JournalEntryWithDetails? = withContext(dispatcher) {
+        journalDao.getEntryById(id)
+    }
 
     override suspend fun saveEntry(
         entry: JournalEntryEntity,
@@ -95,14 +121,15 @@ class JournalRepositoryImpl(
     ): Result<Long> = withContext(dispatcher) {
         try {
             val savedId = journalDao.save(entry, attachments, tags)
-            for (filePath in oldFilesToDeleteAfterCommit) {
-                safelyDeleteAppOwnedFile(filePath)
+            // Lưu SQLite thành công -> Xóa an toàn các file cũ đã bị người dùng gỡ bỏ
+            try { deleteUnreferencedFiles(oldFilesToDeleteAfterCommit) }
+            catch (e: Exception) {
+                if (e is CancellationException) throw e
+                android.util.Log.w("JournalRepository", "Committed entry; attachment cleanup will retry after draft clear", e)
             }
             Result.success(savedId)
         } catch (e: Exception) {
-            for (filePath in stagedFilesToKeep) {
-                safelyDeleteAppOwnedFile(filePath)
-            }
+            if (e is CancellationException) throw e
             Result.failure(e)
         }
     }
@@ -116,67 +143,77 @@ class JournalRepositoryImpl(
         }
     }
 
-    override suspend fun softDelete(id: Long): Result<Unit> = withContext(dispatcher){
-        try{
+    override suspend fun softDelete(id: Long): Result<Unit> = withContext(dispatcher) {
+        try {
             journalDao.softDelete(id, System.currentTimeMillis())
             Result.success(Unit)
-        }catch (e: Exception){
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    override suspend fun undoDelete(id: Long): Result<Unit> = withContext(dispatcher){
-        try{
-            journalDao.undoDelete(id)
-            Result.success(Unit)
-        }catch (e: Exception){
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun hardDelete(id: Long): Result<Unit> = withContext(dispatcher){
-        try {
-            val attachments = journalDao.getAttachmentsByEntryId(id)
-            journalDao.hardDelete(id)
-            for(att in attachments){
-                safelyDeleteAppOwnedFile(att.localPath)
-            }
-            Result.success(Unit)
-        }catch (e: Exception){
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun purgeExpiredDeleted(thresholdEpochMs: Long): Result<Int> = withContext(dispatcher){
-        try{
-            val expiredEntries = journalDao.getExpiredDeletedEntries(thresholdEpochMs)
-            for(entry in expiredEntries){
-                val attachments = journalDao.getAttachmentsByEntryId(entry.id)
-                for(att in attachments){
-                    safelyDeleteAppOwnedFile(att.localPath)
+    override suspend fun undoDelete(id: Long): Result<Unit> = withContext(dispatcher) {
+        deletionMutex.withLock {
+            try {
+                check(journalDao.undoDeleteBeforeDeadline(id, System.currentTimeMillis() - JournalDeletionScheduler.UNDO_MS) > 0) {
+                    "Undo deadline expired"
                 }
+                Result.success(Unit)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Result.failure(e)
             }
-            val deletedCount = journalDao.purgeExpiredDeleted(thresholdEpochMs)
-            Result.success(deletedCount)
-        }catch (e: Exception){
+        }
+    }
+
+    override suspend fun hardDelete(id: Long): Result<Unit> = withContext(dispatcher) {
+        deletionMutex.withLock {
+            try {
+                val row = journalDao.getEntryByIdIncludingDeleted(id) ?: return@withLock Result.success(Unit)
+                val deletedAt = row.entry.deletedAt ?: return@withLock Result.success(Unit)
+                if (System.currentTimeMillis() < deletedAt + JournalDeletionScheduler.UNDO_MS) return@withLock Result.success(Unit)
+                // Cùng khóa với Undo: job cũ không thể xóa bài vừa được phục hồi.
+                // Giữ metadata tới khi dọn file xong để lỗi I/O còn có thể retry.
+                val draftPaths = journalDataStore.getDraft()?.attachments.orEmpty().map { it.localPath }.toSet()
+                row.attachments.forEach { att ->
+                    if (att.localPath !in draftPaths && journalDao.countAttachmentReferences(att.localPath) <= 1) {
+                        safelyDeleteAppOwnedFile(att.localPath)
+                    }
+                }
+                journalDao.hardDelete(id)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Result.failure(e)
+            }
+        }
+    }
+
+    override suspend fun purgeExpiredDeleted(thresholdEpochMs: Long): Result<Int> = withContext(dispatcher) {
+        try {
+            var count = 0
+            for (entry in journalDao.getExpiredDeletedEntries(thresholdEpochMs)) {
+                hardDelete(entry.id).getOrThrow()
+                count++
+            }
+            Result.success(count)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Result.failure(e)
         }
     }
 
-    override suspend fun getEntriesForStats(
-        from: Long?,
-        to: Long?
-    ): List<JournalEntryWithDetails> = withContext(dispatcher){
-        if(from != null && to != null){
+    override suspend fun getEntriesForStats(from: Long?, to: Long?): List<JournalEntryWithDetails> = withContext(dispatcher) {
+        if (from != null && to != null) {
             journalDao.getEntriesForPeriod(from, to)
-        }else{
+        } else {
             journalDao.getAllEntries()
         }
     }
 
     override fun observeDraft(): Flow<JournalDraft?> = journalDataStore.draftFlow
 
-    override suspend fun getDraft(): JournalDraft? = withContext(dispatcher){
+    override suspend fun getDraft(): JournalDraft? = withContext(dispatcher) {
         journalDataStore.getDraft()
     }
 
@@ -202,57 +239,65 @@ class JournalRepositoryImpl(
         journalDataStore.resetFilter()
     }
 
-    override suspend fun stageAttachmentFile(sourcePathOrUri: String, isAudio: Boolean): Result<String> = withContext(dispatcher) {
-        try {
-            val subDirName = if (isAudio) "recordings" else "journal"
-            val targetDir = File(context.filesDir, subDirName)
-            if (!targetDir.exists()) {
-                targetDir.mkdirs()
-            }
-
-            val prefix = if (isAudio) "journal_audio_" else "journal_img_"
-            val extension = if (isAudio) ".wav" else getExtension(sourcePathOrUri)
-            val fileName = "${prefix}${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(8)}$extension"
-            val targetFile = File(targetDir, fileName)
-
-            val uri = Uri.parse(sourcePathOrUri)
-            val inputStream = if (uri.scheme == "content" || uri.scheme == "file" || uri.scheme == "android.resource") {
-                context.contentResolver.openInputStream(uri)
-            } else {
-                val directFile = File(sourcePathOrUri)
-                if (directFile.exists()) directFile.inputStream() else null
-            } ?: return@withContext Result.failure(IllegalArgumentException("Không thể mở nguồn tệp: $sourcePathOrUri"))
-
-            inputStream.use { input ->
-                FileOutputStream(targetFile).use { output ->
-                    input.copyTo(output)
-                }
-            }
-
-            Result.success(targetFile.absolutePath)
-        } catch (e: Exception) {
-            Result.failure(e)
+    override suspend fun deleteUnreferencedFiles(paths: List<String>) = withContext(dispatcher) {
+        val draftPaths = journalDataStore.getDraft()?.attachments.orEmpty().map { it.localPath }.toSet()
+        for (path in paths.distinct()) {
+            if (path !in draftPaths && journalDao.countAttachmentReferences(path) == 0) safelyDeleteAppOwnedFile(path)
         }
     }
 
+    override suspend fun readAudioMetadata(path: String) = withContext(dispatcher) { JournalAudioMetadataReader.read(path) }
+
+    override suspend fun stageAttachmentFile(sourcePathOrUri: String, isAudio: Boolean): Result<String> {
+        var target: File? = null
+        try {
+            return withContext(dispatcher) {
+                val directory = File(context.filesDir, if (isAudio) "recordings" else "journal").also { check(it.exists() || it.mkdirs()) }
+                val uri = Uri.parse(sourcePathOrUri)
+                val extension = if (uri.scheme == "content") {
+                    context.contentResolver.getType(uri)?.let { android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }?.let { ".$it" }
+                } else getExtension(sourcePathOrUri)
+                val file = File(directory, "journal_${UUID.randomUUID()}${extension ?: if (isAudio) ".audio" else ".jpg"}")
+                target = file
+                val input = if (uri.scheme in listOf("content", "file", "android.resource")) context.contentResolver.openInputStream(uri)
+                else File(sourcePathOrUri).inputStream()
+                requireNotNull(input) { "Cannot open attachment" }.use { source ->
+                    file.outputStream().use { output ->
+                        val buffer = ByteArray(8192)
+                        while (true) {
+                            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                            val count = source.read(buffer)
+                            if (count < 0) break
+                            output.write(buffer, 0, count)
+                        }
+                    }
+                }
+                Result.success(file.absolutePath)
+            }
+        } catch (e: Exception) {
+            // Bắt ở ngoài withContext để cả cancellation lúc dispatch kết quả về Main cũng dọn được file.
+            withContext(kotlinx.coroutines.NonCancellable + dispatcher) { target?.delete() }
+            if (e is CancellationException) throw e
+            return Result.failure(e)
+        }
+    }
+
+    /**
+     * Dọn dẹp tệp an toàn: Chỉ cho phép xóa tệp nếu nó thực sự nằm trong thư mục `filesDir` của ứng dụng.
+     */
     private fun safelyDeleteAppOwnedFile(path: String?) {
         if (path.isNullOrBlank()) return
-        try {
-            val file = File(path)
-            val canonicalAppDir = context.filesDir.canonicalPath
-            val canonicalFilePath = file.canonicalPath
-            if (canonicalFilePath.startsWith(canonicalAppDir) && file.exists()) {
-                file.delete()
-            }
-        } catch (_: Exception) {
-        }
+        val file = File(path).canonicalFile
+        val roots = listOf(File(context.filesDir, "journal").canonicalFile, File(context.filesDir, "recordings").canonicalFile)
+        if (roots.none { file.path.startsWith(it.path + File.separator) }) return
+        if (file.exists() && !file.delete()) throw java.io.IOException("Cannot delete owned attachment")
     }
 
     private fun getExtension(pathOrUri: String): String {
         val lastDot = pathOrUri.lastIndexOf('.')
         if (lastDot > 0 && lastDot < pathOrUri.length - 1) {
-            val ext = pathOrUri.substring(lastDot).takeWhile { it.isLetterOrDigit() }
-            if (ext.length in 2..5) return ext
+            val ext = pathOrUri.substring(lastDot + 1).takeWhile { it.isLetterOrDigit() }
+            if (ext.length in 2..5) return "." + ext
         }
         return ".jpg"
     }

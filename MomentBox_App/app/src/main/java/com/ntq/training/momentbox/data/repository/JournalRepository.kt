@@ -8,8 +8,19 @@ import com.ntq.training.momentbox.data.local.db.TagCount
 import com.ntq.training.momentbox.data.local.prefs.JournalDraft
 import com.ntq.training.momentbox.data.local.prefs.JournalFilterState
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlin.collections.emptyList
 
 interface JournalRepository {
+    /** Snapshot nhiều trang trong một transaction. Null cho repository test không có Room. */
+    fun observeAtomicPages(query: String?, filter: JournalFilterState, pages: Int): Flow<JournalPageSnapshot>? = null
+    fun observeDayCounts(query: String?, filter: JournalFilterState): Flow<List<JournalDayCount>> = flowOf(emptyList())
+    fun observeWrittenDays(): Flow<List<String>> = kotlinx.coroutines.flow.flow {
+        emit(getEntriesForStats().map { java.time.Instant.ofEpochMilli(it.entry.createdAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString() }.distinct())
+    }
+    val handlesDeletionDeadlines: Boolean get() = false
+    fun observePendingDeletes(): Flow<List<PendingJournalDelete>> = flowOf(emptyList())
+
     /**
      * Lấy dòng dữ liệu danh sách bài viết theo bộ lọc và phân trang.
      */
@@ -56,5 +67,13 @@ interface JournalRepository {
     suspend fun saveFilter(filter: JournalFilterState)
     suspend fun resetFilter()
 
+    suspend fun readAudioMetadata(path: String): JournalAudioMetadata? = null
+
+    suspend fun deleteUnreferencedFiles(paths: List<String>) {}
     suspend fun stageAttachmentFile(sourcePathOrUri: String, isAudio: Boolean): Result<String>
 }
+data class JournalDayCount(val day: String, val count: Int)
+
+data class JournalAudioMetadata(val durationMs: Long, val waveform: List<Int>)
+
+data class JournalPageSnapshot(val entries: List<JournalEntryWithDetails>, val dayCounts: List<JournalDayCount>)

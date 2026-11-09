@@ -4,9 +4,15 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.sqlite.db.SupportSQLiteQuery
+import com.ntq.training.momentbox.data.repository.JournalDayCount
+import com.ntq.training.momentbox.data.repository.JournalPageSnapshot
+import com.ntq.training.momentbox.data.repository.PendingJournalDelete
 import kotlinx.coroutines.flow.Flow
+
 @Dao
 interface JournalDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
@@ -33,17 +39,20 @@ interface JournalDao {
     @Query("Select * from journal_tags where entry_id = :entryId order by tag asc")
     suspend fun getTagsByEntryId(entryId: Long): List<JournalTagEntity>
 
+    @Query("Select count(*) from journal_attachments where local_path = :path")
+    suspend fun countAttachmentReferences(path: String): Int
+
     @Transaction
     suspend fun save(
         entry: JournalEntryEntity,
         attachments: List<JournalAttachmentEntity>,
         tags: List<String>
-    ): Long{
-        val calculateWordCount = if(entry.content.isBlank()) 0 else{
-            entry.content.trim().split("\\s+".toRegex()).count{it.isNotBlank()}
+    ): Long {
+        val calculateWordCount = if (entry.content.isBlank()) 0 else {
+            entry.content.trim().split("\\s+".toRegex()).count { it.isNotBlank() }
         }
-        val calculatedPhotoCount = attachments.count{it.type.equals("image", ignoreCase = true)}
-        val calculatedAudioCount = attachments.count{it.type.equals("audio", ignoreCase = true)}
+        val calculatedPhotoCount = attachments.count { it.type.equals("image", ignoreCase = true) }
+        val calculatedAudioCount = attachments.count { it.type.equals("audio", ignoreCase = true) }
 
         val entryToSave = entry.copy(
             wordCount = calculateWordCount,
@@ -53,33 +62,37 @@ interface JournalDao {
         )
 
         val targetEntryId: Long
-        if(entryToSave.id == 0L){
+        if (entryToSave.id == 0L) {
             targetEntryId = insertEntry(entryToSave)
-        }else{
+        } else {
             targetEntryId = entryToSave.id
-            updateEntry(entryToSave)
+            val existing = getEntryByIdIncludingDeleted(targetEntryId)
+            check(existing?.entry?.deletedAt == null) { "Entry is pending deletion" }
+            val preserved =
+                entryToSave.copy(isPinned = existing?.entry?.isPinned ?: entryToSave.isPinned)
+            if (updateEntry(preserved) == 0) insertEntry(preserved)
             // Thay thế attachments và tags để tránh xung đột id/sortOrder
             deleteAttachmentsByEntryId(targetEntryId)
             deleteTagsByEntryId(targetEntryId)
         }
 
-        if(attachments.isNotEmpty()){
+        if (attachments.isNotEmpty()) {
             val indexedAttachments = attachments.mapIndexed { index, item ->
                 item.copy(
                     id = 0,
                     entryId = targetEntryId,
-                    sortOrder = if(item.sortOrder != 0) item.sortOrder else index
+                    sortOrder = if (item.sortOrder != 0) item.sortOrder else index
                 )
             }
             insertAttachment(indexedAttachments)
         }
-        if(tags.isNotEmpty()){
+        if (tags.isNotEmpty()) {
             val distinctCleanTags = tags
-                .map{it.trim().removePrefix("#").trim()}
-                .filter{it.isNotBlank()}
+                .map { it.trim().removePrefix("#").trim() }
+                .filter { it.isNotBlank() }
                 .distinct()
                 .map { JournalTagEntity(entryId = targetEntryId, tag = it) }
-            if(distinctCleanTags.isNotEmpty()){
+            if (distinctCleanTags.isNotEmpty()) {
                 insertTags(distinctCleanTags)
             }
         }
@@ -98,7 +111,8 @@ interface JournalDao {
      * Truy vấn danh sách bài viết theo bộ lọc và sắp xếp
      */
     @Transaction
-    @Query("""
+    @Query(
+        """
         SELECT * FROM journal_entries
         WHERE deleted_at IS NULL
           AND (:query IS NULL OR :query = '' OR title LIKE '%' || :query || '%' ESCAPE '\'
@@ -114,7 +128,8 @@ interface JournalDao {
           created_at DESC,
           id DESC
         LIMIT :limit OFFSET :offset
-    """)
+    """
+    )
     fun observeEntries(
         query: String?,
         moods: List<Int>,
@@ -131,7 +146,8 @@ interface JournalDao {
     /**
      * Đếm tổng số bài viết thỏa mãn chính xác tiêu chí lọc
      */
-    @Query("""
+    @Query(
+        """
         SELECT COUNT(*) FROM journal_entries
         WHERE deleted_at IS NULL
           AND (:query IS NULL OR :query = '' OR title LIKE '%' || :query || '%' ESCAPE '\'
@@ -141,7 +157,8 @@ interface JournalDao {
           AND (:hasPhoto = 0 OR photo_count > 0)
           AND (:hasAudio = 0 OR audio_count > 0)
           AND created_at BETWEEN :from AND :to
-    """)
+    """
+    )
     fun countEntries(
         query: String?,
         moods: List<Int>,
@@ -156,20 +173,23 @@ interface JournalDao {
      * Lấy danh sách cảm xúc theo ngày trong khoảng thời gian xác định (theo 'local time')
      * phục vụ vẽ các ô ngày có màu trên moodcalendarview
      */
-    @Query("""
+    @Query(
+        """
         SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch', 'localtime') AS day,
                mood,
                created_at AS createdAt
         FROM journal_entries
         WHERE deleted_at IS NULL AND created_at BETWEEN :from AND :to
         ORDER BY created_at ASC
-    """)
+    """
+    )
     fun moodByDay(from: Long, to: Long): Flow<List<DayMood>>
 
     /**
      * Lấy danh sách các nhãn được dùng nhiều nhất (Top Tags), loại trừ các bài viết đã bị xóa mềm.
      */
-    @Query("""
+    @Query(
+        """
         SELECT t.tag, COUNT(*) AS cnt
         FROM journal_tags t
         INNER JOIN journal_entries e ON t.entry_id = e.id
@@ -177,30 +197,35 @@ interface JournalDao {
         GROUP BY t.tag
         ORDER BY cnt DESC, t.tag ASC
         LIMIT :limit
-    """)
+    """
+    )
     fun topTags(limit: Int): Flow<List<TagCount>>
 
     /**
      * Gợi ý danh sách tất cả các nhãn phân biệt để hiển thị autocomplete/chip trong S08.
      */
-    @Query("""
+    @Query(
+        """
         SELECT DISTINCT t.tag
         FROM journal_tags t
         INNER JOIN journal_entries e ON t.entry_id = e.id
         WHERE e.deleted_at IS NULL
         ORDER BY t.tag ASC
-    """)
+    """
+    )
     fun distinctTags(): Flow<List<String>>
 
     /**
      * Lấy toàn bộ danh sách bài viết không bị xóa mềm để JournalStatsCalculator tính toán chỉ số thống kê.
      */
     @Transaction
-    @Query("""
+    @Query(
+        """
         SELECT * FROM journal_entries
         WHERE deleted_at IS NULL AND created_at BETWEEN :from AND :to
         ORDER BY created_at ASC
-    """)
+    """
+    )
     suspend fun getEntriesForPeriod(from: Long, to: Long): List<JournalEntryWithDetails>
 
     @Transaction
@@ -239,6 +264,109 @@ interface JournalDao {
     @Query("DELETE FROM journal_entries WHERE deleted_at IS NOT NULL AND deleted_at <= :threshold")
     suspend fun purgeExpiredDeleted(threshold: Long): Int
 
+    @Query("SELECT id, deleted_at AS deletedAt FROM journal_entries WHERE deleted_at IS NOT NULL")
+    fun observePendingDeletes(): Flow<List<PendingJournalDelete>>
+
+    @Query("UPDATE journal_entries SET deleted_at = NULL WHERE id = :id AND deleted_at > :threshold")
+    suspend fun undoDeleteBeforeDeadline(id: Long, threshold: Long): Int
+
     @Query("SELECT * FROM journal_entries WHERE deleted_at IS NOT NULL AND deleted_at <= :threshold")
     suspend fun getExpiredDeletedEntries(threshold: Long): List<JournalEntryEntity>
+
+    @Query(
+        """
+        SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch', 'localtime') AS day, COUNT(*) AS count
+        FROM journal_entries
+        WHERE deleted_at IS NULL
+          AND (:query IS NULL OR :query = '' OR title LIKE '%' || :query || '%' ESCAPE '\'
+               OR content LIKE '%' || :query || '%' ESCAPE '\'
+               OR id IN (SELECT entry_id FROM journal_tags WHERE tag LIKE '%' || :query || '%' ESCAPE '\'))
+          AND (:moodsEmpty = 1 OR mood IN (:moods))
+          AND (:hasPhoto = 0 OR photo_count > 0)
+          AND (:hasAudio = 0 OR audio_count > 0)
+          AND created_at BETWEEN :from AND :to
+        GROUP BY day
+    """
+    )
+    fun observeDayCounts(
+        query: String?, moods: List<Int>, moodsEmpty: Boolean, hasPhoto: Boolean,
+        hasAudio: Boolean, from: Long, to: Long
+    ): Flow<List<JournalDayCount>>
+
+    @Query("SELECT DISTINCT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch', 'localtime') FROM journal_entries WHERE deleted_at IS NULL")
+    fun observeWrittenDays(): Flow<List<String>>
+
+    @RawQuery(observedEntities = [JournalEntryEntity::class, JournalAttachmentEntity::class, JournalTagEntity::class])
+    fun observeJournalChanges(query: SupportSQLiteQuery): Flow<Int>
+
+    @Transaction
+    @Query(
+        """
+        SELECT * FROM journal_entries
+        WHERE deleted_at IS NULL
+          AND (:query IS NULL OR :query = '' OR title LIKE '%' || :query || '%' ESCAPE '\'
+               OR content LIKE '%' || :query || '%' ESCAPE '\'
+               OR id IN (SELECT entry_id FROM journal_tags WHERE tag LIKE '%' || :query || '%' ESCAPE '\'))
+          AND (:moodsEmpty = 1 OR mood IN (:moods))
+          AND (:hasPhoto = 0 OR photo_count > 0)
+          AND (:hasAudio = 0 OR audio_count > 0)
+          AND created_at BETWEEN :from AND :to
+        ORDER BY is_pinned DESC,
+          CASE WHEN :sort = 'OLDEST' THEN created_at END ASC,
+          CASE WHEN :sort = 'MOOD' THEN mood END ASC,
+          created_at DESC,
+          id DESC
+        LIMIT :limit OFFSET :offset
+    """
+    )
+    suspend fun readEntryPage(
+        query: String?, moods: List<Int>, moodsEmpty: Boolean, hasPhoto: Boolean, hasAudio: Boolean,
+        from: Long, to: Long, sort: String, limit: Int, offset: Int
+    ): List<JournalEntryWithDetails>
+
+    @Query(
+        """
+        SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch', 'localtime') AS day, COUNT(*) AS count
+        FROM journal_entries
+        WHERE deleted_at IS NULL
+          AND (:query IS NULL OR :query = '' OR title LIKE '%' || :query || '%' ESCAPE '\'
+               OR content LIKE '%' || :query || '%' ESCAPE '\'
+               OR id IN (SELECT entry_id FROM journal_tags WHERE tag LIKE '%' || :query || '%' ESCAPE '\'))
+          AND (:moodsEmpty = 1 OR mood IN (:moods))
+          AND (:hasPhoto = 0 OR photo_count > 0)
+          AND (:hasAudio = 0 OR audio_count > 0)
+          AND created_at BETWEEN :from AND :to
+        GROUP BY day
+    """
+    )
+    suspend fun readDayCounts(
+        query: String?, moods: List<Int>, moodsEmpty: Boolean, hasPhoto: Boolean,
+        hasAudio: Boolean, from: Long, to: Long
+    ): List<JournalDayCount>
+
+    @Transaction
+    suspend fun readPageSnapshot(
+        query: String?, moods: List<Int>, moodsEmpty: Boolean, hasPhoto: Boolean, hasAudio: Boolean,
+        from: Long, to: Long, sort: String, pages: Int
+    ): JournalPageSnapshot {
+        // Invalidation có thể đến từ pin/update giữa các trang. Cùng transaction tránh trộn trang mới/cũ.
+        val entries = (0 until pages).flatMap { page ->
+            readEntryPage(
+                query,
+                moods,
+                moodsEmpty,
+                hasPhoto,
+                hasAudio,
+                from,
+                to,
+                sort,
+                20,
+                page * 20
+            )
+        }
+        return JournalPageSnapshot(
+            entries,
+            readDayCounts(query, moods, moodsEmpty, hasPhoto, hasAudio, from, to)
+        )
+    }
 }

@@ -26,8 +26,10 @@ import com.ntq.training.momentbox.data.local.prefs.JournalDataStore
 import com.ntq.training.momentbox.data.repository.JournalRepository
 import com.ntq.training.momentbox.data.repository.JournalRepositoryImpl
 import com.ntq.training.momentbox.domain.model.User
+import java.time.Clock
 
 class MomentBoxApp : Application() {
+    var journalClock: Clock = Clock.systemDefaultZone()
     lateinit var tokenStore: TokenStore
         private set
     lateinit var settingsDataStore: SettingsDataStore
@@ -57,13 +59,15 @@ class MomentBoxApp : Application() {
             tokenStore = tokenStore,
             settingsStorage = settingsDataStore,
             notificationDao = database.notificationDao(),
-            baseUrlProvider = { BuildConfig.BASE_URL},
+            baseUrlProvider = { BuildConfig.BASE_URL },
             notificationScopeProvider = {
                 val json = settingsDataStore.getSavedUserJson()
-                val user = json?.let{
-                    try{
+                val user = json?.let {
+                    try {
                         Gson().fromJson(it, User::class.java)
-                    }catch (_: Exception){null}
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
                 user?.let {
                     NotificationScope(it.id.toString(), settingsDataStore.getDataSource())
@@ -74,7 +78,8 @@ class MomentBoxApp : Application() {
         // 2. Khởi tạo OkHttpClient thông qua NetworkModule:
         // - authenticatedClient: Có gắn AuthInterceptor, TokenAuthenticator phục vụ các API cần xác thực
         // - configClient: Client gọn nhẹ không gắn xác thực, chuyên dùng tải cấu hình ban đầu
-        val authenticatedClient = NetworkModule.provideOkHttpClient(this, tokenStore, settingsDataStore)
+        val authenticatedClient =
+            NetworkModule.provideOkHttpClient(this, tokenStore, settingsDataStore)
         val configClient = NetworkModule.provideConfigOkHttpClient(this, settingsDataStore)
 
         // 3. Khởi tạo các instance Retrofit tương ứng với từng nguồn dữ liệu (MB Server, DummyJSON)

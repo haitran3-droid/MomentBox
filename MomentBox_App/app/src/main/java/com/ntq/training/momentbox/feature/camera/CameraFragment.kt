@@ -77,6 +77,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 /** CameraX gắn với viewLifecycleOwner. File chỉ trả sau capture/finalize thành công. */
+private const val VIDEO_HOLD_THRESHOLD_MS = 250L
+
 class CameraFragment : Fragment(R.layout.fragment_camera) {
     private var binding: FragmentCameraBinding? = null
     private val create: CreateViewModel by activityViewModels()
@@ -131,7 +133,6 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
         }
 
     private var captureBusy = false
-    private var lastUri: String? = null
     private var activeVideoFile: File? = null
     private var validRecording = true
     private val audioOwner = Any()
@@ -248,12 +249,22 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
         b.cameraPhotoMode.setOnClickListener { changeMode(false) }
         b.cameraVideoMode.isVisible = !create.imagesOnly
         b.cameraVideoMode.setOnClickListener { changeMode(true) }
-        lastUri = create.items.value.lastOrNull { !it.isVideo }?.uri
-        lastUri?.let {
-            com.bumptech.glide.Glide.with(this).load(it).centerCrop().into(b.cameraLatest)
-        }
-        b.cameraLatest.setOnClickListener {
-            parentFragmentManager.setFragmentResult("create_return_gallery", Bundle())
+        setupModeSwipe(b)
+        val latestPhoto = create.items.value.lastOrNull { !it.isVideo }
+        b.cameraLatest.isEnabled = latestPhoto != null
+        if (latestPhoto != null) {
+            com.bumptech.glide.Glide.with(this)
+                .load(latestPhoto.uri)
+                .centerCrop()
+                .into(b.cameraLatest)
+            b.cameraLatest.setOnClickListener {
+                if (!captureBusy && recording == null) {
+                    parentFragmentManager.setFragmentResult(
+                        "create_crop_latest",
+                        Bundle().apply { putString("id", latestPhoto.id) },
+                    )
+                }
+            }
         }
         val names =
             intArrayOf(
@@ -385,48 +396,72 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     }
                 },
             )
+        val overlay = b.cameraOverlay
+        val hideFocus = Runnable {
+            overlay.focusX = -1f
+            overlay.invalidate()
+        }
         var downY = 0f
-
         var downX = 0f
-
         var multiple = false
-        b.cameraOverlay.setOnTouchListener { _, event ->
+        var exposureDrag = false
+        var startExposure = 0
+        var requestedExposure = 0
+        overlay.setOnTouchListener { _, event ->
             scale.onTouchEvent(event)
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downY = event.y
                     downX = event.x
                     multiple = false
+                    exposureDrag = false
+                    startExposure =
+                        camera?.cameraInfo?.exposureState?.exposureCompensationIndex ?: 0
+                    requestedExposure = startExposure
                 }
 
                 MotionEvent.ACTION_POINTER_DOWN -> multiple = true
                 MotionEvent.ACTION_MOVE ->
-                    if (!multiple && kotlin.math.abs(event.y - downY) > dp(12)) {
+                    if (
+                        !multiple &&
+                            (exposureDrag ||
+                                (kotlin.math.abs(event.y - downY) > dp(12) &&
+                                    kotlin.math.abs(event.y - downY) >
+                                        kotlin.math.abs(event.x - downX)))
+                    ) {
                         camera?.let { c ->
                             val e = c.cameraInfo.exposureState
                             if (e.isExposureCompensationSupported) {
+                                if (!exposureDrag) {
+                                    exposureDrag = true
+                                    overlay.removeCallbacks(hideFocus)
+                                    if (overlay.focusX < 0) {
+                                        overlay.focusX = downX
+                                        overlay.focusY = downY
+                                    }
+                                }
+                                val range = e.exposureCompensationRange
                                 val index =
-                                    (e.exposureCompensationIndex + (downY - event.y) / dp(30))
-                                        .toInt()
-                                        .coerceIn(
-                                            e.exposureCompensationRange.lower,
-                                            e.exposureCompensationRange.upper,
-                                        )
-                                c.cameraControl.setExposureCompensationIndex(index)
-                                b.cameraOverlay.exposureFraction =
-                                    (index - e.exposureCompensationRange.lower).toFloat() /
-                                        (e.exposureCompensationRange.upper -
-                                                e.exposureCompensationRange.lower)
-                                            .coerceAtLeast(1)
-                                b.cameraOverlay.invalidate()
+                                    (startExposure + Math.round((downY - event.y) / dp(24)))
+                                        .coerceIn(range.lower, range.upper)
+                                if (index != requestedExposure) {
+                                    requestedExposure = index
+                                    c.cameraControl.setExposureCompensationIndex(index)
+                                }
+                                overlay.exposureFraction =
+                                    (index - range.lower).toFloat() /
+                                        (range.upper - range.lower).coerceAtLeast(1)
+                                overlay.invalidate()
                             }
                         }
-                        downY = event.y
                     }
 
-                MotionEvent.ACTION_UP ->
-                    if (
+                MotionEvent.ACTION_UP -> {
+                    if (exposureDrag) {
+                        overlay.postDelayed(hideFocus, 2000)
+                    } else if (
                         !multiple &&
+                            !swipeCameraMode(event.x - downX, event.y - downY) &&
                             kotlin.math.abs(event.x - downX) < dp(15) &&
                             kotlin.math.abs(event.y - downY) < dp(15)
                     ) {
@@ -439,19 +474,15 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                     .setAutoCancelDuration(2, TimeUnit.SECONDS)
                                     .build()
                             )
-                        b.cameraOverlay.focusX = event.x
-                        b.cameraOverlay.focusY = event.y
-                        b.cameraOverlay.invalidate()
-                        b.cameraOverlay.postDelayed(
-                            {
-                                if (binding === b) {
-                                    b.cameraOverlay.focusX = -1f
-                                    b.cameraOverlay.invalidate()
-                                }
-                            },
-                            2000,
-                        )
+                        overlay.focusX = event.x
+                        overlay.focusY = event.y
+                        overlay.invalidate()
+                        overlay.removeCallbacks(hideFocus)
+                        overlay.postDelayed(hideFocus, 2000)
                     }
+                }
+
+                MotionEvent.ACTION_CANCEL -> if (exposureDrag) overlay.postDelayed(hideFocus, 2000)
             }
             true
         }
@@ -465,6 +496,14 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     if (videoMode) {
                         videoStartJob?.cancel()
                         recording?.stop()
+                        if (
+                            event.actionMasked == MotionEvent.ACTION_UP &&
+                                event.eventTime - event.downTime < VIDEO_HOLD_THRESHOLD_MS &&
+                                video != null &&
+                                granted(Manifest.permission.RECORD_AUDIO)
+                        ) {
+                            error(R.string.m4_video_hold_hint)
+                        }
                     }
             }
             true
@@ -478,7 +517,51 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
 
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
 
+    private fun setupModeSwipe(b: FragmentCameraBinding) {
+        var downX = 0f
+        var downY = 0f
+        var multiple = false
+        val listener =
+            View.OnTouchListener { view, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        downX = event.rawX
+                        downY = event.rawY
+                        multiple = false
+                        view.parent.requestDisallowInterceptTouchEvent(true)
+                    }
+                    MotionEvent.ACTION_POINTER_DOWN -> multiple = true
+                    MotionEvent.ACTION_UP -> {
+                        view.parent.requestDisallowInterceptTouchEvent(false)
+                        val dx = event.rawX - downX
+                        val dy = event.rawY - downY
+                        if (
+                            !multiple &&
+                                !swipeCameraMode(dx, dy) &&
+                                kotlin.math.abs(dx) < dp(15) &&
+                                kotlin.math.abs(dy) < dp(15)
+                        )
+                            view.performClick()
+                    }
+                    MotionEvent.ACTION_CANCEL ->
+                        view.parent.requestDisallowInterceptTouchEvent(false)
+                }
+                true
+            }
+        b.cameraModes.setOnTouchListener(listener)
+        b.cameraPhotoMode.setOnTouchListener(listener)
+        b.cameraVideoMode.setOnTouchListener(listener)
+    }
+
+    private fun swipeCameraMode(dx: Float, dy: Float): Boolean {
+        val horizontal = kotlin.math.abs(dx)
+        if (horizontal < dp(32) || horizontal <= kotlin.math.abs(dy) * 1.5f) return false
+        changeMode(dx > 0)
+        return true
+    }
+
     private fun changeMode(video: Boolean) {
+        if (video && create.imagesOnly) return
         if (!captureBusy && recording == null && videoMode != video) {
             videoMode = video
             bindCamera()
@@ -687,6 +770,9 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
     private fun renderControls() {
         binding?.let { b ->
             (b.cameraFilters.parent as View).isVisible = !videoMode
+            b.cameraPhotoControls.isVisible = !videoMode
+            b.cameraShutter.contentDescription =
+                getString(if (videoMode) R.string.m4_video_hold_hint else R.string.m4_take_photo)
             b.cameraTimer.isVisible = !videoMode
             b.cameraRatio.isVisible = !videoMode
             // Khi video ẩn filter, đưa zoom xuống sát đáy thay vì chừa khoảng trống của khay ảnh.
@@ -839,7 +925,6 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                     owned,
                                 )
                                 .toString()
-                        lastUri = uri
                         parentFragmentManager.setFragmentResult(
                             "create_capture",
                             Bundle().apply {
@@ -870,6 +955,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
         }
         val b = binding ?: return
         validRecording = true
+        b.cameraError.isVisible = false
         val file =
             File(requireContext().filesDir, "create-media")
                 .apply { mkdirs() }
@@ -879,6 +965,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
             viewLifecycleOwner.lifecycleScope.launch {
                 var handedToRecorder = false
                 try {
+                    delay(VIDEO_HOLD_THRESHOLD_MS)
                     // Chiếm cùng owner với voice/ambient/Recorder, callback cũ chỉ pause, không tự
                     // resume sau video.
                     check(
@@ -920,14 +1007,36 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                 .withAudioEnabled()
                                 .start(ContextCompat.getMainExecutor(requireContext())) { event ->
                                     when (event) {
-                                        is VideoRecordEvent.Status ->
-                                            if (binding === b)
+                                        is VideoRecordEvent.Start -> {
+                                            if (binding === b) {
+                                                b.cameraRecordingProgress.setProgressCompat(
+                                                    0,
+                                                    false,
+                                                )
+                                                b.cameraRecordingProgress.isVisible = true
+                                                b.cameraCountdown.text = "0"
+                                            }
+                                        }
+
+                                        is VideoRecordEvent.Status -> {
+                                            if (binding === b) {
+                                                val elapsedMs =
+                                                    event.recordingStats.recordedDurationNanos /
+                                                        1_000_000
+                                                b.cameraRecordingProgress.setProgressCompat(
+                                                    elapsedMs.coerceAtMost(60_000).toInt(),
+                                                    true,
+                                                )
                                                 b.cameraCountdown.text =
-                                                    (event.recordingStats.recordedDurationNanos /
-                                                            1_000_000_000)
-                                                        .toString()
+                                                    (elapsedMs / 1000).toString()
+                                            }
+                                        }
 
                                         is VideoRecordEvent.Finalize -> {
+                                            if (binding === b) {
+                                                b.cameraRecordingProgress.isVisible = false
+                                                b.cameraCountdown.text = ""
+                                            }
                                             recording?.close()
                                             recording = null
                                             activeVideoFile = null
@@ -962,9 +1071,18 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                                 )
                                             } else {
                                                 file.delete()
-                                                if (binding === b) error(R.string.m4_capture_error)
+                                                if (binding === b) {
+                                                    error(
+                                                        if (
+                                                            event.error ==
+                                                                VideoRecordEvent.Finalize
+                                                                    .ERROR_NO_VALID_DATA
+                                                        )
+                                                            R.string.m4_video_hold_hint
+                                                        else R.string.m4_video_capture_error
+                                                    )
+                                                }
                                             }
-                                            binding?.cameraCountdown?.text = ""
                                         }
                                     }
                                 }
@@ -973,7 +1091,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                         error(R.string.m4_mic_permission)
                     } catch (_: Exception) {
                         file.delete()
-                        error(R.string.m4_capture_error)
+                        error(R.string.m4_video_capture_error)
                     }
                     handedToRecorder = recording != null
                 } catch (e: CancellationException) {

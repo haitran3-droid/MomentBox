@@ -54,6 +54,7 @@
                 app:tint="#FFFFFF" />
 
             <LinearLayout
+                android:id="@+id/camera_photo_controls"
                 android:layout_width="wrap_content"
                 android:layout_height="44dp"
                 android:layout_gravity="center"
@@ -170,6 +171,7 @@
             android:scrollbars="none">
 
             <LinearLayout
+                android:id="@+id/camera_modes"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:gravity="center"
@@ -245,6 +247,20 @@
                 android:layout_gravity="center"
                 android:background="@drawable/bg_media_shutter"
                 android:contentDescription="@string/m4_take_photo" />
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/camera_recording_progress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:max="60000"
+                android:visibility="gone"
+                app:indicatorColor="@color/error"
+                app:indicatorInset="0dp"
+                app:indicatorSize="76dp"
+                app:trackColor="@color/white"
+                app:trackThickness="3dp" />
 
             <ImageButton
                 android:id="@+id/camera_switch"

@@ -31,6 +31,8 @@
     <string name="m4_filter_vintage">Cổ điển</string>
     <string name="m4_filter_negative">Âm bản</string>
     <string name="m4_capture_error">Ảnh chụp không hợp lệ. Hãy thử lại.</string>
+    <string name="m4_video_hold_hint">Nhấn giữ nút quay để ghi video.</string>
+    <string name="m4_video_capture_error">Không thể quay video. Hãy thử lại.</string>
     <string name="m4_mic_permission">Cần quyền micro để quay video có tiếng.</string>
     <string name="m4_crop_title">Cắt &amp; xoay</string>
     <string name="m4_done">Hoàn tất</string>

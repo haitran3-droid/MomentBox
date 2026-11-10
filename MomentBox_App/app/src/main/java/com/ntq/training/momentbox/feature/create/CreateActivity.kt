@@ -163,14 +163,15 @@ class CreateActivity : AppCompatActivity() {
                 .addToBackStack("add-media")
                 .commit()
         }
-        supportFragmentManager.setFragmentResultListener("create_return_gallery", this) { _, _ ->
-            if (supportFragmentManager.backStackEntryCount > 0)
-                supportFragmentManager.popBackStack()
-            else
-                supportFragmentManager
-                    .beginTransaction()
-                    .replace(binding.root.id, GalleryFragment(), "gallery")
-                    .commit()
+        supportFragmentManager.setFragmentResultListener("create_crop_latest", this) { _, result ->
+            if (navigationPending) return@setFragmentResultListener
+            val id = result.getString("id") ?: return@setFragmentResultListener
+            val photo =
+                model.items.value.firstOrNull { it.id == id && !it.isVideo }
+                    ?: return@setFragmentResultListener
+            navigationPending = true
+            model.submitted()
+            openCrop(photo)
         }
         supportFragmentManager.setFragmentResultListener("create_camera", this) { _, _ ->
             if (navigationPending) return@setFragmentResultListener
@@ -193,16 +194,19 @@ class CreateActivity : AppCompatActivity() {
         supportFragmentManager.setFragmentResultListener("create_capture", this) { _, result ->
             val uri = result.getString("uri") ?: return@setFragmentResultListener
             val mime = result.getString("mime") ?: return@setFragmentResultListener
-            val change =
-                model.toggle(
-                    SelectedMedia(
-                        uri,
-                        uri,
-                        mime,
-                        if (mime.startsWith("video/")) result.getLong("duration") else null,
-                    )
+            val captured =
+                SelectedMedia(
+                    uri,
+                    uri,
+                    mime,
+                    if (mime.startsWith("video/")) result.getLong("duration") else null,
                 )
-            if (change == SelectionChange.ADDED) {
+            if (model.toggle(captured) == SelectionChange.ADDED) {
+                if (!captured.isVideo) {
+                    model.submitted()
+                    openCrop(captured)
+                    return@setFragmentResultListener
+                }
                 supportFragmentManager.setFragmentResult("gallery_reset", Bundle())
                 if (supportFragmentManager.backStackEntryCount > 0)
                     supportFragmentManager.popBackStack()
@@ -238,22 +242,9 @@ class CreateActivity : AppCompatActivity() {
 
     private fun nextPhoto() {
         val item = model.nextPhoto()
-        if (item != null)
-            supportFragmentManager
-                .beginTransaction()
-                .replace(
-                    R.id.create_host,
-                    CropFragment().apply {
-                        arguments =
-                            Bundle().apply {
-                                putString("uri", item.uri)
-                                putString("id", item.id)
-                            }
-                    },
-                )
-                .addToBackStack("crop")
-                .commit()
-        else if (model.imagesOnly) {
+        if (item != null) {
+            openCrop(item)
+        } else if (model.imagesOnly) {
             setResult(RESULT_OK, Intent().putExtra("media", Gson().toJson(model.items.value)))
             finish()
         } else if (
@@ -272,5 +263,22 @@ class CreateActivity : AppCompatActivity() {
                 .replace(R.id.create_host, ComposeFragment(), "compose")
                 .addToBackStack("compose")
                 .commit()
+    }
+
+    private fun openCrop(item: SelectedMedia) {
+        supportFragmentManager
+            .beginTransaction()
+            .replace(
+                R.id.create_host,
+                CropFragment().apply {
+                    arguments =
+                        Bundle().apply {
+                            putString("uri", item.uri)
+                            putString("id", item.id)
+                        }
+                },
+            )
+            .addToBackStack("crop")
+            .commit()
     }
 }

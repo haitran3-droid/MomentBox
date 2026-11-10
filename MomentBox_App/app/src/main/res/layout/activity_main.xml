@@ -123,7 +123,9 @@
             android:id="@+id/tabCreate"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:contentDescription="@string/nav_create"
+            android:focusable="true">
 
             <FrameLayout
                 android:id="@+id/btnNavCreate"
@@ -131,9 +133,7 @@
                 android:layout_height="46dp"
                 android:layout_gravity="center"
                 android:background="@drawable/bg_nav_create"
-                android:clickable="true"
-                android:elevation="4dp"
-                android:focusable="true">
+                android:elevation="4dp">
 
                 <ImageView
                     android:layout_width="26dp"

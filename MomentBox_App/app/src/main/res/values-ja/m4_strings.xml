@@ -31,6 +31,8 @@
     <string name="m4_filter_vintage">レトロ</string>
     <string name="m4_filter_negative">ネガ</string>
     <string name="m4_capture_error">撮影に失敗しました。再試行してください。</string>
+    <string name="m4_video_hold_hint">動画を撮影するにはシャッターを長押ししてください。</string>
+    <string name="m4_video_capture_error">動画を撮影できませんでした。再試行してください。</string>
     <string name="m4_mic_permission">音声付き動画にはマイク権限が必要です。</string>
     <string name="m4_crop_title">切り抜きと回転</string>
     <string name="m4_done">完了</string>

@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='utf-8'?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -8,6 +9,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
+        android:background="@drawable/bg_m4_toolbar_divider"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
@@ -51,11 +53,12 @@
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:layout_marginTop="12dp"
                 android:layout_marginEnd="16dp"
                 android:gravity="center_vertical"
+                android:minHeight="44dp"
                 android:orientation="horizontal">
 
                 <TextView
@@ -82,20 +85,24 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="14.5sp" />
 
                     <TextView
                         android:id="@+id/compose_privacy"
                         style="@style/JournalTextMedium"
                         android:layout_width="wrap_content"
                         android:layout_height="24dp"
+                        android:layout_marginTop="4dp"
                         android:background="@drawable/bg_media_privacy"
+                        android:drawableStart="@drawable/ic_m4_public"
+                        android:drawableEnd="@drawable/ic_m4_expand_more"
+                        android:drawablePadding="5dp"
                         android:gravity="center"
                         android:paddingStart="10dp"
                         android:paddingEnd="10dp"
                         android:text="@string/m4_public"
                         android:textColor="@color/text_primary"
-                        android:textSize="12sp" />
+                        android:textSize="11.5sp" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -109,6 +116,7 @@
                 android:gravity="top"
                 android:hint="@string/m4_caption_hint"
                 android:inputType="textMultiLine|textCapSentences"
+                android:lineSpacingExtra="3sp"
                 android:maxLength="2200"
                 android:minHeight="48dp"
                 android:paddingStart="16dp"
@@ -132,6 +140,7 @@
                 android:layout_height="128dp"
                 android:clipToPadding="false"
                 android:paddingStart="16dp"
+                android:paddingTop="6dp"
                 android:paddingEnd="16dp" />
 
             <TextView
@@ -139,8 +148,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginEnd="16dp"
                 android:layout_marginBottom="8dp"
+                android:drawableStart="@drawable/ic_m4_drag"
+                android:drawablePadding="4dp"
                 android:text="@string/m4_reorder_hint"
                 android:textColor="@color/text_tertiary"
                 android:textSize="12sp" />
@@ -158,30 +170,36 @@
                 android:layout_width="match_parent"
                 android:layout_height="50dp"
                 android:layout_marginStart="16dp"
+                android:layout_marginTop="12dp"
                 android:layout_marginEnd="16dp"
+                android:layout_marginBottom="12dp"
                 android:background="@drawable/bg_media_voice"
                 android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:paddingStart="3dp">
 
                 <ImageButton
                     android:id="@+id/compose_voice_play"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:background="@drawable/bg_m4_voice_play"
                     android:contentDescription="@string/journal_audio_play"
-                    android:src="@drawable/ic_journal_play_arrow" />
+                    android:padding="14dp"
+                    android:src="@drawable/ic_journal_play_arrow"
+                    app:tint="#FFFFFF" />
 
                 <com.ntq.training.momentbox.feature.journal.view.AudioWaveformView
                     android:id="@+id/compose_voice_waveform"
                     android:layout_width="0dp"
-                    android:layout_height="36dp"
+                    android:layout_height="24dp"
                     android:layout_weight="1" />
 
                 <TextView
                     android:id="@+id/compose_voice_duration"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/primary" />
+                    android:textColor="#2A1E8F"
+                    android:textSize="12sp" />
 
                 <ImageButton
                     android:id="@+id/compose_voice_remove"
@@ -189,7 +207,9 @@
                     android:layout_height="48dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/m4_discard"
-                    android:src="@drawable/ic_close" />
+                    android:padding="14dp"
+                    android:src="@drawable/ic_close"
+                    app:tint="@color/text_secondary" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
@@ -201,47 +221,131 @@
                 android:text="@string/m4_record_title"
                 app:icon="@drawable/ic_journal_mic" />
 
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="12dp"
+                android:background="#E6E6EE"
+                android:tag="m4-options-top-divider" />
+
             <TextView
-                android:id="@+id/compose_location"
-                style="@style/JournalTextRegular"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:background="?attr/selectableItemBackground"
-                android:drawableStart="@drawable/ic_media_location"
-                android:drawableEnd="@drawable/ic_expand_more"
+                android:alpha="0.5"
+                android:background="@drawable/bg_m4_toolbar_divider"
+                android:contentDescription="@string/m4_tag_friends_unavailable"
+                android:drawableStart="@drawable/ic_m4_person_add"
+                android:drawableEnd="@drawable/ic_m4_chevron_right"
                 android:drawablePadding="12dp"
+                android:enabled="false"
+                android:fontFamily="@font/be_vietnam_pro_medium"
                 android:gravity="center_vertical"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
-                android:text="@string/m4_location"
+                android:text="@string/m4_tag_friends"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp" />
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
+            <LinearLayout
+                android:id="@+id/compose_location_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_m4_toolbar_divider"
+                android:foreground="?attr/selectableItemBackground"
+                android:gravity="center_vertical"
+                android:minHeight="48dp"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="12dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_m4_location_on" />
+
+                <TextView
+                    android:id="@+id/compose_location"
+                    style="@style/JournalTextRegular"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/be_vietnam_pro_medium"
+                    android:gravity="center_vertical"
+                    android:minHeight="48dp"
+                    android:text="@string/m4_location"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/compose_location_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/be_vietnam_pro_regular"
+                    android:maxWidth="96dp"
+                    android:maxLines="1"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginStart="12dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_m4_chevron_right" />
+            </LinearLayout>
+
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/compose_comments"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:drawableStart="@drawable/ic_media_comments"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_m4_toolbar_divider"
+                android:drawableStart="@drawable/ic_m4_forum"
                 android:drawablePadding="12dp"
-                android:fontFamily="@font/be_vietnam_pro_regular"
+                android:fontFamily="@font/be_vietnam_pro_medium"
+                android:foreground="?attr/selectableItemBackground"
+                android:minHeight="48dp"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:text="@string/m4_comments"
                 android:textColor="@color/text_primary"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:thumb="@drawable/bg_m4_switch_thumb"
+                app:splitTrack="false"
+                app:switchMinWidth="44dp"
+                app:switchPadding="12dp"
+                app:thumbIcon="@null"
+                app:thumbTint="@null"
+                app:track="@drawable/bg_m4_switch_track"
+                app:trackDecoration="@null"
+                app:trackTint="@null" />
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/compose_journal"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:drawableStart="@drawable/ic_media_journal"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_m4_toolbar_divider"
+                android:drawableStart="@drawable/ic_m4_auto_stories"
                 android:drawablePadding="12dp"
-                android:fontFamily="@font/be_vietnam_pro_regular"
+                android:fontFamily="@font/be_vietnam_pro_medium"
+                android:foreground="?attr/selectableItemBackground"
+                android:minHeight="48dp"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:text="@string/m4_save_journal"
                 android:textColor="@color/text_primary"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:thumb="@drawable/bg_m4_switch_thumb"
+                app:splitTrack="false"
+                app:switchMinWidth="44dp"
+                app:switchPadding="12dp"
+                app:thumbIcon="@null"
+                app:thumbTint="@null"
+                app:track="@drawable/bg_m4_switch_track"
+                app:trackDecoration="@null"
+                app:trackTint="@null" />
 
             <TextView
                 android:id="@+id/compose_video_policy"
@@ -260,32 +364,77 @@
         android:id="@+id/compose_upload_box"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp"
-        android:background="#211A40"
-        android:orientation="vertical"
-        android:padding="12dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_m4_upload"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="4dp"
+        android:paddingBottom="10dp"
         android:visibility="gone">
 
-        <TextView
-            android:id="@+id/compose_upload_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp" />
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="12dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_m4_upload" />
 
-        <ProgressBar
-            android:id="@+id/compose_progress"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="8dp"
-            android:max="100" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/compose_upload_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/compose_upload_percent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/compose_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="6dp"
+                android:max="100"
+                android:progressBackgroundTint="#33FFFFFF"
+                android:progressTint="#8B7CF6" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/compose_cancel_upload"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_width="48dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:fontFamily="@font/be_vietnam_pro_semibold"
             android:gravity="center"
+            android:minHeight="28dp"
             android:text="@string/cancel"
-            android:textColor="#FFFFFF" />
+            android:textColor="#C4BCFF"
+            android:textSize="13sp" />
     </LinearLayout>
 </LinearLayout>

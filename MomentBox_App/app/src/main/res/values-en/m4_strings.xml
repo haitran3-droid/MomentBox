@@ -31,6 +31,8 @@
     <string name="m4_filter_vintage">Vintage</string>
     <string name="m4_filter_negative">Negative</string>
     <string name="m4_capture_error">Invalid capture. Please retry.</string>
+    <string name="m4_video_hold_hint">Press and hold the shutter to record video.</string>
+    <string name="m4_video_capture_error">Could not record video. Please try again.</string>
     <string name="m4_mic_permission">Microphone access is required for video with sound.</string>
     <string name="m4_crop_title">Crop &amp; rotate</string>
     <string name="m4_done">Done</string>

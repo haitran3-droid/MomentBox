@@ -1,9 +1,12 @@
 package com.ntq.training.momentbox.feature.crop
 
 import android.content.Context
-import android.graphics.*
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.util.AttributeSet
-import android.view.*
+import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
+import android.view.View
 import kotlin.math.roundToInt
 
 class AngleRulerView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :

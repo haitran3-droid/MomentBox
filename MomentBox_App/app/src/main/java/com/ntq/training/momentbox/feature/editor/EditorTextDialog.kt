@@ -3,7 +3,11 @@ package com.ntq.training.momentbox.feature.editor
 import android.app.Dialog
 import android.graphics.Color
 import android.os.Bundle
-import android.widget.*
+import android.widget.ArrayAdapter
+import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.Spinner
 import androidx.fragment.app.DialogFragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.ntq.training.momentbox.R

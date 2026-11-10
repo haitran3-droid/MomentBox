@@ -4,14 +4,24 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import com.google.gson.Gson
+import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.databinding.ActivityCreateBinding
+import com.ntq.training.momentbox.feature.camera.CameraFragment
+import com.ntq.training.momentbox.feature.compose.ComposeFragment
+import com.ntq.training.momentbox.feature.crop.CropFragment
+import com.ntq.training.momentbox.feature.editor.PhotoEditorFragment
 import com.ntq.training.momentbox.feature.gallery.GalleryFragment
 
 data class CreateInput(
@@ -34,13 +44,13 @@ class CreateMediaContract : ActivityResultContract<CreateInput, List<SelectedMed
         if (resultCode != Activity.RESULT_OK) emptyList()
         else
             runCatching {
-                    Gson()
-                        .fromJson(
-                            intent?.getStringExtra("media") ?: "[]",
-                            Array<SelectedMedia>::class.java,
-                        )
-                        .toList()
-                }
+                Gson()
+                    .fromJson(
+                        intent?.getStringExtra("media") ?: "[]",
+                        Array<SelectedMedia>::class.java,
+                    )
+                    .toList()
+            }
                 .getOrDefault(emptyList())
 }
 
@@ -59,7 +69,14 @@ class CreateActivity : AppCompatActivity() {
                 insets.getInsets(
                     WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime()
                 )
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            val camera =
+                supportFragmentManager.findFragmentById(binding.root.id) is CameraFragment
+            v.setPadding(
+                bars.left,
+                if (camera) 0 else bars.top,
+                bars.right,
+                if (camera) 0 else bars.bottom
+            )
             insets
         }
         model.configure(
@@ -69,13 +86,13 @@ class CreateActivity : AppCompatActivity() {
         if (state == null) {
             model.seed(
                 runCatching {
-                        Gson()
-                            .fromJson(
-                                intent.getStringExtra("initial") ?: "[]",
-                                Array<SelectedMedia>::class.java,
-                            )
-                            .toList()
-                    }
+                    Gson()
+                        .fromJson(
+                            intent.getStringExtra("initial") ?: "[]",
+                            Array<SelectedMedia>::class.java,
+                        )
+                        .toList()
+                }
                     .getOrDefault(emptyList())
             )
             supportFragmentManager
@@ -83,8 +100,8 @@ class CreateActivity : AppCompatActivity() {
                 .replace(
                     binding.root.id,
                     when (intent.getStringExtra("start")) {
-                        "text" -> com.ntq.training.momentbox.feature.compose.ComposeFragment()
-                        "camera" -> com.ntq.training.momentbox.feature.camera.CameraFragment()
+                        "text" -> ComposeFragment()
+                        "camera" -> CameraFragment()
                         else -> GalleryFragment()
                     },
                     if (intent.getStringExtra("start") == "text") "compose" else "gallery",
@@ -92,44 +109,35 @@ class CreateActivity : AppCompatActivity() {
                 .commit()
         }
         // Màu vùng padding hệ thống theo màn đang hiển thị, không thay custom Splash của M1.
-        supportFragmentManager.registerFragmentLifecycleCallbacks(
-            object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
-                override fun onFragmentResumed(
-                    manager: androidx.fragment.app.FragmentManager,
-                    fragment: androidx.fragment.app.Fragment,
-                ) {
-                    navigationPending = false
-                    val dark =
-                        fragment is com.ntq.training.momentbox.feature.camera.CameraFragment ||
-                            fragment is com.ntq.training.momentbox.feature.crop.CropFragment ||
-                            fragment is
-                                com.ntq.training.momentbox.feature.editor.PhotoEditorFragment
-                    binding.root.setBackgroundColor(
-                        if (dark) 0xFF0E0E12.toInt()
-                        else getColor(com.ntq.training.momentbox.R.color.surface)
-                    )
-                    androidx.core.view.WindowCompat.getInsetsController(window, binding.root)
-                        .apply {
-                            isAppearanceLightStatusBars = !dark
-                            isAppearanceLightNavigationBars = !dark
-                        }
+        supportFragmentManager.registerFragmentLifecycleCallbacks(object :
+            FragmentManager.FragmentLifecycleCallbacks() {
+            override fun onFragmentResumed(
+                manager: FragmentManager,
+                fragment: Fragment
+            ) {
+                navigationPending = false
+                val dark =
+                    fragment is CameraFragment || fragment is CropFragment || fragment is PhotoEditorFragment
+                binding.root.setBackgroundColor(if (dark) 0xFF0E0E12.toInt() else getColor(R.color.surface))
+                WindowCompat.getInsetsController(window, binding.root).apply {
+                    isAppearanceLightStatusBars = !dark; isAppearanceLightNavigationBars = !dark
                 }
-            },
-            false,
-        )
+                ViewCompat.requestApplyInsets(binding.root)
+            }
+        }, false)
         onBackPressedDispatcher.addCallback(
             this,
-            object : androidx.activity.OnBackPressedCallback(true) {
+            object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     if (
                         model.hasAddBackup &&
-                            supportFragmentManager.findFragmentById(binding.root.id) is
+                        supportFragmentManager.findFragmentById(binding.root.id) is
                                 GalleryFragment
                     ) {
                         model.cancelAdd()
                         supportFragmentManager.popBackStack(
                             "add-media",
-                            androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE,
+                            FragmentManager.POP_BACK_STACK_INCLUSIVE,
                         )
                     } else {
                         isEnabled = false
@@ -164,14 +172,14 @@ class CreateActivity : AppCompatActivity() {
         supportFragmentManager.setFragmentResultListener("create_camera", this) { _, _ ->
             if (navigationPending) return@setFragmentResultListener
             if (model.items.value.size >= model.maxItems) {
-                android.widget.Toast.makeText(
-                        this,
-                        getString(
-                            com.ntq.training.momentbox.R.string.m4_limit_remaining,
-                            model.maxItems,
-                        ),
-                        android.widget.Toast.LENGTH_SHORT,
-                    )
+                Toast.makeText(
+                    this,
+                    getString(
+                        R.string.m4_limit_remaining,
+                        model.maxItems,
+                    ),
+                    Toast.LENGTH_SHORT,
+                )
                     .show()
                 return@setFragmentResultListener
             }
@@ -180,7 +188,7 @@ class CreateActivity : AppCompatActivity() {
                 .beginTransaction()
                 .replace(
                     binding.root.id,
-                    com.ntq.training.momentbox.feature.camera.CameraFragment(),
+                    CameraFragment(),
                 )
                 .addToBackStack("camera")
                 .commit()
@@ -217,7 +225,7 @@ class CreateActivity : AppCompatActivity() {
                 .beginTransaction()
                 .replace(
                     binding.root.id,
-                    com.ntq.training.momentbox.feature.editor.PhotoEditorFragment().apply {
+                    PhotoEditorFragment().apply {
                         arguments = Bundle(result)
                     },
                 )
@@ -230,7 +238,7 @@ class CreateActivity : AppCompatActivity() {
             model.edited(id, uri)
             supportFragmentManager.popBackStack(
                 "crop",
-                androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE,
+                FragmentManager.POP_BACK_STACK_INCLUSIVE,
             )
             binding.root.post { nextPhoto() }
         }
@@ -242,8 +250,8 @@ class CreateActivity : AppCompatActivity() {
             supportFragmentManager
                 .beginTransaction()
                 .replace(
-                    com.ntq.training.momentbox.R.id.create_host,
-                    com.ntq.training.momentbox.feature.crop.CropFragment().apply {
+                    R.id.create_host,
+                    CropFragment().apply {
                         arguments =
                             Bundle().apply {
                                 putString("uri", item.uri)
@@ -264,15 +272,13 @@ class CreateActivity : AppCompatActivity() {
             model.completeAdd()
             supportFragmentManager.popBackStack(
                 "add-media",
-                androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE,
+                FragmentManager.POP_BACK_STACK_INCLUSIVE,
             )
         } else
             supportFragmentManager
                 .beginTransaction()
                 .replace(
-                    com.ntq.training.momentbox.R.id.create_host,
-                    com.ntq.training.momentbox.feature.compose.ComposeFragment(),
-                    "compose",
+                    R.id.create_host, ComposeFragment(), "compose",
                 )
                 .addToBackStack("compose")
                 .commit()

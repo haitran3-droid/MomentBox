@@ -23,6 +23,7 @@ import com.ntq.training.momentbox.feature.crop.Point
 import java.util.UUID
 import kotlin.math.atan2
 import kotlin.math.hypot
+import kotlin.math.roundToInt
 
 class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
     View(context, attrs) {
@@ -31,7 +32,7 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
 
         val STICKER_GROUPS =
             listOf(
-                listOf("😍", "🥰", "😎", "🌸", "🌿", "🎉", "⭐"),
+                listOf("😍", "🥰", "😎", "🌸", "☕", "🌿", "✈️", "📸", "🎉", "⭐", "🍜", "🌈"),
                 listOf("✈️", "📷", "🌈"),
                 listOf("☕", "🍜"),
                 listOf("LOVE", "HELLO", "WOW"),
@@ -75,6 +76,25 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
 
     private var handleGesture = false
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val selectionPath = Path()
+    private val selectionDash =
+        DashPathEffect(
+            floatArrayOf(
+                4 * resources.displayMetrics.density,
+                2.5f * resources.displayMetrics.density,
+            ),
+            0f,
+        )
+    private val deleteIcon =
+        androidx.core.content.ContextCompat.getDrawable(
+            context,
+            com.ntq.training.momentbox.R.drawable.ic_m4_editor_handle_close,
+        )!!
+    private val expandIcon =
+        androidx.core.content.ContextCompat.getDrawable(
+            context,
+            com.ntq.training.momentbox.R.drawable.ic_m4_editor_handle_expand,
+        )!!
     private var drop = false
     private var strokeInterrupted = false
 
@@ -313,24 +333,53 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
 
     private fun drawSelection(canvas: Canvas, l: EditorLayer) {
         val bounds = layerBounds(l)
+        val mapping = base() * layerMatrix(l)
+
+        val dp = resources.displayMetrics.density
+        val corners =
+            listOf(
+                    Point(bounds.left.toDouble(), bounds.top.toDouble()),
+                    Point(bounds.right.toDouble(), bounds.top.toDouble()),
+                    Point(bounds.right.toDouble(), bounds.bottom.toDouble()),
+                    Point(bounds.left.toDouble(), bounds.bottom.toDouble()),
+                )
+                .map(mapping::map)
+        // Renderer đang ở tọa độ ảnh. Bỏ base rồi vẽ controls bằng tọa độ View: vòng26dp,
+        // glyph16dp và nét1.5dp không đổi khi ảnh12MP/nhỏ hoặc layer được phóng to/thu nhỏ.
+        // Hit test phía dưới vẫn dùng bán kính24dp để giữ vùng chạm48dp cho người dùng.
         canvas.save()
-        canvas.concat(matrix(layerMatrix(l)))
+        canvas.concat(matrix(base().inverse()))
+        selectionPath.reset()
+        selectionPath.moveTo(corners[0].x.toFloat(), corners[0].y.toFloat())
+        corners.drop(1).forEach { selectionPath.lineTo(it.x.toFloat(), it.y.toFloat()) }
+        selectionPath.close()
         paint.color = Color.WHITE
         paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 2 / l.scale
-        paint.pathEffect = DashPathEffect(floatArrayOf(8f, 5f), 0f)
-        canvas.drawRect(bounds, paint)
+        paint.strokeWidth = 1.5f * dp
+        paint.pathEffect = selectionDash
+        canvas.drawPath(selectionPath, paint)
         paint.pathEffect = null
+        val remove = corners[0]
+
+        val resize = corners[2]
         paint.style = Paint.Style.FILL
         paint.color = 0xFFE5484D.toInt()
-        canvas.drawCircle(bounds.left, bounds.top, 20 / l.scale, paint)
+        canvas.drawCircle(remove.x.toFloat(), remove.y.toFloat(), 13 * dp, paint)
+        paint.style = Paint.Style.STROKE
         paint.color = Color.WHITE
-        canvas.drawCircle(bounds.right, bounds.bottom, 20 / l.scale, paint)
-        paint.textSize = 28 / l.scale
-        paint.textAlign = Paint.Align.CENTER
-        canvas.drawText("×", bounds.left, bounds.top + 9 / l.scale, paint)
-        paint.color = Color.BLACK
-        canvas.drawText("↗", bounds.right, bounds.bottom + 9 / l.scale, paint)
+        paint.strokeWidth = 2 * dp
+        canvas.drawCircle(remove.x.toFloat(), remove.y.toFloat(), 12 * dp, paint)
+        paint.style = Paint.Style.FILL
+        canvas.drawCircle(resize.x.toFloat(), resize.y.toFloat(), 13 * dp, paint)
+        for ((point, icon) in listOf(remove to deleteIcon, resize to expandIcon)) {
+            canvas.save()
+            canvas.translate(point.x.toFloat(), point.y.toFloat())
+            canvas.rotate(l.rotation)
+            val half = (8 * dp).roundToInt()
+            icon.setBounds(-half, -half, half, half)
+            icon.draw(canvas)
+            canvas.restore()
+        }
         canvas.restore()
     }
 

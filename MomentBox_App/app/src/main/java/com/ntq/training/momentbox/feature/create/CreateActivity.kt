@@ -44,13 +44,13 @@ class CreateMediaContract : ActivityResultContract<CreateInput, List<SelectedMed
         if (resultCode != Activity.RESULT_OK) emptyList()
         else
             runCatching {
-                Gson()
-                    .fromJson(
-                        intent?.getStringExtra("media") ?: "[]",
-                        Array<SelectedMedia>::class.java,
-                    )
-                    .toList()
-            }
+                    Gson()
+                        .fromJson(
+                            intent?.getStringExtra("media") ?: "[]",
+                            Array<SelectedMedia>::class.java,
+                        )
+                        .toList()
+                }
                 .getOrDefault(emptyList())
 }
 
@@ -69,13 +69,12 @@ class CreateActivity : AppCompatActivity() {
                 insets.getInsets(
                     WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime()
                 )
-            val camera =
-                supportFragmentManager.findFragmentById(binding.root.id) is CameraFragment
+            val camera = supportFragmentManager.findFragmentById(binding.root.id) is CameraFragment
             v.setPadding(
                 bars.left,
                 if (camera) 0 else bars.top,
                 bars.right,
-                if (camera) 0 else bars.bottom
+                if (camera) 0 else bars.bottom,
             )
             insets
         }
@@ -86,13 +85,13 @@ class CreateActivity : AppCompatActivity() {
         if (state == null) {
             model.seed(
                 runCatching {
-                    Gson()
-                        .fromJson(
-                            intent.getStringExtra("initial") ?: "[]",
-                            Array<SelectedMedia>::class.java,
-                        )
-                        .toList()
-                }
+                        Gson()
+                            .fromJson(
+                                intent.getStringExtra("initial") ?: "[]",
+                                Array<SelectedMedia>::class.java,
+                            )
+                            .toList()
+                    }
                     .getOrDefault(emptyList())
             )
             supportFragmentManager
@@ -109,29 +108,33 @@ class CreateActivity : AppCompatActivity() {
                 .commit()
         }
         // Màu vùng padding hệ thống theo màn đang hiển thị, không thay custom Splash của M1.
-        supportFragmentManager.registerFragmentLifecycleCallbacks(object :
-            FragmentManager.FragmentLifecycleCallbacks() {
-            override fun onFragmentResumed(
-                manager: FragmentManager,
-                fragment: Fragment
-            ) {
-                navigationPending = false
-                val dark =
-                    fragment is CameraFragment || fragment is CropFragment || fragment is PhotoEditorFragment
-                binding.root.setBackgroundColor(if (dark) 0xFF0E0E12.toInt() else getColor(R.color.surface))
-                WindowCompat.getInsetsController(window, binding.root).apply {
-                    isAppearanceLightStatusBars = !dark; isAppearanceLightNavigationBars = !dark
+        supportFragmentManager.registerFragmentLifecycleCallbacks(
+            object : FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentResumed(manager: FragmentManager, fragment: Fragment) {
+                    navigationPending = false
+                    val dark =
+                        fragment is CameraFragment ||
+                            fragment is CropFragment ||
+                            fragment is PhotoEditorFragment
+                    binding.root.setBackgroundColor(
+                        if (dark) 0xFF0E0E12.toInt() else getColor(R.color.surface)
+                    )
+                    WindowCompat.getInsetsController(window, binding.root).apply {
+                        isAppearanceLightStatusBars = !dark
+                        isAppearanceLightNavigationBars = !dark
+                    }
+                    ViewCompat.requestApplyInsets(binding.root)
                 }
-                ViewCompat.requestApplyInsets(binding.root)
-            }
-        }, false)
+            },
+            false,
+        )
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     if (
                         model.hasAddBackup &&
-                        supportFragmentManager.findFragmentById(binding.root.id) is
+                            supportFragmentManager.findFragmentById(binding.root.id) is
                                 GalleryFragment
                     ) {
                         model.cancelAdd()
@@ -173,23 +176,17 @@ class CreateActivity : AppCompatActivity() {
             if (navigationPending) return@setFragmentResultListener
             if (model.items.value.size >= model.maxItems) {
                 Toast.makeText(
-                    this,
-                    getString(
-                        R.string.m4_limit_remaining,
-                        model.maxItems,
-                    ),
-                    Toast.LENGTH_SHORT,
-                )
+                        this,
+                        getString(R.string.m4_limit_remaining, model.maxItems),
+                        Toast.LENGTH_SHORT,
+                    )
                     .show()
                 return@setFragmentResultListener
             }
             navigationPending = true
             supportFragmentManager
                 .beginTransaction()
-                .replace(
-                    binding.root.id,
-                    CameraFragment(),
-                )
+                .replace(binding.root.id, CameraFragment())
                 .addToBackStack("camera")
                 .commit()
         }
@@ -225,9 +222,7 @@ class CreateActivity : AppCompatActivity() {
                 .beginTransaction()
                 .replace(
                     binding.root.id,
-                    PhotoEditorFragment().apply {
-                        arguments = Bundle(result)
-                    },
+                    PhotoEditorFragment().apply { arguments = Bundle(result) },
                 )
                 .addToBackStack("editor")
                 .commit()
@@ -236,10 +231,7 @@ class CreateActivity : AppCompatActivity() {
             val id = result.getString("id") ?: return@setFragmentResultListener
             val uri = result.getString("uri") ?: return@setFragmentResultListener
             model.edited(id, uri)
-            supportFragmentManager.popBackStack(
-                "crop",
-                FragmentManager.POP_BACK_STACK_INCLUSIVE,
-            )
+            supportFragmentManager.popBackStack("crop", FragmentManager.POP_BACK_STACK_INCLUSIVE)
             binding.root.post { nextPhoto() }
         }
     }
@@ -277,9 +269,7 @@ class CreateActivity : AppCompatActivity() {
         } else
             supportFragmentManager
                 .beginTransaction()
-                .replace(
-                    R.id.create_host, ComposeFragment(), "compose",
-                )
+                .replace(R.id.create_host, ComposeFragment(), "compose")
                 .addToBackStack("compose")
                 .commit()
     }

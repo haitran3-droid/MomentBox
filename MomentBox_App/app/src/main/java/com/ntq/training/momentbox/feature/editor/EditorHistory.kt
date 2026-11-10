@@ -77,10 +77,44 @@ class EditorHistory(initial: EditorDocument) {
     fun snapshot() = HistorySnapshot(document, undone.toList(), redone.toList())
 
     companion object {
-        fun restore(snapshot: HistorySnapshot) =
-            EditorHistory(snapshot.document).apply {
-                undone.addAll(snapshot.undo.takeLast(30))
-                redone.addAll(snapshot.redo.takeLast(30))
+        /**
+         * JSON trên đĩa có thể hỏng, phải kiểm cả nhánh Undo/Redo trước khi đưa tọa độ vào Canvas.
+         */
+        private fun validate(document: EditorDocument) {
+            require(
+                document.filter in 0..5 &&
+                    document.brightness.isFinite() &&
+                    document.contrast.isFinite() &&
+                    document.saturation.isFinite()
+            )
+            require(document.layers.map { it.id }.distinct().size == document.layers.size)
+            document.layers.forEach { layer ->
+                require(layer.id.isNotBlank() && layer.kind in setOf("text", "sticker", "draw"))
+                require(
+                    layer.x.isFinite() &&
+                        layer.y.isFinite() &&
+                        layer.rotation.isFinite() &&
+                        layer.scale.isFinite() &&
+                        layer.scale in .3f..4f
+                )
+                require(layer.thickness.isFinite() && layer.thickness > 0)
+                require(layer.points.all { it.x.isFinite() && it.y.isFinite() })
             }
+        }
+
+        fun restore(snapshot: HistorySnapshot): EditorHistory {
+            validate(snapshot.document)
+            val undo = snapshot.undo.takeLast(30)
+
+            val redo = snapshot.redo.takeLast(30)
+            (undo + redo).forEach {
+                validate(it.before)
+                validate(it.after)
+            }
+            return EditorHistory(snapshot.document).apply {
+                undone.addAll(undo)
+                redone.addAll(redo)
+            }
+        }
     }
 }

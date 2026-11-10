@@ -25,21 +25,34 @@ class EditorViewModel(app: Application, saved: SavedStateHandle) : AndroidViewMo
 
     val history = _history.asStateFlow()
     val storageError = MutableStateFlow(false)
+    val restoreError = MutableStateFlow(false)
 
     init {
         viewModelScope.launch {
             val loaded =
                 withContext(Dispatchers.IO) {
-                    runCatching {
-                            file.openRead().use {
-                                Gson().fromJson(it.reader(), HistorySnapshot::class.java)
+                    if (!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists()) null
+                    else
+                        try {
+                            val snapshot =
+                                file.openRead().use {
+                                    Gson().fromJson(it.reader(), HistorySnapshot::class.java)
+                                }
+                            EditorHistory.restore(requireNotNull(snapshot))
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            // Giữ dữ liệu lỗi riêng trước khi thao tác mới ghi đè phiên, ảnh gốc
+                            // không bị sửa hay xóa.
+                            runCatching {
+                                val backup = File(file.baseFile.path + ".corrupt")
+                                if (!backup.exists()) file.baseFile.copyTo(backup)
                             }
+                            restoreError.value = true
+                            null
                         }
-                        .getOrNull()
                 }
-            _history.value =
-                loaded?.let { runCatching { EditorHistory.restore(it) }.getOrNull() }
-                    ?: EditorHistory(EditorDocument())
+            _history.value = loaded ?: EditorHistory(EditorDocument())
             for (snapshot in queue) withContext(Dispatchers.IO) {
                 var stream: java.io.FileOutputStream? = null
                 try {

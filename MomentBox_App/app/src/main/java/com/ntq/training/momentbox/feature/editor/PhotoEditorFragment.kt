@@ -72,6 +72,10 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                     }
                 },
             )
+        childFragmentManager.setFragmentResultListener("editor_discard", viewLifecycleOwner) { _, _
+            ->
+            parentFragmentManager.popBackStack()
+        }
         childFragmentManager.setFragmentResultListener("editor_text", viewLifecycleOwner) {
             _,
             result ->
@@ -96,38 +100,48 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
         val tools = listOf("sticker", "draw", "text", "filter", "adjust")
         val icons =
             intArrayOf(
-                R.drawable.ic_media_sticker,
-                R.drawable.ic_media_draw,
-                R.drawable.ic_media_text_fields,
-                R.drawable.ic_media_filter,
-                R.drawable.ic_media_tune,
+                R.drawable.ic_m4_editor_sticker,
+                R.drawable.ic_m4_editor_draw,
+                R.drawable.ic_m4_editor_text,
+                R.drawable.ic_m4_editor_filter,
+                R.drawable.ic_m4_editor_tune,
             )
         tools.forEachIndexed { i, tool ->
             b.editorTools.addView(
                 TextView(requireContext()).apply {
                     tag = tool
+                    setTag(R.id.editor_tools, icons[i])
                     text = getString(names[i])
                     setTextColor(Color.WHITE)
-                    textSize = 10f
+                    textSize = 11.5f
                     gravity = Gravity.CENTER
                     typeface =
                         androidx.core.content.res.ResourcesCompat.getFont(
                             requireContext(),
-                            R.font.be_vietnam_pro_medium,
+                            R.font.be_vietnam_pro_regular,
                         )
                     val dp = resources.displayMetrics.density
-                    setPadding(0, (8 * dp).toInt(), 0, (6 * dp).toInt())
+                    setPadding(0, (10 * dp).toInt(), 0, (6 * dp).toInt())
                     compoundDrawablePadding = (4 * dp).toInt()
-                    setCompoundDrawables(
-                        null,
-                        ContextCompat.getDrawable(context, icons[i])?.apply {
-                            setBounds(0, 0, (24 * dp).toInt(), (24 * dp).toInt())
-                        },
-                        null,
-                        null,
-                    )
+                    minimumHeight = (69 * dp).toInt()
+                    // Font130%/nhãn dài: đo chữ thật để chip rộng hơn và cuộn ngang, không ép
+                    // thành2dòng.
+                    setSingleLine(true)
+                    minimumWidth =
+                        maxOf(
+                            (64 * dp).toInt(),
+                            kotlin.math.ceil(paint.measureText(text.toString())).toInt() +
+                                (12 * dp).toInt(),
+                        )
+                    // Trong HorizontalScrollView cần chiều rộng nội dung thật, weight có thể làm
+                    // con
+                    // tràn khỏi chiều rộng cha nhưng range cuộn vẫn0, khiến tool cuối không tới
+                    // được.
                     layoutParams =
-                        LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+                        LinearLayout.LayoutParams(
+                                ViewGroup.LayoutParams.WRAP_CONTENT,
+                                ViewGroup.LayoutParams.WRAP_CONTENT,
+                            )
                             .apply { setMargins((4 * dp).toInt(), 0, (4 * dp).toInt(), 0) }
                     setOnClickListener { showTool(tool) }
                 }
@@ -163,6 +177,17 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                     model.storageError.collect {
                         if (it)
                             Snackbar.make(view, R.string.m4_draft_error, Snackbar.LENGTH_INDEFINITE)
+                                .show()
+                    }
+                }
+                launch {
+                    model.restoreError.collect {
+                        if (it)
+                            Snackbar.make(
+                                    view,
+                                    R.string.m4_editor_restore_error,
+                                    Snackbar.LENGTH_INDEFINITE,
+                                )
                                 .show()
                     }
                 }
@@ -203,18 +228,53 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
         val b = binding ?: return
         if (exporting) return
         activeTool = tool
+        // Pill44×32 chỉ bao icon, label có màu/weight riêng theo mockup, vẫn cuộn khi font lớn.
+        val density = resources.displayMetrics.density
         for (i in 0 until b.editorTools.childCount) {
-            val child = b.editorTools.getChildAt(i)
-            child.alpha = if (child.tag == tool) 1f else .6f
-            child.background =
+            val child = b.editorTools.getChildAt(i) as TextView
+
+            val selected = child.tag == tool
+            child.alpha = if (selected) 1f else .75f
+            child.setTextColor(if (selected) 0xFFC4BCFF.toInt() else Color.WHITE)
+            child.typeface =
+                androidx.core.content.res.ResourcesCompat.getFont(
+                    requireContext(),
+                    if (selected) R.font.be_vietnam_pro_bold else R.font.be_vietnam_pro_regular,
+                )
+            val pill =
                 android.graphics.drawable.GradientDrawable().apply {
-                    setColor(if (child.tag == tool) 0x1AFFFFFF else Color.TRANSPARENT)
-                    cornerRadius = 10 * resources.displayMetrics.density
+                    setColor(if (selected) 0x4D8B7CF6 else Color.TRANSPARENT)
+                    cornerRadius = 16 * density
                 }
+            val icon =
+                ContextCompat.getDrawable(
+                        requireContext(),
+                        child.getTag(R.id.editor_tools) as Int,
+                    )!!
+                    .mutate()
+            icon.setTint(if (selected) 0xFFC4BCFF.toInt() else Color.WHITE)
+            val compound =
+                android.graphics.drawable
+                    .LayerDrawable(
+                        arrayOf(
+                            pill,
+                            android.graphics.drawable.InsetDrawable(
+                                icon,
+                                (12 * density).toInt(),
+                                (6 * density).toInt(),
+                                (12 * density).toInt(),
+                                (6 * density).toInt(),
+                            ),
+                        )
+                    )
+                    .apply { setBounds(0, 0, (44 * density).toInt(), (32 * density).toInt()) }
+            child.setCompoundDrawables(null, compound, null, null)
         }
         b.editorCanvas.tool = tool
         b.editorTray.isVisible = tool != "adjust"
         b.editorAdjustments.isVisible = tool == "adjust"
+        (b.editorCategories.parent as View).isVisible = tool == "sticker"
+        b.editorTray.columnCount = if (tool == "filter") 3 else 6
         b.editorTray.removeAllViews()
         b.editorCategories.removeAllViews()
         val dp = resources.displayMetrics.density
@@ -222,13 +282,21 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
             TextView(requireContext()).apply {
                 text = label
                 setTextColor(Color.WHITE)
-                textSize = if (tool == "sticker") 28f else 13f
+                textSize = if (tool == "sticker") 30f else 13f
                 gravity = Gravity.CENTER
+                val rowHeight =
+                    maxOf(
+                        (if (tool == "filter") 52 * dp else 42 * dp).toInt(),
+                        kotlin.math
+                            .ceil(paint.fontMetrics.bottom - paint.fontMetrics.top.toDouble())
+                            .toInt(),
+                    )
                 layoutParams =
                     GridLayout.LayoutParams().apply {
                         width = 0
-                        height = (64 * dp).toInt()
+                        height = rowHeight
                         columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                        setMargins((4 * dp).toInt(), 0, (4 * dp).toInt(), (8 * dp).toInt())
                     }
                 setOnClickListener { action() }
             }
@@ -239,10 +307,13 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                     b.editorTray.removeAllViews()
                     for (i in 0 until b.editorCategories.childCount) {
                         val label = b.editorCategories.getChildAt(i) as TextView
-                        label.setTextColor(
-                            if (i == index) 0xFF9B8AFF.toInt() else 0xFF9A9AAA.toInt()
-                        )
+                        label.setTextColor(if (i == index) 0xFF111111.toInt() else Color.WHITE)
                         label.isSelected = i == index
+                        label.background =
+                            android.graphics.drawable.GradientDrawable().apply {
+                                setColor(if (i == index) Color.WHITE else 0x24FFFFFF)
+                                cornerRadius = 13 * dp
+                            }
                     }
                     StickerCanvasView.STICKER_GROUPS[index].forEach { sticker ->
                         b.editorTray.addView(
@@ -274,15 +345,16 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                             typeface =
                                 androidx.core.content.res.ResourcesCompat.getFont(
                                     context,
-                                    R.font.be_vietnam_pro_semibold,
+                                    R.font.be_vietnam_pro_medium,
                                 )
-                            setPadding((14 * dp).toInt(), 0, (14 * dp).toInt(), 0)
+                            setPadding((9 * dp).toInt(), 0, (9 * dp).toInt(), 0)
                             gravity = Gravity.CENTER
                             layoutParams =
                                 LinearLayout.LayoutParams(
-                                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                )
+                                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                    )
+                                    .apply { marginEnd = (8 * dp).toInt() }
                             setOnClickListener { renderCategory(index) }
                         }
                     )
@@ -344,15 +416,13 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
     private fun close() {
         if (exporting) return
         val dirty = binding?.editorCanvas?.history?.undoCount?.let { it > 0 } == true
-        if (dirty)
-            MaterialAlertDialogBuilder(requireContext())
-                .setMessage(R.string.m4_discard_edits)
-                .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.m4_discard) { _, _ ->
-                    parentFragmentManager.popBackStack()
-                }
-                .show()
-        else parentFragmentManager.popBackStack()
+        if (dirty) {
+            if (
+                !childFragmentManager.isStateSaved &&
+                    childFragmentManager.findFragmentByTag("editor-discard") == null
+            )
+                EditorDiscardDialog().show(childFragmentManager, "editor-discard")
+        } else parentFragmentManager.popBackStack()
     }
 
     private fun save() {

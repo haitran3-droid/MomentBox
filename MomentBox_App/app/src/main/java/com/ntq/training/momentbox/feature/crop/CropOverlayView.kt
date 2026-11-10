@@ -39,8 +39,6 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val matrix = Matrix()
-
-    private val path = Path()
     private var down = Point(0.0, 0.0)
 
     private var activePointer = -1
@@ -85,8 +83,8 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
             val scale = minOf(width.toDouble() / oldWidth, height.toDouble() / oldHeight)
             val mapping =
                 Affine.translation(width / 2.0, height / 2.0) *
-                    Affine.scale(scale, scale) *
-                    Affine.translation(-oldWidth / 2.0, -oldHeight / 2.0)
+                        Affine.scale(scale, scale) *
+                        Affine.translation(-oldWidth / 2.0, -oldHeight / 2.0)
             val a = old.getDoubleArray("matrix")!!
             transform = mapping * Affine(a[0], a[1], a[2], a[3], a[4], a[5])
             val c = old.getDoubleArray("crop")!!
@@ -108,8 +106,8 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
                 .toDouble()
         transform =
             Affine.translation(width / 2.0, height / 2.0) *
-                Affine.scale(s, s) *
-                Affine.translation(-bitmap.width / 2.0, -bitmap.height / 2.0)
+                    Affine.scale(s, s) *
+                    Affine.translation(-bitmap.width / 2.0, -bitmap.height / 2.0)
         crop =
             CropRect(
                 (width - bitmap.width * s) / 2,
@@ -125,8 +123,8 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
             val scale = minOf(w.toDouble() / oldw, h.toDouble() / oldh)
             val mapping =
                 Affine.translation(w / 2.0, h / 2.0) *
-                    Affine.scale(scale, scale) *
-                    Affine.translation(-oldw / 2.0, -oldh / 2.0)
+                        Affine.scale(scale, scale) *
+                        Affine.translation(-oldw / 2.0, -oldh / 2.0)
             transform = mapping * transform
 
             val p = mapping.map(Point(crop.left, crop.top))
@@ -183,9 +181,9 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
         if (busy) return
         transform =
             Affine.translation(crop.cx, crop.cy) *
-                Affine.rotation(90.0) *
-                Affine.translation(-crop.cx, -crop.cy) *
-                transform
+                    Affine.rotation(90.0) *
+                    Affine.translation(-crop.cx, -crop.cy) *
+                    transform
         cover()
     }
 
@@ -193,9 +191,9 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
         if (busy) return
         transform =
             Affine.translation(crop.cx, crop.cy) *
-                Affine.scale(-1.0, 1.0) *
-                Affine.translation(-crop.cx, -crop.cy) *
-                transform
+                    Affine.scale(-1.0, 1.0) *
+                    Affine.translation(-crop.cx, -crop.cy) *
+                    transform
         cover()
     }
 
@@ -203,9 +201,9 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
         if (busy) return
         transform =
             Affine.translation(crop.cx, crop.cy) *
-                Affine.rotation(value - angle) *
-                Affine.translation(-crop.cx, -crop.cy) *
-                transform
+                    Affine.rotation(value - angle) *
+                    Affine.translation(-crop.cx, -crop.cy) *
+                    transform
         angle = value
         cover()
     }
@@ -262,64 +260,62 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
     fun export(): Bitmap = exportSnapshot().invoke()
 
     override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        image?.let {
-            paint.color = Color.WHITE
-            paint.style = Paint.Style.FILL
-            canvas.drawBitmap(it, androidMatrix(), paint)
-        }
-        path.reset()
-        path.fillType = Path.FillType.EVEN_ODD
-        path.addRect(0f, 0f, width.toFloat(), height.toFloat(), Path.Direction.CW)
-        path.addRect(
-            crop.left.toFloat(),
-            crop.top.toFloat(),
-            crop.right.toFloat(),
-            crop.bottom.toFloat(),
-            Path.Direction.CW,
+        super.onDraw(canvas); image?.let {
+            paint.color = Color.WHITE; paint.style = Paint.Style.FILL; canvas.drawBitmap(
+            it,
+            androidMatrix(),
+            paint
         )
-        paint.color = 0x99000000.toInt()
-        canvas.drawPath(path, paint)
-        paint.color = Color.WHITE
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = density
+        }
+        paint.color = 0x99000000.toInt(); paint.style = Paint.Style.FILL
+        val l = crop.left.toFloat();
+        val t = crop.top.toFloat();
+        val r = crop.right.toFloat();
+        val b = crop.bottom.toFloat()
+        canvas.drawRect(0f, 0f, width.toFloat(), t, paint); canvas.drawRect(
+            0f,
+            b,
+            width.toFloat(),
+            height.toFloat(),
+            paint
+        )
+        canvas.drawRect(0f, t, l, b, paint); canvas.drawRect(r, t, width.toFloat(), b, paint)
+        paint.color = Color.WHITE; paint.style = Paint.Style.STROKE; paint.strokeWidth = density
         canvas.drawRect(
             crop.left.toFloat(),
             crop.top.toFloat(),
             crop.right.toFloat(),
             crop.bottom.toFloat(),
-            paint,
+            paint
         )
         if (dragging) {
-            paint.alpha = 100
-            for (i in 1..2) {
-                val x = (crop.left + crop.width * i / 3).toFloat()
-
-                val y = (crop.top + crop.height * i / 3).toFloat()
-                canvas.drawLine(x, crop.top.toFloat(), x, crop.bottom.toFloat(), paint)
-                canvas.drawLine(crop.left.toFloat(), y, crop.right.toFloat(), y, paint)
-            }
-            paint.alpha = 255
+            paint.alpha = 100; for (i in 1..2) {
+                val x = (crop.left + crop.width * i / 3).toFloat();
+                val y = (crop.top + crop.height * i / 3).toFloat(); canvas.drawLine(
+                    x,
+                    crop.top.toFloat(),
+                    x,
+                    crop.bottom.toFloat(),
+                    paint
+                ); canvas.drawLine(crop.left.toFloat(), y, crop.right.toFloat(), y, paint)
+            }; paint.alpha = 255
         }
         paint.strokeWidth = 4 * density
         crop.corners().forEach { p ->
-            val sx = if (p.x == crop.left) 1 else -1
-
-            val sy = if (p.y == crop.top) 1 else -1
-            canvas.drawLine(
-                p.x.toFloat(),
-                p.y.toFloat(),
-                (p.x + sx * 22 * density).toFloat(),
-                p.y.toFloat(),
-                paint,
-            )
-            canvas.drawLine(
-                p.x.toFloat(),
-                p.y.toFloat(),
-                p.x.toFloat(),
-                (p.y + sy * 22 * density).toFloat(),
-                paint,
-            )
+            val sx = if (p.x == crop.left) 1 else -1;
+            val sy = if (p.y == crop.top) 1 else -1; canvas.drawLine(
+            p.x.toFloat(),
+            p.y.toFloat(),
+            (p.x + sx * 22 * density).toFloat(),
+            p.y.toFloat(),
+            paint
+        ); canvas.drawLine(
+            p.x.toFloat(),
+            p.y.toFloat(),
+            p.x.toFloat(),
+            (p.y + sy * 22 * density).toFloat(),
+            paint
+        )
         }
         paint.style = Paint.Style.FILL
     }
@@ -332,9 +328,9 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
                     val scale = d.scaleFactor.coerceIn(.8f, 1.2f).toDouble()
                     transform =
                         Affine.translation(d.focusX.toDouble(), d.focusY.toDouble()) *
-                            Affine.scale(scale, scale) *
-                            Affine.translation(-d.focusX.toDouble(), -d.focusY.toDouble()) *
-                            transform
+                                Affine.scale(scale, scale) *
+                                Affine.translation(-d.focusX.toDouble(), -d.focusY.toDouble()) *
+                                transform
                     cover()
                     return true
                 }
@@ -386,12 +382,12 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
                     } else {
                         val min =
                             minOf(
-                                    48.0 * density,
-                                    crop.width,
-                                    crop.height,
-                                    width.toDouble(),
-                                    height.toDouble(),
-                                )
+                                48.0 * density,
+                                crop.width,
+                                crop.height,
+                                width.toDouble(),
+                                height.toDouble(),
+                            )
                                 .coerceAtLeast(1.0)
 
                         var l = crop.left

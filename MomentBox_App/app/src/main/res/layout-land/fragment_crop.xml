@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?><!-- Màn ngang: canvas giữ diện tích; panel cuộn để font lớn vẫn tiếp cận mọi công cụ. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#0E0E12"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/crop_close"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/m4_close"
+            android:src="@drawable/ic_media_close" />
+
+        <TextView
+            style="@style/JournalTextSemibold"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="@string/m4_crop_title"
+            android:textColor="#FFFFFF"
+            android:textSize="19sp" />
+
+        <ImageButton
+            android:id="@+id/crop_done"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/bg_media_primary_circle_inset"
+            android:contentDescription="@string/m4_done"
+            android:padding="12dp"
+            android:src="@drawable/ic_media_check" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <com.ntq.training.momentbox.feature.crop.CropOverlayView
+            android:id="@+id/crop_canvas"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <ScrollView
+            android:layout_width="176dp"
+            android:layout_height="match_parent"
+            android:fillViewport="false">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/crop_ratios"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp" />
+                </HorizontalScrollView>
+
+                <TextView
+                    android:id="@+id/crop_degrees"
+                    style="@style/Media.CameraControl"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:text="0°"
+                    android:textColor="#FFD54F" />
+
+                <com.ntq.training.momentbox.feature.crop.AngleRulerView
+                    android:id="@+id/crop_ruler"
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/crop_rotate"
+                        style="@style/Media.CameraControl"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:drawableTop="@drawable/ic_media_rotate_90_degrees_ccw"
+                        android:drawablePadding="6dp"
+                        android:minHeight="64dp"
+                        android:text="@string/m4_rotate" />
+
+                    <TextView
+                        android:id="@+id/crop_flip"
+                        style="@style/Media.CameraControl"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:drawableTop="@drawable/ic_media_flip"
+                        android:drawablePadding="6dp"
+                        android:minHeight="64dp"
+                        android:text="@string/m4_flip" />
+
+                    <TextView
+                        android:id="@+id/crop_reset"
+                        style="@style/Media.CameraControl"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:drawableTop="@drawable/ic_media_restart_alt"
+                        android:drawablePadding="6dp"
+                        android:minHeight="64dp"
+                        android:text="@string/m4_reset" />
+                </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</LinearLayout>

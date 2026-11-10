@@ -1,0 +1,24 @@
+<resources>
+    <string-array name="m4_colors">
+        <item>Trắng</item>
+        <item>Đen</item>
+        <item>Hồng</item>
+        <item>Vàng</item>
+        <item>Tím</item>
+        <item>Xanh</item>
+    </string-array>
+    <string-array name="m4_sticker_categories">
+        <item>Cảm xúc</item>
+        <item>Du lịch</item>
+        <item>Đồ ăn</item>
+        <item>Chữ nghệ thuật</item>
+    </string-array>
+    <string-array name="m4_filter_names">
+        <item>Gốc</item>
+        <item>Ấm</item>
+        <item>Lạnh</item>
+        <item>Đen trắng</item>
+        <item>Cổ điển</item>
+        <item>Âm bản</item>
+    </string-array>
+</resources>

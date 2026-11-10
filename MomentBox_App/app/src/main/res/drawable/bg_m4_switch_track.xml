@@ -1,0 +1,4 @@
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+ <item android:state_checked="true"><shape><size android:width="44dp" android:height="26dp"/><solid android:color="#5B4BDB"/><corners android:radius="13dp"/><padding android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp"/></shape></item>
+ <item><shape><size android:width="44dp" android:height="26dp"/><solid android:color="#D5D5E0"/><corners android:radius="13dp"/><padding android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp"/></shape></item>
+</selector>

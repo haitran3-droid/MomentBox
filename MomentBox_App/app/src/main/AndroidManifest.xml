@@ -2,7 +2,31 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- S10: xin theo API lúc người dùng mở thư viện, không xin quyền quản lý toàn bộ bộ nhớ. -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <!-- S11: camera/micro chỉ xin khi người dùng chụp hoặc quay có tiếng. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Quyền truy cập mạng internet để gọi REST API (DummyJSON / MB Server) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Quyền kiểm tra trạng thái kết nối mạng (Wi-Fi, 4G/5G, có kết nối internet hay không) -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
@@ -84,6 +108,23 @@
         <activity
             android:name=".feature.journal.stats.JournalStatsActivity"
             android:exported="false" />
+        <activity
+            android:name=".feature.recorder.RecorderActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".feature.create.CreateActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <provider
+            android:name=".core.media.CreateMediaFileProvider"
+            android:authorities="${applicationId}.media"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/create_media_paths" />
+        </provider>
     </application>
 
 </manifest>

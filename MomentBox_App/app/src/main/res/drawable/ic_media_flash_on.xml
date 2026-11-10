@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <!-- Glyph Material Symbols Rounded từ font mockup. -->
+    <group
+        android:scaleY="-1"
+        android:translateY="960">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M480 336 608 520Q608 520 608.0 520.0Q608 520 608 520H494L574 800Q574 800 574.0 800.0Q574 800 574 800H360Q360 800 360.0 800.0Q360 800 360 800V480Q360 480 360.0 480.0Q360 480 360 480H480ZM695 506 455 159Q449 150 439.5 147.0Q430 144 421.0 147.0Q412 150 406.0 157.5Q400 165 400 176V400H360Q327 400 303.5 423.5Q280 447 280 480V800Q280 833 303.5 856.5Q327 880 360 880H594Q626 880 645.5 855.0Q665 830 657 800L600 600H645Q681 600 698.5 568.0Q716 536 695 506ZM480 480H360Q360 480 360.0 480.0Q360 480 360 480Q360 480 360.0 480.0Q360 480 360 480H480Q480 480 480.0 480.0Q480 480 480 480Q480 480 480.0 480.0Q480 480 480 480Z" />
+    </group>
+</vector>

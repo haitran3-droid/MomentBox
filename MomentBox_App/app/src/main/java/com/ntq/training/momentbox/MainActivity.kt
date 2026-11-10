@@ -13,21 +13,34 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.network.SessionManager
+import com.ntq.training.momentbox.databinding.ActivityMainBinding
 import com.ntq.training.momentbox.feature.auth.AuthActivity
+import com.ntq.training.momentbox.feature.create.CreateActivity
 import com.ntq.training.momentbox.feature.feed.FeedFragment
+import com.ntq.training.momentbox.feature.recorder.RecordAudioContract
 import com.ntq.training.momentbox.feature.tabs.ChatFragment
 import com.ntq.training.momentbox.feature.tabs.JournalFragment
 import com.ntq.training.momentbox.feature.tabs.ProfileFragment
-import com.ntq.training.momentbox.R
-import com.ntq.training.momentbox.databinding.ActivityMainBinding
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
-
+    private val recordPost =
+        registerForActivityResult(RecordAudioContract()) { audio ->
+            audio?.let {
+                startActivity(
+                    Intent(this, CreateActivity::class.java)
+                        .putExtra("start", "text")
+                        .putExtra("voice", com.google.gson.Gson().toJson(it))
+                )
+            }
+        }
     private lateinit var binding: ActivityMainBinding
-    private val app get() = application as MomentBoxApp
+    private val app
+        get() = application as MomentBoxApp
 
     private lateinit var feedFragment: FeedFragment
     private lateinit var journalFragment: JournalFragment
@@ -47,9 +60,10 @@ class MainActivity : AppCompatActivity() {
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
             binding.bottomNav.setPadding(0, 0, 0, systemBars.bottom)
-            binding.bottomNav.layoutParams = binding.bottomNav.layoutParams.apply {
-                height = navContentHeight + systemBars.bottom
-            }
+            binding.bottomNav.layoutParams =
+                binding.bottomNav.layoutParams.apply {
+                    height = navContentHeight + systemBars.bottom
+                }
             insets
         }
 
@@ -61,13 +75,14 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         // Lưu lại tag của tab đang hiển thị để khôi phục chính xác sau khi xoay màn hình (F02)
-        val activeTag = when (activeFragment) {
-            feedFragment -> TAG_FEED
-            journalFragment -> TAG_JOURNAL
-            chatFragment -> TAG_CHAT
-            profileFragment -> TAG_PROFILE
-            else -> TAG_FEED
-        }
+        val activeTag =
+            when (activeFragment) {
+                feedFragment -> TAG_FEED
+                journalFragment -> TAG_JOURNAL
+                chatFragment -> TAG_CHAT
+                profileFragment -> TAG_PROFILE
+                else -> TAG_FEED
+            }
         outState.putString(KEY_ACTIVE_TAB_TAG, activeTag)
     }
 
@@ -81,25 +96,31 @@ class MainActivity : AppCompatActivity() {
 
             fm.beginTransaction()
                 .add(R.id.fragment_container, feedFragment, TAG_FEED)
-                .add(R.id.fragment_container, journalFragment, TAG_JOURNAL).hide(journalFragment)
-                .add(R.id.fragment_container, chatFragment, TAG_CHAT).hide(chatFragment)
-                .add(R.id.fragment_container, profileFragment, TAG_PROFILE).hide(profileFragment)
+                .add(R.id.fragment_container, journalFragment, TAG_JOURNAL)
+                .hide(journalFragment)
+                .add(R.id.fragment_container, chatFragment, TAG_CHAT)
+                .hide(chatFragment)
+                .add(R.id.fragment_container, profileFragment, TAG_PROFILE)
+                .hide(profileFragment)
                 .commit()
             activeFragment = feedFragment
         } else {
             // Khôi phục đúng các instance đã được FragmentManager tái tạo
             feedFragment = fm.findFragmentByTag(TAG_FEED) as? FeedFragment ?: FeedFragment()
-            journalFragment = fm.findFragmentByTag(TAG_JOURNAL) as? JournalFragment ?: JournalFragment()
+            journalFragment =
+                fm.findFragmentByTag(TAG_JOURNAL) as? JournalFragment ?: JournalFragment()
             chatFragment = fm.findFragmentByTag(TAG_CHAT) as? ChatFragment ?: ChatFragment()
-            profileFragment = fm.findFragmentByTag(TAG_PROFILE) as? ProfileFragment ?: ProfileFragment()
+            profileFragment =
+                fm.findFragmentByTag(TAG_PROFILE) as? ProfileFragment ?: ProfileFragment()
 
             val activeTag = savedInstanceState.getString(KEY_ACTIVE_TAB_TAG, TAG_FEED)
-            activeFragment = when (activeTag) {
-                TAG_JOURNAL -> journalFragment
-                TAG_CHAT -> chatFragment
-                TAG_PROFILE -> profileFragment
-                else -> feedFragment
-            }
+            activeFragment =
+                when (activeTag) {
+                    TAG_JOURNAL -> journalFragment
+                    TAG_CHAT -> chatFragment
+                    TAG_PROFILE -> profileFragment
+                    else -> feedFragment
+                }
         }
     }
 
@@ -112,23 +133,40 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.tabJournal.setOnClickListener {
-            switchTab(journalFragment)
-        }
+        binding.tabJournal.setOnClickListener { switchTab(journalFragment) }
 
-        binding.tabChat.setOnClickListener {
-            switchTab(chatFragment)
-        }
+        binding.tabChat.setOnClickListener { switchTab(chatFragment) }
 
-        binding.tabProfile.setOnClickListener {
-            switchTab(profileFragment)
-        }
+        binding.tabProfile.setOnClickListener { switchTab(profileFragment) }
 
         // Nút Tạo mới ở chính giữa (D02 - Milestone M4 contract)
         binding.tabCreate.setOnClickListener {
-            Toast.makeText(this, getString(R.string.create_post_coming_soon), Toast.LENGTH_SHORT).show()
+            feedFragment.pauseAllMedia()
+            MaterialAlertDialogBuilder(this)
+                .setItems(
+                    arrayOf(
+                        getString(R.string.m4_select),
+                        getString(R.string.m4_camera),
+                        getString(R.string.m4_record_title),
+                        getString(R.string.m4_text),
+                    )
+                ) { _, which ->
+                    if (which == 2) recordPost.launch(Unit)
+                    else
+                        startActivity(
+                            Intent(this, CreateActivity::class.java)
+                                .putExtra(
+                                    "start",
+                                    when (which) {
+                                        1 -> "camera"
+                                        3 -> "text"
+                                        else -> "gallery"
+                                    },
+                                )
+                        )
+                }
+                .show()
         }
-
         updateTabUi()
     }
 
@@ -145,10 +183,7 @@ class MainActivity : AppCompatActivity() {
             feedFragment.pauseAllMedia()
         }
 
-        supportFragmentManager.beginTransaction()
-            .hide(activeFragment)
-            .show(targetFragment)
-            .commit()
+        supportFragmentManager.beginTransaction().hide(activeFragment).show(targetFragment).commit()
 
         activeFragment = targetFragment
         updateTabUi()
@@ -175,7 +210,9 @@ class MainActivity : AppCompatActivity() {
 
         // Tab Journal
         val isJournal = activeFragment == journalFragment
-        binding.pillJournal.setBackgroundResource(if (isJournal) R.drawable.bg_voice_container else 0)
+        binding.pillJournal.setBackgroundResource(
+            if (isJournal) R.drawable.bg_voice_container else 0
+        )
         binding.ivTabJournal.setColorFilter(if (isJournal) primaryColor else secondaryColor)
         binding.tvTabJournal.setTextColor(if (isJournal) primaryColor else secondaryColor)
         binding.tvTabJournal.setTypeface(null, if (isJournal) Typeface.BOLD else Typeface.NORMAL)
@@ -189,7 +226,9 @@ class MainActivity : AppCompatActivity() {
 
         // Tab Profile
         val isProfile = activeFragment == profileFragment
-        binding.pillProfile.setBackgroundResource(if (isProfile) R.drawable.bg_voice_container else 0)
+        binding.pillProfile.setBackgroundResource(
+            if (isProfile) R.drawable.bg_voice_container else 0
+        )
         binding.ivTabProfile.setColorFilter(if (isProfile) primaryColor else secondaryColor)
         binding.tvTabProfile.setTextColor(if (isProfile) primaryColor else secondaryColor)
         binding.tvTabProfile.setTypeface(null, if (isProfile) Typeface.BOLD else Typeface.NORMAL)
@@ -220,9 +259,10 @@ class MainActivity : AppCompatActivity() {
         if (routingToAuth) return
         routingToAuth = true
         Toast.makeText(this@MainActivity, R.string.main_session_expired, Toast.LENGTH_SHORT).show()
-        val intent = Intent(this, AuthActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
+        val intent =
+            Intent(this, AuthActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
         startActivity(intent)
         finish()
     }

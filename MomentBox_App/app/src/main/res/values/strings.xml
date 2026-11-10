@@ -264,4 +264,6 @@
     <string name="editor_ambient_volume">Âm lượng âm thanh nền</string>
     <string name="journal_insight_weekend_styled">Bạn thường <b>vui hơn vào cuối tuần</b> (+^1%) và viết nhiều nhất vào <b>^2</b>.</string>
     <string name="journal_insight_habit_styled">Bạn duy trì thói quen viết tốt nhất vào <b>^1</b> với ^2 bài viết.</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

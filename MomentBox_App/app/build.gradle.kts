@@ -1,7 +1,19 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.application)
     id("com.google.devtools.ksp")
 }
+
+val momentBoxDebugBaseUrl = providers.gradleProperty("momentboxBaseUrl")
+    .orElse("http://10.0.2.2:3000/").map { value ->
+        URI(value).also { uri ->
+            require(uri.scheme in listOf("http", "https") && uri.host != null &&
+                    uri.userInfo == null && uri.query == null && uri.fragment == null && uri.path.endsWith("/")) {
+                "momentboxBaseUrl must be an HTTP(S) base URL ending in / without credentials, query or fragment"
+            }
+        }.toASCIIString()
+    }.get()
 
 android {
     namespace = "com.ntq.training.momentbox"
@@ -28,7 +40,7 @@ android {
 
     buildTypes {
         debug{
-            buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:3000/\"")
+            buildConfigField("String", "BASE_URL", "\"$momentBoxDebugBaseUrl\"")
             buildConfigField("String", "DUMMY_JSON_URL", "\"https://dummyjson.com/\"")
         }
         release {
@@ -81,6 +93,14 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
+
+    // S11/S12: CameraX + EXIF
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.camera.video)
+    implementation(libs.androidx.exifinterface)
 
     // M2: Bảng tin, media, realtime và lưu trữ cục bộ
     implementation(libs.androidx.swiperefreshlayout)

@@ -1,0 +1,24 @@
+<resources>
+    <string-array name="m4_colors">
+        <item>白</item>
+        <item>黒</item>
+        <item>ピンク</item>
+        <item>黄</item>
+        <item>紫</item>
+        <item>緑</item>
+    </string-array>
+    <string-array name="m4_sticker_categories">
+        <item>感情</item>
+        <item>旅行</item>
+        <item>食事</item>
+        <item>文字</item>
+    </string-array>
+    <string-array name="m4_filter_names">
+        <item>元画像</item>
+        <item>暖色</item>
+        <item>寒色</item>
+        <item>白黒</item>
+        <item>レトロ</item>
+        <item>ネガ</item>
+    </string-array>
+</resources>

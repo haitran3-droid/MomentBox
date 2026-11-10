@@ -7,7 +7,7 @@
     <string name="m4_photos">写真</string>
     <string name="m4_videos">動画</string>
     <string name="m4_favorites">お気に入り</string>
-    <string name="m4_partial">選択した写真と動画のみアクセスできます。 管理</string>
+    <string name="m4_partial"><b>選択した</b>写真と動画へのアクセスのみ許可されています。</string>
     <string name="m4_grant">アクセスを許可</string>
     <string name="m4_take_photo">写真を撮る</string>
     <string name="m4_empty">アクセスできる写真や動画がありません。</string>
@@ -94,4 +94,21 @@
     <string name="m4_limit_remaining">今回は最大%1$d件を選択できます。</string>
     <string name="m4_reorder_hint">長押ししてドラッグすると並べ替えられます</string>
     <string name="m4_audio_busy">音声が使用中です。録音を一時停止してから再試行してください。</string>
+    <string name="m4_editor_restore_error">前回の編集を復元できません。元の画像は保持されています。</string>
+    <string name="m4_record_interrupted">前回の録音は中断されました。未完了のファイルは保持されています。新しい録音を開始してください。</string>
+    <string name="m4_record_format">AAC · 128 kbps · 44.1 kHz</string>
+    <string name="m4_camera_settings">カメラ設定</string>
+    <string name="m4_camera_photo_mode">写真</string>
+    <string name="m4_camera_video_mode">動画</string>
+    <string name="m4_portrait">ポートレート</string>
+    <string name="m4_portrait_unavailable">ポートレート：追加機能はまだ対応していません</string>
+    <string name="m4_camera_flash_option">フラッシュ：%1$s</string>
+    <string name="m4_camera_timer_option">タイマー：%1$s</string>
+    <string name="m4_camera_ratio_option">比率：%1$s</string>
+    <string name="m4_camera_timer_off_short">0s</string>
+    <string name="m4_flash_on">フラッシュオン</string>
+    <string name="m4_flash_off">フラッシュオフ</string>
+    <string name="m4_manage">管理</string>
+    <string name="m4_tag_friends">友達をタグ付け</string>
+    <string name="m4_tag_friends_unavailable">友達のタグ付け：オプション機能は未対応です</string>
 </resources>

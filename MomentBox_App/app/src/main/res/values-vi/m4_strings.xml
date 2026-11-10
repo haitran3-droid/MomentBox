@@ -7,7 +7,7 @@
     <string name="m4_photos">Ảnh</string>
     <string name="m4_videos">Video</string>
     <string name="m4_favorites">Yêu thích</string>
-    <string name="m4_partial">Bạn chỉ cho phép truy cập một số ảnh và video.  Quản lý</string>
+    <string name="m4_partial">Bạn chỉ cho phép truy cập <b>một số</b> ảnh và video.</string>
     <string name="m4_grant">Cho phép truy cập</string>
     <string name="m4_take_photo">Chụp ảnh</string>
     <string name="m4_empty">Chưa có ảnh hoặc video trong phạm vi quyền hiện tại.</string>
@@ -94,4 +94,21 @@
     <string name="m4_limit_remaining">Lượt này có thể chọn tối đa %1$d mục.</string>
     <string name="m4_reorder_hint">Giữ và kéo để sắp xếp thứ tự</string>
     <string name="m4_audio_busy">Âm thanh đang bận. Hãy thử lại sau khi bản ghi đã tạm dừng.</string>
+    <string name="m4_editor_restore_error">Không thể khôi phục phiên chỉnh sửa trước. Ảnh gốc vẫn được giữ.</string>
+    <string name="m4_record_interrupted">Phiên ghi trước bị gián đoạn. File chưa hoàn tất được giữ lại; hãy bắt đầu bản ghi mới.</string>
+    <string name="m4_record_format">AAC · 128 kbps · 44,1 kHz</string>
+    <string name="m4_camera_settings">Cài đặt máy ảnh</string>
+    <string name="m4_camera_photo_mode">ẢNH</string>
+    <string name="m4_camera_video_mode">VIDEO</string>
+    <string name="m4_portrait">CHÂN DUNG</string>
+    <string name="m4_portrait_unavailable">Chân dung: tính năng bổ sung chưa được hỗ trợ</string>
+    <string name="m4_camera_flash_option">Đèn flash: %1$s</string>
+    <string name="m4_camera_timer_option">Hẹn giờ: %1$s</string>
+    <string name="m4_camera_ratio_option">Tỉ lệ: %1$s</string>
+    <string name="m4_camera_timer_off_short">0s</string>
+    <string name="m4_flash_on">Bật đèn flash</string>
+    <string name="m4_flash_off">Tắt đèn flash</string>
+    <string name="m4_manage">Quản lý</string>
+    <string name="m4_tag_friends">Gắn thẻ bạn bè</string>
+    <string name="m4_tag_friends_unavailable">Gắn thẻ bạn bè: tính năng tùy chọn chưa khả dụng</string>
 </resources>

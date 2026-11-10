@@ -1,9 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="120dp"
-    android:layout_margin="1dp">
+    android:layout_height="120dp">
 
     <ImageView
         android:id="@+id/thumbnail"
@@ -65,6 +64,8 @@
         android:layout_gravity="bottom|start"
         android:layout_margin="6dp"
         android:background="@drawable/bg_media_duration"
+        android:drawableStart="@drawable/ic_m4_play"
+        android:drawablePadding="2dp"
         android:fontFamily="@font/be_vietnam_pro_semibold"
         android:paddingStart="7dp"
         android:paddingTop="2dp"

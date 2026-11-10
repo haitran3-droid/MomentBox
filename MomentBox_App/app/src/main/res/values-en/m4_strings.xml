@@ -7,7 +7,7 @@
     <string name="m4_photos">Photos</string>
     <string name="m4_videos">Video</string>
     <string name="m4_favorites">Favorites</string>
-    <string name="m4_partial">You allowed access to selected photos and videos.  Manage</string>
+    <string name="m4_partial">You allowed access to <b>selected</b> photos and videos.</string>
     <string name="m4_grant">Allow access</string>
     <string name="m4_take_photo">Take photo</string>
     <string name="m4_empty">No photos or videos available with current access.</string>
@@ -94,4 +94,21 @@
     <string name="m4_limit_remaining">You can select up to %1$d items in this flow.</string>
     <string name="m4_reorder_hint">Hold and drag to reorder</string>
     <string name="m4_audio_busy">Audio is busy. Try again after recording pauses.</string>
+    <string name="m4_editor_restore_error">Unable to restore the previous edit. The original image is preserved.</string>
+    <string name="m4_record_interrupted">The previous recording was interrupted. The unfinished file is preserved; start a new recording.</string>
+    <string name="m4_record_format">AAC · 128 kbps · 44.1 kHz</string>
+    <string name="m4_camera_settings">Camera settings</string>
+    <string name="m4_camera_photo_mode">PHOTO</string>
+    <string name="m4_camera_video_mode">VIDEO</string>
+    <string name="m4_portrait">PORTRAIT</string>
+    <string name="m4_portrait_unavailable">Portrait: optional feature is not supported yet</string>
+    <string name="m4_camera_flash_option">Flash: %1$s</string>
+    <string name="m4_camera_timer_option">Timer: %1$s</string>
+    <string name="m4_camera_ratio_option">Ratio: %1$s</string>
+    <string name="m4_camera_timer_off_short">0s</string>
+    <string name="m4_flash_on">Flash on</string>
+    <string name="m4_flash_off">Flash off</string>
+    <string name="m4_manage">Manage</string>
+    <string name="m4_tag_friends">Tag friends</string>
+    <string name="m4_tag_friends_unavailable">Friend tagging: optional feature unavailable</string>
 </resources>

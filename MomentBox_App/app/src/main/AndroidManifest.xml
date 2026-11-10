@@ -108,6 +108,10 @@
         <activity
             android:name=".feature.journal.stats.JournalStatsActivity"
             android:exported="false" />
+        <activity
+            android:name=".feature.recorder.RecorderActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>

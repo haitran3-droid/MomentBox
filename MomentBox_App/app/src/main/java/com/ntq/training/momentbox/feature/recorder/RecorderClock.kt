@@ -45,4 +45,5 @@ data class RecordingSnapshot(
     val uri: String? = null,
     val error: Boolean = false,
     val input: String? = null,
+    val interrupted: Boolean = false,
 )

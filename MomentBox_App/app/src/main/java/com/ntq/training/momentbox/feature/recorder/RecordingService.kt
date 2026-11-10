@@ -38,6 +38,7 @@ import kotlin.math.ln
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -51,25 +52,61 @@ import kotlinx.coroutines.withContext
 class RecordingService : Service() {
     companion object {
         private val mutable = MutableStateFlow(RecordingSnapshot())
-
         val state = mutable.asStateFlow()
         private const val INTERRUPT = "record.interrupt"
-
         const val START = "record.start"
-
         const val TOGGLE = "record.toggle"
-
         const val SAVE = "record.save"
-
         const val CANCEL = "record.cancel"
         private const val CHANNEL = "momentbox.recording"
-
         private const val NOTICE = 14001
 
         fun intent(context: Context, action: String, session: String) =
             Intent(context, RecordingService::class.java)
                 .setAction(action)
                 .putExtra("session", session)
+
+        /** Chạy trên Main, chỉ đọc marker bằng IO, không khởi động lại mic sau process death. */
+        suspend fun restoreInterrupted(context: Context): RecordingSnapshot? {
+            if (
+                mutable.value.phase in
+                    listOf(
+                        RecordPhase.PREPARING,
+                        RecordPhase.RECORDING,
+                        RecordPhase.PAUSED,
+                        RecordPhase.STOPPING,
+                        RecordPhase.SAVED,
+                    )
+            )
+                return null
+            val pending =
+                try {
+                    RecordingRecoveryStore(context).read()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    RecordingRecoveryStore.Pending(UUID.randomUUID().toString(), "")
+                }
+            if (
+                pending == null ||
+                    mutable.value.phase in
+                        listOf(
+                            RecordPhase.PREPARING,
+                            RecordPhase.RECORDING,
+                            RecordPhase.PAUSED,
+                            RecordPhase.STOPPING,
+                            RecordPhase.SAVED,
+                        )
+            )
+                return null
+            return RecordingSnapshot(
+                    pending.session,
+                    RecordPhase.ERROR,
+                    error = true,
+                    interrupted = true,
+                )
+                .also { mutable.value = it }
+        }
     }
 
     inner class LocalBinder : Binder() {
@@ -82,19 +119,14 @@ class RecordingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val commands = Channel<Pair<String, String>>(Channel.UNLIMITED)
     private var recorder: MediaRecorder? = null
-
     private var file: File? = null
     private var ticker: Job? = null
-
     private val clock = RecorderClock()
-
     private val samples = ArrayList<Int>()
     private val owner = Any()
-
     private val shared by lazy { AndroidPlaybackAudio.get(this) }
     private val manager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
     private var focusRequest: AudioFocusRequest? = null
-
     private var legacyFocus: AudioManager.OnAudioFocusChangeListener? = null
     private var focusGeneration = 0L
     private val routes =
@@ -253,14 +285,11 @@ class RecordingService : Service() {
         val output =
             File(
                 folder,
-                "rec_${
-                SimpleDateFormat(
-                    "yyyyMMdd_HHmmss",
-                    Locale.ROOT,
-                ).format(Date())
-            }_${UUID.randomUUID()}.pending.m4a",
+                "rec_${SimpleDateFormat("yyyyMMdd_HHmmss",Locale.ROOT).format(Date())}_${UUID.randomUUID()}.pending.m4a",
             )
         file = output
+        // Ghi marker trước khi mở mic. onDestroy không được bảo đảm chạy khi OS giết tiến trình.
+        RecordingRecoveryStore(this).begin(session, output.name)
         tick?.play()
         delay(120)
         val rec =
@@ -291,7 +320,6 @@ class RecordingService : Service() {
                 var ticks = 0
                 while (isActive) {
                     delay(50)
-
                     val now = SystemClock.elapsedRealtime()
                     if (mutable.value.phase == RecordPhase.RECORDING) {
                         val raw =
@@ -360,7 +388,8 @@ class RecordingService : Service() {
             releaseFocus()
             wake?.takeIf { it.isHeld }?.release()
             if (cancel) {
-                output?.delete()
+                withContext(Dispatchers.IO) { output?.delete() }
+                RecordingRecoveryStore(this).clear()
                 mutable.value = RecordingSnapshot(mutable.value.session)
             } else {
                 check(output != null && output.length() > 0)
@@ -379,6 +408,7 @@ class RecordingService : Service() {
                 check(duration > 0)
                 val final = File(output.parentFile, output.name.replace(".pending.m4a", ".m4a"))
                 check(output.renameTo(final))
+                RecordingRecoveryStore(this).clear()
                 mutable.value =
                     mutable.value.copy(
                         phase = RecordPhase.SAVED,
@@ -397,11 +427,14 @@ class RecordingService : Service() {
         }
     }
 
-    private fun fail() {
+    private suspend fun fail() {
         ticker?.cancel()
         runCatching { recorder?.release() }
         recorder = null
-        file?.delete()
+        withContext(NonCancellable) {
+            withContext(Dispatchers.IO) { file?.delete() }
+            runCatching { RecordingRecoveryStore(this@RecordingService).clear() }
+        }
         file = null
         releaseFocus()
         wake?.takeIf { it.isHeld }?.release()

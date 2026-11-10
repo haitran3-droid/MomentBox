@@ -17,7 +17,7 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/m4_close"
-            android:src="@drawable/ic_journal_chevron_left" />
+            android:src="@drawable/ic_arrow_back" />
 
         <TextView
             style="@style/JournalTextSemibold"
@@ -34,7 +34,7 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/m4_recent_records"
-            android:src="@drawable/ic_journal_notes" />
+            android:src="@drawable/ic_m4_record_list" />
     </LinearLayout>
 
     <ScrollView
@@ -62,9 +62,16 @@
                     style="@style/JournalTextMedium"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/bg_media_white_pill"
-                    android:padding="6dp"
-                    android:text="AAC · 128 kbps · 44.1 kHz"
+                    android:background="@drawable/bg_m4_record_chip"
+                    android:drawableStart="@drawable/ic_m4_format_wave"
+                    android:drawablePadding="6dp"
+                    android:gravity="center_vertical"
+                    android:minHeight="26dp"
+                    android:paddingStart="9dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="9dp"
+                    android:paddingBottom="3dp"
+                    android:text="@string/m4_record_format"
                     android:textColor="@color/text_primary"
                     android:textSize="12sp" />
 
@@ -75,10 +82,17 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_media_white_pill"
+                    android:background="@drawable/bg_m4_record_chip"
+                    android:drawableStart="@drawable/ic_m4_headset_mic"
+                    android:drawablePadding="6dp"
                     android:ellipsize="end"
+                    android:gravity="center_vertical"
                     android:maxLines="1"
-                    android:padding="8dp"
+                    android:minHeight="26dp"
+                    android:paddingStart="9dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="9dp"
+                    android:paddingBottom="3dp"
                     android:textColor="@color/text_primary"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -104,7 +118,7 @@
                 android:minHeight="80dp"
                 android:text="00:00.0"
                 android:textColor="@color/text_primary"
-                android:textSize="56sp" />
+                android:textSize="54sp" />
 
             <com.ntq.training.momentbox.feature.recorder.RecordingWaveformView
                 android:id="@+id/record_waveform"
@@ -118,8 +132,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_media_white_pill"
+                android:drawableStart="@drawable/ic_m4_record_background"
+                android:drawablePadding="6dp"
                 android:gravity="center"
-                android:padding="10dp"
+                android:padding="7dp"
                 android:text="@string/m4_record_background"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
@@ -136,6 +152,7 @@
                     android:layout_height="56dp"
                     android:background="@drawable/bg_media_white_circle"
                     android:contentDescription="@string/m4_discard"
+                    android:elevation="2dp"
                     android:padding="16dp"
                     android:src="@drawable/ic_media_delete" />
 
@@ -143,8 +160,8 @@
                     android:id="@+id/record_button"
                     android:layout_width="92dp"
                     android:layout_height="92dp"
-                    android:layout_marginStart="32dp"
-                    android:layout_marginEnd="32dp"
+                    android:layout_marginStart="24dp"
+                    android:layout_marginEnd="24dp"
                     android:contentDescription="@string/m4_record_title" />
 
                 <ImageButton
@@ -153,6 +170,7 @@
                     android:layout_height="56dp"
                     android:background="@drawable/bg_media_primary_circle"
                     android:contentDescription="@string/m4_done"
+                    android:elevation="6dp"
                     android:padding="16dp"
                     android:src="@drawable/ic_media_check" />
             </LinearLayout>
@@ -185,8 +203,9 @@
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="48dp"
+                        android:layout_height="wrap_content"
                         android:gravity="center_vertical"
+                        android:minHeight="40dp"
                         android:orientation="horizontal">
 
                         <TextView
@@ -225,7 +244,7 @@
                             android:id="@+id/record_recent_play"
                             android:layout_width="48dp"
                             android:layout_height="48dp"
-                            android:background="@drawable/bg_media_privacy"
+                            android:background="@drawable/bg_m4_recent_play"
                             android:contentDescription="@string/journal_audio_play"
                             android:padding="14dp"
                             android:src="@drawable/ic_media_play"

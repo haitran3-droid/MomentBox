@@ -75,6 +75,7 @@ class RecorderActivity : AppCompatActivity() {
     private var player: MediaPlayer? = null
 
     private val owner = Any()
+    private var recoveryLoading = true
     private val shared by lazy { AndroidPlaybackAudio.get(this) }
     private val connection =
         object : ServiceConnection {
@@ -117,6 +118,7 @@ class RecorderActivity : AppCompatActivity() {
         }
         binding.recordBack.setOnClickListener { finish() }
         binding.recordButton.setOnClickListener {
+            if (recoveryLoading) return@setOnClickListener
             when (RecordingService.state.value.takeIf { it.session == session }?.phase) {
                 RecordPhase.RECORDING,
                 RecordPhase.PAUSED -> binder?.command(RecordingService.TOGGLE, session)
@@ -160,6 +162,15 @@ class RecorderActivity : AppCompatActivity() {
                 }
             }
         }
+        lifecycleScope.launch {
+            val recovered = RecordingService.restoreInterrupted(applicationContext)
+            if (recovered != null) session = recovered.session
+            recoveryLoading = false
+            render(
+                RecordingService.state.value.takeIf { it.session == session }
+                    ?: RecordingSnapshot(session)
+            )
+        }
     }
 
     private fun startRecording() {
@@ -179,12 +190,15 @@ class RecorderActivity : AppCompatActivity() {
             when (s.phase) {
                 RecordPhase.RECORDING -> R.string.m4_recording
                 RecordPhase.PAUSED -> R.string.m4_paused
-                RecordPhase.ERROR -> R.string.m4_record_error
+                RecordPhase.ERROR ->
+                    if (s.interrupted) R.string.m4_record_interrupted else R.string.m4_record_error
                 RecordPhase.PREPARING,
                 RecordPhase.STOPPING -> R.string.m4_loading
                 else -> R.string.m4_record_ready
             }
         )
+        binding.recordButton.isEnabled =
+            !recoveryLoading && s.phase !in listOf(RecordPhase.PREPARING, RecordPhase.STOPPING)
         val text =
             java.lang.String.format(
                 java.util.Locale.ROOT,

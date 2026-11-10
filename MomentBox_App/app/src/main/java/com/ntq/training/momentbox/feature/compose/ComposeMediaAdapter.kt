@@ -35,7 +35,13 @@ class ComposeMediaAdapter(
                 layoutParams = FrameLayout.LayoutParams((84 * dp).toInt(), (112 * dp).toInt())
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 shapeAppearanceModel =
-                    shapeAppearanceModel.toBuilder().setAllCornerSizes(14 * dp).build()
+                    shapeAppearanceModel
+                        .toBuilder()
+                        .setAllCorners(
+                            com.google.android.material.shape.CornerFamily.ROUNDED,
+                            14 * dp,
+                        )
+                        .build()
             }
         val number =
             TextView(parent.context).apply {
@@ -68,9 +74,9 @@ class ComposeMediaAdapter(
                     context.getString(com.ntq.training.momentbox.R.string.m4_discard)
                 setPadding(
                     (17 * dp).toInt(),
+                    (10 * dp).toInt(),
                     (17 * dp).toInt(),
-                    (17 * dp).toInt(),
-                    (17 * dp).toInt(),
+                    (24 * dp).toInt(),
                 )
                 imageTintList =
                     android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
@@ -80,16 +86,22 @@ class ComposeMediaAdapter(
                             (48 * dp).toInt(),
                             Gravity.TOP or Gravity.END,
                         )
-                        .apply { marginEnd = (1 * dp).toInt() }
+                        .apply { marginEnd = dp.toInt() }
                 background =
                     android.graphics.drawable.InsetDrawable(
                         android.graphics.drawable.GradientDrawable().apply {
                             shape = android.graphics.drawable.GradientDrawable.OVAL
-                            setColor(0x88000000.toInt())
+                            setColor(0x8C000000.toInt())
                         },
                         (13 * dp).toInt(),
+                        (6 * dp).toInt(),
+                        (13 * dp).toInt(),
+                        (20 * dp).toInt(),
                     )
             }
+        // InsetDrawable có padding riêng. Đặt padding icon sau background để dấu X giữ14dp
+        // ở tâm vòng22dp theo mockup, còn toàn nút vẫn nhận thao tác trong48dp.
+        close.setPadding((17 * dp).toInt(), (10 * dp).toInt(), (17 * dp).toInt(), (24 * dp).toInt())
         frame.addView(image)
         frame.addView(number)
         frame.addView(close)
@@ -99,11 +111,22 @@ class ComposeMediaAdapter(
             close.visibility = View.GONE
             frame.layoutParams = RecyclerView.LayoutParams((60 * dp).toInt(), (112 * dp).toInt())
             frame.background =
-                android.graphics.drawable.GradientDrawable().apply {
-                    setColor(android.graphics.Color.WHITE)
-                    cornerRadius = 14 * dp
-                    setStroke(dp.toInt().coerceAtLeast(1), 0xFFC6C3D8.toInt(), 3 * dp, 2 * dp)
-                }
+                android.graphics.drawable.InsetDrawable(
+                    android.graphics.drawable.GradientDrawable().apply {
+                        setColor(android.graphics.Color.WHITE)
+                        cornerRadius = 14 * dp
+                        setStroke(
+                            (1.5f * dp).toInt().coerceAtLeast(1),
+                            0xFFC6C6D4.toInt(),
+                            3 * dp,
+                            2 * dp,
+                        )
+                    },
+                    0,
+                    0,
+                    (8 * dp).toInt(),
+                    0,
+                )
             frame.addView(
                 TextView(parent.context).apply {
                     text = context.getString(com.ntq.training.momentbox.R.string.m4_add)
@@ -117,15 +140,15 @@ class ComposeMediaAdapter(
                     setTextColor(0xFF9A9AAA.toInt())
                     setCompoundDrawablesWithIntrinsicBounds(
                         0,
-                        com.ntq.training.momentbox.R.drawable.ic_journal_add,
+                        com.ntq.training.momentbox.R.drawable.ic_m4_add,
                         0,
                         0,
                     )
                     layoutParams =
                         FrameLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            (52 * dp).toInt(),
                             ViewGroup.LayoutParams.WRAP_CONTENT,
-                            Gravity.CENTER,
+                            Gravity.CENTER_VERTICAL,
                         )
                 }
             )

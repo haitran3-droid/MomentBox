@@ -1,0 +1,2 @@
+<!-- Inset giữ nút trắng20dp tròn trong track cao26dp; không kéo thành ellipse. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android" android:insetTop="3dp" android:insetBottom="3dp"><shape android:shape="oval"><size android:width="20dp" android:height="20dp"/><solid android:color="#FFFFFF"/></shape></inset>

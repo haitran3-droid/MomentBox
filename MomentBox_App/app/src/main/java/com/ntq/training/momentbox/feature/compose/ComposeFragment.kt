@@ -102,12 +102,22 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                         actionState: Int,
                     ) {
                         super.onSelectedChanged(holder, actionState)
-                        holder?.itemView?.elevation = 8 * resources.displayMetrics.density
+                        holder?.itemView?.apply {
+                            elevation = 8 * resources.displayMetrics.density
+                            rotation = -5f
+                            scaleX = 1.05f
+                            scaleY = 1.05f
+                        }
                     }
 
                     override fun clearView(rv: RecyclerView, holder: RecyclerView.ViewHolder) {
                         super.clearView(rv, holder)
-                        holder.itemView.elevation = 0f
+                        holder.itemView.apply {
+                            elevation = 0f
+                            rotation = 0f
+                            scaleX = 1f
+                            scaleY = 1f
+                        }
                         adapter.notifyDataSetChanged()
                     }
                 }
@@ -129,7 +139,8 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                 if (!rendering) model.update { it.copy(caption = editable.toString()) }
             }
         }
-        requireActivity().intent.getStringExtra("voice")?.let { json ->
+        val launchIntent = requireActivity().intent
+        launchIntent.getStringExtra("voice")?.let { json ->
             runCatching {
                     com.google.gson
                         .Gson()
@@ -139,7 +150,11 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                         )
                 }
                 .getOrNull()
-                ?.let(model::audio)
+                ?.let { audio ->
+                    // Xóa extra sau khi import bền vững, giữ lại nếu lỗi để lần mở lại còn có thể
+                    // thử nhận kết quả.
+                    model.incomingAudio(audio) { launchIntent.removeExtra("voice") }
+                }
         }
         b.composePost.setOnClickListener {
             if (model.upload.state.value.phase in listOf(UploadPhase.FAILED, UploadPhase.CANCELLED))
@@ -179,6 +194,19 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
         }
         b.composePrivacy.setOnClickListener { option("privacy") }
         b.composeLocation.setOnClickListener { option("location", model.draft.value.location) }
+        b.composeLocationRow.setOnClickListener { option("location", model.draft.value.location) }
+        // Label hủy gọn theo mockup nhưng mở rộng vùng chạm48dp trong thẻ cha.
+        b.composeCancelUpload.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (b.composeCancelUpload.width > 0) {
+                val hit = android.graphics.Rect()
+                b.composeCancelUpload.getHitRect(hit)
+
+                val extra = (10 * resources.displayMetrics.density).toInt()
+                hit.inset(0, -extra)
+                b.composeUploadBox.touchDelegate =
+                    android.view.TouchDelegate(hit, b.composeCancelUpload)
+            }
+        }
         b.composeComments.setOnCheckedChangeListener { _, checked ->
             if (!rendering) model.update { it.copy(allowComments = checked) }
         }
@@ -281,9 +309,8 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                                 else -> R.string.m4_public
                             }
                         )
-                        b.composeLocation.text =
-                            if (draft.location.isBlank()) getString(R.string.m4_location)
-                            else getString(R.string.m4_location) + " · " + draft.location
+                        b.composeLocation.setText(R.string.m4_location)
+                        b.composeLocationValue.text = draft.location
                         b.composeComments.isChecked = draft.allowComments
                         b.composeJournal.isChecked = draft.saveToJournal
                         b.composeJournal.isEnabled = !draft.hasVideo && !model.upload.postingBlocked
@@ -336,6 +363,17 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                         b.composeProgress.isIndeterminate = s.phase == UploadPhase.PREPARING
                         b.composeProgress.progress =
                             if (s.total > 0) (s.bytes * 100 / s.total).toInt() else 0
+                        b.composeUploadPercent.text =
+                            if (
+                                s.phase in
+                                    listOf(
+                                        UploadPhase.PREPARING,
+                                        UploadPhase.UPLOADING,
+                                        UploadPhase.AWAITING_SERVER,
+                                    )
+                            )
+                                "${b.composeProgress.progress}%"
+                            else ""
                         b.composeUploadText.text =
                             when (s.phase) {
                                 UploadPhase.SUCCEEDED -> getString(R.string.m4_posted)

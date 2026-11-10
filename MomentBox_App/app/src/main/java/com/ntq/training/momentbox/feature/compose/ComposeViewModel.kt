@@ -3,6 +3,7 @@ package com.ntq.training.momentbox.feature.compose
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.feature.create.SelectedMedia
@@ -29,7 +30,8 @@ import kotlinx.coroutines.withContext
 /**
  * VM giữ bản nháp, mutex tuần tự hóa copy/persist/discard để file chỉ xóa sau khi JSON đã commit.
  */
-class ComposeViewModel(app: Application) : AndroidViewModel(app) {
+class ComposeViewModel(app: Application, private val saved: SavedStateHandle) :
+    AndroidViewModel(app) {
     private val application = app as MomentBoxApp
     private val mutable = MutableStateFlow(ComposeDraft())
 
@@ -224,24 +226,59 @@ class ComposeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             ready.first { it }
             restoring.first { !it }
-            mutex.withLock {
-                if (mutable.value.voice?.session == audio.session) return@withLock
-                var staged: File? = null
-                try {
-                    val path = owned(audio.uri, "m4a")
-                    staged = File(Uri.parse(path).path!!).canonicalFile
+            mutex.withLock { importAudioLocked(audio) }
+        }
+    }
 
-                    val next = mutable.value.copy(voice = audio.copy(uri = path))
-                    persistNow(next)
-                    mutable.value = next
-                } catch (e: CancellationException) {
-                    staged?.takeIf { it !in ownedFiles(persisted) }?.delete()
-                    throw e
-                } catch (_: Exception) {
-                    staged?.takeIf { it !in ownedFiles(persisted) }?.delete()
-                    error.value = true
+    /**
+     * Ghi âm từ nút (+) là một kết quả cần nhận đúng một lần, không phải giá trị mặc định của form.
+     * Chỉ ghi dấu đã nhận sau khi bản sao riêng và DataStore đã lưu thành công. SavedStateHandle
+     * giữ dấu này qua tạo lại Activity: người dùng xóa voice thì xoay màn hình không được tự thêm
+     * lại. Nếu khôi phục tiến trình thấy bản sao đã lưu cùng session, xác nhận nhận xong mà không
+     * copy lại.
+     */
+    fun incomingAudio(audio: RecordedAudio, consumed: () -> Unit) {
+        val key = "consumedIncomingVoice"
+        if (saved.get<String>(key) == audio.session) {
+            consumed()
+            return
+        }
+        if (upload.postingBlocked) return
+        viewModelScope.launch {
+            ready.first { it }
+            if (mutable.value.voice?.session == audio.session) {
+                saved[key] = audio.session
+                consumed()
+                return@launch
+            }
+            restoring.first { !it }
+            mutex.withLock {
+                if (saved.get<String>(key) == audio.session || importAudioLocked(audio)) {
+                    saved[key] = audio.session
+                    consumed()
                 }
             }
+        }
+    }
+
+    /** Caller phải giữ mutex, lỗi copy không được đánh dấu đã nhận hay xóa bản gốc của Recorder. */
+    private suspend fun importAudioLocked(audio: RecordedAudio): Boolean {
+        if (mutable.value.voice?.session == audio.session) return true
+        var staged: File? = null
+        return try {
+            val path = owned(audio.uri, "m4a")
+            staged = File(Uri.parse(path).path!!).canonicalFile
+            val next = mutable.value.copy(voice = audio.copy(uri = path))
+            persistNow(next)
+            mutable.value = next
+            true
+        } catch (e: CancellationException) {
+            staged?.takeIf { it !in ownedFiles(persisted) }?.delete()
+            throw e
+        } catch (_: Exception) {
+            staged?.takeIf { it !in ownedFiles(persisted) }?.delete()
+            error.value = true
+            false
         }
     }
 

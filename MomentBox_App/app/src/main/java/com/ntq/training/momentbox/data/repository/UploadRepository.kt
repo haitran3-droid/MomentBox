@@ -27,6 +27,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,8 +72,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private val mutable = MutableStateFlow(UploadState())
 
     val state = mutable.asStateFlow()
-    private var job: Job? = null
-
+    @Volatile private var job: Job? = null
     private var snapshot: ComposeDraft? = null
 
     private var generation = 0L
@@ -82,6 +83,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private var journalEntryId = 0L
     private var receipt: com.ntq.training.momentbox.data.local.prefs.PendingJournalReceipt? = null
     private var loadingReceipt: Job? = null
+    private var recoveryEpoch = 0L
     private val subscription =
         app.tokenStore.addSnapshotListener { token ->
             if (busy && token.generation != generation) cancel()
@@ -118,29 +120,43 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     }
 
     private suspend fun restoreReceipt() {
+        val epoch = ++recoveryEpoch
         try {
-            val user = app.authRepository.getSavedUser() ?: return
+            val expectedGeneration = app.tokenStore.snapshot().generation
             val backend = app.settingsDataStore.getDataSource()
-            val saved = app.postDraftStore.loadReceipt(backend, user.id)
-            if (saved != null) {
-                receipt = saved
-                snapshot = saved.draft
-                journalEntryId = saved.entryId
-                source = backend
-                generation = app.tokenStore.snapshot().generation
-                mutable.value = UploadState(UploadPhase.JOURNAL_FAILED, post = saved.post)
-            } else if (
-                state.value.phase == UploadPhase.JOURNAL_FAILED &&
-                    state.value.post?.author?.id != user.id
-            ) {
-                receipt = null
-                snapshot = null
-                mutable.value = UploadState()
+            val user = app.authRepository.getSavedUser()
+            val saved = user?.let { app.postDraftStore.loadReceipt(backend, it.id) }
+            // Đọc đĩa có suspend: một lượt khôi phục cũ không được ghi đè chủ/backend mới.
+            if (
+                epoch != recoveryEpoch ||
+                    app.settingsDataStore.getDataSource() != backend ||
+                    app.authRepository.getSavedUser()?.id != user?.id
+            )
+                return
+            app.tokenStore.runIfGenerationMatches(expectedGeneration) {
+                if (epoch == recoveryEpoch) {
+                    if (saved != null) {
+                        receipt = saved
+                        snapshot = saved.draft
+                        journalEntryId = saved.entryId
+                        source = backend
+                        generation = expectedGeneration
+                        mutable.value = UploadState(UploadPhase.JOURNAL_FAILED, post = saved.post)
+                    } else if (state.value.phase == UploadPhase.JOURNAL_FAILED) {
+                        // Chỉ bỏ trạng thái RAM của form. Receipt trên đĩa vẫn thuộc chủ cũ và còn
+                        // phục hồi được.
+                        receipt = null
+                        snapshot = null
+                        journalEntryId = 0L
+                        mutable.value = UploadState()
+                    }
+                }
             }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
-            mutable.value = UploadState(UploadPhase.FAILED, uncertain = true)
+            if (epoch == recoveryEpoch)
+                mutable.value = UploadState(UploadPhase.FAILED, uncertain = true)
         }
     }
 
@@ -165,6 +181,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
         if (!input.canPost) return
         snapshot = input
         uploadId = java.util.UUID.randomUUID().toString()
+        lastNotice = -1000L
         journalEntryId =
             (java.util.UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE).coerceAtLeast(1L)
         job =
@@ -227,6 +244,20 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     val progress = UploadProgress(all.map { it.first.length() })
 
                     val uploadJob = currentCoroutineContext()[Job]!!
+                    // OkHttp ghi body trên worker. Chỉ Main được công bố state/notification,
+                    // callback muộn bị bỏ.
+                    val updates = Channel<UploadState>(Channel.CONFLATED)
+                    val progressJob = launch {
+                        for (update in updates) if (
+                            uploadJob.isActive &&
+                                state.value.phase in
+                                    listOf(UploadPhase.UPLOADING, UploadPhase.AWAITING_SERVER)
+                        ) {
+                            mutable.value = update
+                            notifyProgress()
+                        }
+                    }
+
                     fun part(i: Int, name: String): MultipartBody.Part {
                         val (file, mime) = all[i]
                         return MultipartBody.Part.createFormData(
@@ -237,18 +268,20 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                                 mime.toMediaType(),
                                 { !uploadJob.isActive },
                             ) { bytes ->
-                                progress.sent(i, bytes)
-                                mutable.value =
-                                    UploadState(
-                                        if (progress.bytes == progress.total)
-                                            UploadPhase.AWAITING_SERVER
-                                        else UploadPhase.UPLOADING,
-                                        progress.bytes,
-                                        progress.total,
-                                        i + 1,
-                                        all.size,
+                                if (uploadJob.isActive) {
+                                    progress.sent(i, bytes)
+                                    updates.trySend(
+                                        UploadState(
+                                            if (progress.bytes == progress.total)
+                                                UploadPhase.AWAITING_SERVER
+                                            else UploadPhase.UPLOADING,
+                                            progress.bytes,
+                                            progress.total,
+                                            i + 1,
+                                            all.size,
+                                        )
                                     )
-                                notifyProgress()
+                                }
                             },
                         )
                     }
@@ -272,8 +305,17 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                             total = progress.total,
                             fileCount = all.size,
                         )
+                    // Bài TEXT không có callback byte, nhưng vẫn phải có thông báo hủy khi chờ
+                    // server.
+                    notifyProgress()
                     sentRequest = true
-                    val result = app.feedRepository.createPost(fields, parts, voicePart)
+                    val result =
+                        try {
+                            app.feedRepository.createPost(fields, parts, voicePart)
+                        } finally {
+                            updates.close()
+                            progressJob.cancelAndJoin()
+                        }
                     val post = result.getOrThrow()
                     accepted = post
                     // Sau ACK lưu biên nhận trước side effect Room, cancellation không được biến
@@ -464,6 +506,12 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
 
     @Synchronized
     private fun notifyProgress() {
+        if (
+            Build.VERSION.SDK_INT >= 33 &&
+                app.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+        )
+            return
         val now = android.os.SystemClock.elapsedRealtime()
         if (now - lastNotice < 1000) return
         lastNotice = now
@@ -503,6 +551,12 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     }
 
     private fun notifySuccess(id: Long) {
+        if (
+            Build.VERSION.SDK_INT >= 33 &&
+                app.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+        )
+            return
         val manager = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val content =
             PendingIntent.getActivity(

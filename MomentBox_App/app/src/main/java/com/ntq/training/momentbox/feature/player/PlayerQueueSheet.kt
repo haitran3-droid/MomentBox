@@ -31,7 +31,7 @@ class PlayerQueueSheet : BottomSheetDialogFragment() {
     override fun onCreateView(inflater: LayoutInflater, parent: ViewGroup?, saved: Bundle?): View {
         val d = resources.displayMetrics.density;
         val root =
-            LinearLayout(requireContext()).apply { orientation = 1; setPadding((20 * d).toInt()) }
+            LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL; setPadding((20 * d).toInt()) }
         root.addView(TextView(requireContext()).apply {
             setText(R.string.m5_player_queue); textSize = 20f; typeface =
             ResourcesCompat.getFont(

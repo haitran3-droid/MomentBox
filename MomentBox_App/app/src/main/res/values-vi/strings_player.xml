@@ -1,0 +1,36 @@
+<resources>
+    <string name="m5_player_channel">Phát âm thanh</string>
+    <string name="m5_player_title">Trình phát âm thanh</string>
+    <string name="m5_player_playing">Đang phát</string>
+    <string name="m5_player_paused">Đã tạm dừng</string>
+    <string name="m5_player_previous">Bài trước</string>
+    <string name="m5_player_next">Bài sau</string>
+    <string name="m5_player_pause">Tạm dừng</string>
+    <string name="m5_player_play">Phát</string>
+    <string name="m5_player_close">Đóng</string>
+    <string name="m5_player_from">ĐANG PHÁT TỪ</string>
+    <string name="m5_player_journal">Nhật ký giọng nói</string>
+    <string name="m5_player_saved">Bài giọng nói đã lưu</string>
+    <string name="m5_player_recording">Ghi âm</string>
+    <string name="m5_player_saved_voice">Bài giọng nói</string>
+    <string name="m5_player_queue">Hàng đợi</string>
+    <string name="m5_player_shuffle">Trộn bài</string>
+    <string name="m5_player_repeat">Chế độ lặp</string>
+    <string name="m5_player_speed">Tốc độ</string>
+    <string name="m5_player_sleep">Hẹn giờ tắt</string>
+    <string name="m5_player_route">Đầu ra âm thanh</string>
+    <string name="m5_player_speaker">Loa</string>
+    <string name="m5_player_headphones">Tai nghe</string>
+    <string name="m5_player_bluetooth">Bluetooth</string>
+    <string name="m5_player_timer_off">Hẹn giờ</string>
+    <string name="m5_player_timer_minutes">Hẹn giờ %1$d′</string>
+    <string name="m5_player_timer_end">Hết bài</string>
+    <string name="m5_player_empty">Chưa có bản ghi. Thêm ghi âm vào nhật ký hoặc lưu bài giọng nói.</string>
+    <string name="m5_player_load_error">Không tải được bài đã lưu. Bản ghi ngoại tuyến vẫn dùng được.</string>
+    <string name="m5_player_retry">Thử lại</string>
+    <string name="m5_player_error">Không thể phát âm thanh. Hãy kiểm tra tệp hoặc kết nối.</string>
+    <string name="m5_player_favorite">Yêu thích bản ghi</string>
+    <string name="m5_player_queue_hint">Tối đa 50 bản ghi gần nhất. Kéo để sắp xếp.</string>
+    <string name="m5_player_seek">Tua âm thanh</string>
+    <string name="m5_player_timer_clear">Tắt hẹn giờ</string>
+</resources>

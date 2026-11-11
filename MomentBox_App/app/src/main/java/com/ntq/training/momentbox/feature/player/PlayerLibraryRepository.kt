@@ -42,9 +42,6 @@ data class PlayerLibrary(
     val remoteError: Boolean
 )
 
-/** Thư viện lấy recordings Room và bookmarks REST thật, không đưa Room/token sang :player.
- * Chỉ truyền tối đa50 metadata qua AIDL; file gốc thuộc Journal, player tuyệt đối không xóa.
- * Favorite là tùy chọn của bản ghi theo ID+owner/backend, độc lập trạng thái ghim bài nhật ký. */
 class PlayerLibraryRepository(private val app: MomentBoxApp, private val api: PlayerLibraryApi) {
     private data class Identity(val ownerId: String, val source: String, val generation: Long)
 
@@ -68,82 +65,100 @@ class PlayerLibraryRepository(private val app: MomentBoxApp, private val api: Pl
         "favorites_" + MessageDigest.getInstance("SHA-256")
             .digest(scope.toByteArray()).joinToString("") { "%02x".format(it) })
 
-    suspend fun load(): PlayerLibrary = withContext(Dispatchers.IO) {
-        val active = identity() ?: return@withContext PlayerLibrary(emptyList(), "", -1, true)
-        val scope = active.ownerId + "|" + active.source
-        val favorites = app.playerPreferences.data.first()[key(scope)].orEmpty()
-        val rows = app.database.journalDao().audioLibrary(50)
-        val local = rows.flatMap { row ->
-            row.attachments.filter { it.type == "audio" }.map { audio ->
-                Track(
-                    "journal:${audio.id}",
-                    if (audio.localPath.startsWith("content:")) audio.localPath else Uri.fromFile(
-                        File(audio.localPath)
-                    ).toString(),
-                    row.entry.title,
-                    "journal",
-                    row.entry.createdAt,
-                    row.attachments.firstOrNull { it.type == "image" }?.localPath?.let {
-                        if (it.startsWith(
-                                "content:"
-                            ) || it.startsWith("file:")
-                        ) it else Uri.fromFile(File(it)).toString()
-                    },
-                    false,
-                    audio.waveform.take(120).map { (it / 100f).coerceIn(0f, 1f) },
-                    scope
-                )
+    suspend fun load(preferredTrackId: String? = null): PlayerLibrary =
+        withContext(Dispatchers.IO) {
+            val active = identity() ?: return@withContext PlayerLibrary(emptyList(), "", -1, true)
+            val scope = active.ownerId + "|" + active.source
+            val favorites = app.playerPreferences.data.first()[key(scope)].orEmpty()
+            val dao = app.database.journalDao()
+            val selectedId =
+                preferredTrackId?.takeIf { it.startsWith("journal:") }?.removePrefix("journal:")
+                    ?.toLongOrNull()?.takeIf { it > 0 }
+            val selectedEntry = selectedId?.let { dao.audioEntryByAttachment(it) }
+            val rows =
+                (dao.audioLibrary(50) + listOfNotNull(selectedEntry)).distinctBy { it.entry.id }
+            val local = rows.flatMap { row ->
+                row.attachments.filter { it.type == "audio" }.map { audio ->
+                    Track(
+                        "journal:${audio.id}",
+                        if (audio.localPath.startsWith("content:")) audio.localPath else Uri.fromFile(
+                            File(audio.localPath)
+                        ).toString(),
+                        row.entry.title,
+                        "journal",
+                        row.entry.createdAt,
+                        row.attachments.firstOrNull { it.type == "image" }?.localPath?.let {
+                            if (it.startsWith(
+                                    "content:"
+                                ) || it.startsWith("file:")
+                            ) it else Uri.fromFile(File(it)).toString()
+                        },
+                        false,
+                        audio.waveform.take(120).map { (it / 100f).coerceIn(0f, 1f) },
+                        scope
+                    )
+                }
             }
-        }.take(50)
-        val saved = mutableListOf<Track>();
-        var remoteError = false
-        try {
-            var page = 1
-            while (active.source.substringBefore('|') == SettingsDataStore.SOURCE_MB_SERVER && saved.size < 50) {
-                val response = api.saved(page, 30, SessionRequest(active.generation));
-                val body = response.body()
-                check(response.isSuccessful && body?.success == true);
-                val posts = body!!.data.orEmpty()
-                posts.forEach { post ->
-                    post.media.orEmpty()
-                        .filter { it.type.equals("audio", true) || it.type.equals("voice", true) }
-                        .forEachIndexed { i, media ->
-                            media.url?.let { uri ->
-                                saved.add(
-                                    Track(
-                                        "saved:${post.id}:$i",
-                                        uri,
-                                        post.caption.orEmpty().take(500),
-                                        "saved",
-                                        runCatching {
-                                            Instant.parse(post.createdAt).toEpochMilli()
-                                        }.getOrDefault(0),
-                                        post.media?.firstOrNull { it.type == "image" }?.url,
-                                        false,
-                                        emptyList(),
-                                        scope
-                                    )
+            val saved = mutableListOf<Track>();
+            var remoteError = false
+            try {
+                var page = 1
+                while (active.source.substringBefore('|') == SettingsDataStore.SOURCE_MB_SERVER && saved.size < 50) {
+                    val response = api.saved(page, 30, SessionRequest(active.generation));
+                    val body = response.body()
+                    check(response.isSuccessful && body?.success == true);
+                    val posts = body!!.data.orEmpty()
+                    posts.forEach { post ->
+                        post.media.orEmpty()
+                            .filter {
+                                it.type.equals("audio", true) || it.type.equals(
+                                    "voice",
+                                    true
                                 )
                             }
-                        }
+                            .forEachIndexed { i, media ->
+                                media.url?.let { uri ->
+                                    saved.add(
+                                        Track(
+                                            "saved:${post.id}:$i",
+                                            uri,
+                                            post.caption.orEmpty().take(500),
+                                            "saved",
+                                            runCatching {
+                                                Instant.parse(post.createdAt).toEpochMilli()
+                                            }.getOrDefault(0),
+                                            post.media?.firstOrNull { it.type == "image" }?.url,
+                                            false,
+                                            emptyList(),
+                                            scope
+                                        )
+                                    )
+                                }
+                            }
+                    }
+                    if (posts.isEmpty() || body.meta?.hasMore != true) break
+                    page++
                 }
-                if (posts.isEmpty() || body.meta?.hasMore != true) break
-                page++
+            } catch (c: CancellationException) {
+                throw c
+            } catch (_: Exception) {
+                remoteError = true
             }
-        } catch (c: CancellationException) {
-            throw c
-        } catch (_: Exception) {
-            remoteError = true
+            if (identity() != active) return@withContext PlayerLibrary(emptyList(), "", -1, true)
+            val ordered = (local + saved).distinctBy { it.id }.sortedByDescending { it.dateEpochMs }
+            val selected = ordered.firstOrNull { it.id == preferredTrackId }
+            // Giữ nguyên giới hạn IPC: dành một chỗ cho bài được user chọn thay vì bỏ qua ID cũ.
+            // Chỉ metadata đổi vị trí; file vẫn thuộc Journal và không bị player xóa hay sao chép.
+            val bounded = if (selected != null && ordered.take(50)
+                    .none { it.id == selected.id }
+            ) ordered.take(49) + selected else ordered.take(50)
+            PlayerLibrary(
+                bounded.map { it.copy(favorite = it.id in favorites) },
+                scope,
+                active.generation,
+                remoteError
+            )
         }
-        if (identity() != active) return@withContext PlayerLibrary(emptyList(), "", -1, true)
-        PlayerLibrary(
-            (local + saved).sortedByDescending { it.dateEpochMs }.take(50)
-                .map { it.copy(favorite = it.id in favorites) },
-            scope,
-            active.generation,
-            remoteError
-        )
-    }
 
     suspend fun favorite(scope: String, id: String, value: Boolean) = withContext(Dispatchers.IO) {
         val active = identity()

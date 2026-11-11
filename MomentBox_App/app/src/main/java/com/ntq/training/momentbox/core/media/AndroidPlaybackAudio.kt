@@ -17,9 +17,22 @@ import com.ntq.training.momentbox.MomentBoxApp
 import kotlinx.coroutines.flow.first
 
 class AndroidPlaybackAudio private constructor(private val context: Application) : PlaybackAudio {
-    private val bridge get() = (context as? MomentBoxApp)?.playerAudioBridge
+    companion object {
+        @Volatile
+        private var instance: AndroidPlaybackAudio? = null
+        fun get(context: Context): AndroidPlaybackAudio = instance ?: synchronized(this) {
+            instance ?: AndroidPlaybackAudio(context.applicationContext as Application).also {
+                instance = it
+            }
+        }
+    }
+
+    private val bridge get() = (context as? com.ntq.training.momentbox.MomentBoxApp)?.playerAudioBridge
     private val recordingOwners = mutableSetOf<Any>()
-    private val recordersIdle = MutableStateFlow(true)
+    private val recordersIdle = kotlinx.coroutines.flow.MutableStateFlow(true)
+
+    /** Callback ownership có thể chỉ enqueue stop mic trên IO. Peer phải chờ release thật,
+     * không coi callback Unit đã trả về là MediaRecorder đã dừng. */
     suspend fun awaitRecordersReleased() {
         recordersIdle.first { it }
     }
@@ -36,20 +49,31 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         }
     }
 
+    /**
+     * Ambient M3 dùng cùng quyền sở hữu trong app nhưng tự xử lý duck/resume theo BA.
+     * Tách quyền sở hữu khỏi focus để giữ nguyên policy voice/video M2 đã nghiệm thu.
+     */
     fun acquireOwnership(owner: Any, onInterrupted: () -> Unit): Boolean =
         acquireOwnershipInternal(owner, onInterrupted, false)
 
+    /** Recorder là transient-exclusive: giữ ý định cũ để player tiếp tục sau khi mic nhả focus. */
     fun acquireRecordingOwnership(owner: Any, onInterrupted: () -> Unit): Boolean =
         acquireOwnershipInternal(owner, onInterrupted, true)
+
+    /** Nhắc nhật ký mượn quyền phát tạm thời nhưng không giữ mic. Recorder vẫn có ưu tiên;
+     * không gắn reminder vào recordingOwners vì peer chờ tập này để biết mic đã nhả thật. */
+    fun acquireReminderOwnership(owner: Any, onInterrupted: () -> Unit): Boolean =
+        acquireOwnershipInternal(owner, onInterrupted, true, recording = false)
 
     private fun acquireOwnershipInternal(
         owner: Any,
         onInterrupted: () -> Unit,
-        transientLoss: Boolean
+        transientLoss: Boolean,
+        recording: Boolean = transientLoss
     ): Boolean {
         if (recordingOwners.any { it !== owner }) return false
         if (!ownership.acquire(owner, onInterrupted, true)) return false
-        if (transientLoss) {
+        if (recording) {
             recordingOwners.add(owner); recordersIdle.value = false
         }
         bridge?.interruptForMain(transientLoss)
@@ -130,6 +154,7 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         unregisterNoisyReceiver()
     }
 
+    /** Chỉ main peer gọi sau yêu cầu AIDL. Không gọi ngược bridge, tránh vòng pause hai process. */
     fun interruptForRemotePlayer() {
         interrupt()
     }
@@ -156,16 +181,6 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         if (receiverRegistered) {
             context.unregisterReceiver(noisyReceiver)
             receiverRegistered = false
-        }
-    }
-
-    companion object {
-        @Volatile
-        private var instance: AndroidPlaybackAudio? = null
-        fun get(context: Context): AndroidPlaybackAudio = instance ?: synchronized(this) {
-            instance ?: AndroidPlaybackAudio(context.applicationContext as Application).also {
-                instance = it
-            }
         }
     }
 }

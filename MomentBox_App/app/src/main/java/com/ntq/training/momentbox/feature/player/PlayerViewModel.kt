@@ -18,15 +18,16 @@ class PlayerViewModel(private val repository: PlayerLibraryRepository) : ViewMod
     private val mutable = MutableStateFlow(PlayerLibraryState());
     val state = mutable.asStateFlow()
     private var loading: Job? = null
+    private var preferredTrackId: String? = null
 
     init {
         reload()
     }
 
-    fun reload() {
-        loading?.cancel(); loading = viewModelScope.launch {
+    fun reload(preferred: String? = preferredTrackId) {
+        preferredTrackId = preferred; loading?.cancel(); loading = viewModelScope.launch {
             mutable.value = mutable.value.copy(loading = true); try {
-            val library = repository.load(); mutable.value =
+            val library = repository.load(preferred); mutable.value =
                 PlayerLibraryState(false, library, library.remoteError)
         } catch (c: CancellationException) {
             throw c

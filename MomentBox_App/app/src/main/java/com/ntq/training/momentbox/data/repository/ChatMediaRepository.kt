@@ -25,6 +25,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -44,16 +45,13 @@ class ChatMediaRepository(
 ) {
     private val context = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val jobs = ConcurrentHashMap<String, Job>()
+    private val jobs = java.util.concurrent.ConcurrentHashMap<String, Job>()
     private val _progress = MutableStateFlow<Map<String, ChatMediaProgress>>(emptyMap())
     val progress = _progress.asStateFlow()
-
-    init {
-        scope.launch {
-            runtime.session.collect { current ->
-                _progress.value.filterValues { it.session != current }.keys.forEach { jobs[it]?.cancel() }
-                _progress.update { map -> map.filterValues { it.session == current } }
-            }
+    private val sessionObserver = scope.launch {
+        runtime.session.collect { current ->
+            _progress.value.filterValues { it.session != current }.keys.forEach { jobs[it]?.cancel() }
+            _progress.update { map -> map.filterValues { it.session == current } }
         }
     }
 
@@ -204,12 +202,21 @@ class ChatMediaRepository(
         }
     }
 
+    /** Cả copy-before-row và upload đều là children của scope. Hủy/chờ toàn bộ trước khi
+     * xóa cache scope cũ, giữ chính scope để lần login sau tiếp tục dùng repository. */
+    suspend fun cancelForLogout() {
+        val work = scope.coroutineContext[Job]!!.children.toList()
+        // Observer đầu tiên là collector session sống suốt Application; chỉ hủy các media jobs.
+        val operations = work.filter { it !== sessionObserver }
+        operations.forEach { it.cancel() }; operations.joinAll(); _progress.value = emptyMap()
+    }
+
     fun cancel(id: String) {
         jobs[id]?.cancel()
     }
 
     private fun folder(expected: ChatSession): File {
-        val key = MessageDigest.getInstance("SHA-256")
+        val key = java.security.MessageDigest.getInstance("SHA-256")
             .digest((expected.ownerId + "|" + expected.source).toByteArray())
             .joinToString("") { "%02x".format(it) }
         return File(File(context.filesDir, "chat-media"), key)

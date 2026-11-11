@@ -12,15 +12,15 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <ImageView
+        <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/failedIcon"
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:layout_marginEnd="8dp"
             android:contentDescription="@null"
             android:src="@drawable/ic_error"
-            android:tint="@color/error"
-            android:visibility="gone" />
+            android:visibility="gone"
+            app:tint="@color/error" />
 
         <LinearLayout
             android:id="@+id/bubble"
@@ -76,7 +76,7 @@
                     android:contentDescription="@string/m5_voice_play"
                     android:focusable="true">
 
-                    <ImageView
+                    <androidx.appcompat.widget.AppCompatImageView
                         android:id="@+id/voiceIcon"
                         android:layout_width="34dp"
                         android:layout_height="34dp"
@@ -85,7 +85,7 @@
                         android:contentDescription="@null"
                         android:padding="7dp"
                         android:src="@drawable/ic_media_play"
-                        android:tint="@color/white" />
+                        app:tint="@color/white" />
                 </FrameLayout>
 
                 <com.ntq.training.momentbox.feature.chat.ChatWaveformView

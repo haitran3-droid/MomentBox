@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import kotlin.coroutines.cancellation.CancellationException
 
 object AudioWaveforms {
     private val network = OkHttpClient.Builder().readTimeout(20, TimeUnit.SECONDS)
@@ -33,12 +34,12 @@ object AudioWaveforms {
     }
 
     suspend fun read(context: Context, value: String): List<Float> = withContext(Dispatchers.IO) {
-        val uri = Uri.parse(value)
-        val key =
-            value + if (uri.scheme == "file") ":" + File(checkNotNull(uri.path)).lastModified() else ""
-        synchronized(cache) { cache[key] }?.let { return@withContext it }
         var temporary: File? = null
         try {
+            val uri = Uri.parse(value)
+            val key =
+                value + if (uri.scheme == "file") ":" + File(checkNotNull(uri.path)).lastModified() else ""
+            synchronized(cache) { cache[key] }?.let { return@withContext it }
             val file = if (uri.scheme == "file") File(checkNotNull(uri.path)) else {
                 require(uri.scheme in setOf("https", "http"))
                 val result =
@@ -77,6 +78,13 @@ object AudioWaveforms {
             val values = decode(file)
             synchronized(cache) { cache[key] = values }
             values
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Waveform là dữ liệu phụ: file hỏng/mất hoặc codec không hỗ trợ không được làm chết
+            // lifecycle coroutine của S17/S18. Không cache lỗi để lần retry còn đọc lại dữ liệu mới;
+            // trả rỗng thật, còn lỗi phát nhạc do MediaPlayer/Service báo riêng cho UI.
+            emptyList()
         } finally {
             temporary?.delete()
         }

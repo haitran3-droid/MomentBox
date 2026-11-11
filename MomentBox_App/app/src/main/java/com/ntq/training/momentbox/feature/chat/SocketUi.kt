@@ -26,11 +26,10 @@ fun socketLabels(context: Context, manager: SocketManager): Flow<Pair<SocketStat
                         state.attempt
                     ) else context.getString(R.string.m5_socket_connecting)
 
-                    SocketPhase.WAITING -> context.getString(
-                        R.string.m5_socket_waiting,
-                        state.attempt,
-                        remaining
-                    )
+                    SocketPhase.WAITING -> if (state.retryAtMs == null) context.getString(
+                        R.string.m5_socket_waiting_unknown,
+                        state.attempt
+                    ) else context.getString(R.string.m5_socket_waiting, state.attempt, remaining)
 
                     SocketPhase.FAILED -> context.getString(R.string.m5_socket_failed)
                     SocketPhase.AUTH_EXPIRED -> context.getString(R.string.m5_socket_expired)

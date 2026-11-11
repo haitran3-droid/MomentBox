@@ -22,15 +22,18 @@ import com.ntq.training.momentbox.core.realtime.ChatRuntime
 import com.ntq.training.momentbox.data.remote.dto.ChatMemberDto
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.data.repository.ChatSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 data class FollowingState(
     val users: List<ChatMemberDto> = emptyList(),
     val busy: Boolean = true,
     val error: Boolean = false,
-    val room: Long? = null
+    val room: Long? = null,
+    val session: ChatSession? = null
 )
 
 /** Job tạo phòng sống trong ViewModel qua rotation. Result chỉ chứa room ID, không nhét
@@ -47,8 +50,12 @@ class FollowingViewModel(private val runtime: ChatRuntime) : ViewModel() {
         viewModelScope.launch {
             state.value = state.value.copy(busy = true, error = false)
             try {
-                val session = checkNotNull(runtime.current()); state.value =
-                    FollowingState(runtime.repository.following(session), busy = false)
+                // Entry từ hồ sơ private có thể chưa đi qua Main; activate sau khi auth đã commit cache.
+                runtime.activate();
+                val session = checkNotNull(runtime.current())
+                val users = runtime.repository.following(session)
+                if (runtime.current() == session) state.value =
+                    FollowingState(users, busy = false, session = session)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -61,8 +68,12 @@ class FollowingViewModel(private val runtime: ChatRuntime) : ViewModel() {
         viewModelScope.launch {
             state.value = state.value.copy(busy = true, error = false)
             try {
-                val session = checkNotNull(runtime.current()); state.value =
-                    state.value.copy(busy = false, room = runtime.repository.create(session, user))
+                runtime.activate();
+                val session = checkNotNull(runtime.current())
+                state.value = state.value.copy(session = session)
+                val room = runtime.repository.create(session, user)
+                if (runtime.current() == session) state.value =
+                    state.value.copy(busy = false, room = room, session = session)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -81,51 +92,90 @@ class NewConversationDialog : DialogFragment() {
         }
     }
 
-    override fun onCreateDialog(saved: Bundle?): Dialog {
-        val c = requireContext();
-        val column = LinearLayout(c).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(
-            24,
-            12,
-            24,
-            12
-        )
+    class NewConversationDialog : DialogFragment() {
+        private val model: FollowingViewModel by viewModels {
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(c: Class<T>): T =
+                    FollowingViewModel((requireActivity().application as MomentBoxApp).chatRuntime) as T
+            }
         }
-        val progress = ProgressBar(c);
-        val message = TextView(c).apply { setPadding(12, 16, 12, 16) };
-        val list = ListView(c)
-        column.addView(progress); column.addView(message); column.addView(list)
-        val dialog = MaterialAlertDialogBuilder(c).setTitle(R.string.m5_chat_new).setView(column)
-            .setNegativeButton(R.string.m5_chat_cancel, null).create()
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                model.state.collect { state ->
-                    progress.visibility =
-                        if (state.busy) View.VISIBLE else View.GONE
-                    list.isEnabled = !state.busy
-                    list.adapter = ArrayAdapter(
-                        c,
-                        AndroidR.layout.simple_list_item_1,
-                        state.users.map { it.displayName.orEmpty() })
-                    list.setOnItemClickListener { _, _, position, _ -> model.create(state.users[position].id) }
-                    message.visibility =
-                        if (state.error || (!state.busy && state.users.isEmpty())) View.VISIBLE else View.GONE
-                    message.setText(if (state.error) R.string.m5_chat_error else R.string.m5_chat_following_empty)
-                    message.setOnClickListener { model.load() }
-                    if (state.room != null && !model.delivered) {
-                        model.delivered = true; parentFragmentManager.setFragmentResult(
-                            "conversation",
-                            Bundle().apply { putLong("id", state.room) }); dismiss()
+
+        override fun onCreateDialog(saved: Bundle?): Dialog {
+            val c = requireContext();
+            val column = LinearLayout(c).apply {
+                orientation = LinearLayout.VERTICAL; setPadding(
+                24,
+                12,
+                24,
+                12
+            )
+            }
+            val progress = ProgressBar(c);
+            val message = TextView(c).apply { setPadding(12, 16, 12, 16) };
+            val list = ListView(c)
+            column.addView(progress); column.addView(message); column.addView(list)
+            val dialog =
+                MaterialAlertDialogBuilder(c).setTitle(R.string.m5_chat_new).setView(column)
+                    .setNegativeButton(R.string.m5_chat_cancel, null).create()
+            val runtime = (requireActivity().application as MomentBoxApp).chatRuntime
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                    combine(
+                        model.state,
+                        runtime.session
+                    ) { state, active -> state to active }.collect { (state, active) ->
+                        if (state.session != null && state.session != active) {
+                            dismissAllowingStateLoss(); return@collect
+                        }
+                        progress.visibility =
+                            if (state.busy) android.view.View.VISIBLE else android.view.View.GONE
+                        list.isEnabled = !state.busy
+                        list.adapter = ArrayAdapter(
+                            c,
+                            android.R.layout.simple_list_item_1,
+                            state.users.map { it.displayName.orEmpty() })
+                        list.setOnItemClickListener { _, _, position, _ -> model.create(state.users[position].id) }
+                        message.visibility =
+                            if (state.error || (!state.busy && state.users.isEmpty())) android.view.View.VISIBLE else android.view.View.GONE
+                        message.setText(if (state.error) R.string.m5_chat_error else R.string.m5_chat_following_empty)
+                        message.setOnClickListener { model.load() }
+                        if (state.room != null && !model.delivered) {
+                            model.delivered = true; parentFragmentManager.setFragmentResult(
+                                "conversation",
+                                Bundle().apply {
+                                    putLong(
+                                        "id",
+                                        state.room
+                                    ); state.session?.let {
+                                    putString(
+                                        "owner",
+                                        it.ownerId
+                                    ); putString("source", it.source); putLong(
+                                    "generation",
+                                    it.generation
+                                )
+                                }
+                                }); dismiss()
+                        }
                     }
                 }
             }
+            model.start(arguments?.getLong("user")?.takeIf { it > 0 })
+            return dialog
         }
-        model.start(arguments?.getLong("user")?.takeIf { it > 0 })
-        return dialog
-    }
 
-    companion object {
-        fun forUser(id: Long) =
-            NewConversationDialog().apply { arguments = Bundle().apply { putLong("user", id) } }
+        companion object {
+            /** Fragment Result có thể được giữ qua rotation; chỉ caller cùng phiên mới được nhận. */
+            fun matches(
+                result: Bundle,
+                session: com.ntq.training.momentbox.data.repository.ChatSession?
+            ) = session != null && result.getString("owner") == session.ownerId && result.getString(
+                "source"
+            ) == session.source && result.getLong("generation", -1) == session.generation
+
+            fun forUser(id: Long) =
+                NewConversationDialog().apply { arguments = Bundle().apply { putLong("user", id) } }
+        }
     }
 }

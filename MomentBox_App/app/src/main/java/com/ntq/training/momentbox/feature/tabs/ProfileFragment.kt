@@ -99,7 +99,11 @@ class ProfileFragment : Fragment() {
             val refreshCountBefore = SessionManager.refreshCount()
             binding.pbProfileLoading.visibility = View.VISIBLE
             app.settingsDataStore.setDebugForce401(true)
-            Toast.makeText(requireContext(), R.string.main_debug_refresh_request, Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                requireContext(),
+                R.string.main_debug_refresh_request,
+                Toast.LENGTH_SHORT
+            ).show()
 
             val result = app.authRepository.getMe()
             binding.pbProfileLoading.visibility = View.GONE
@@ -107,7 +111,8 @@ class ProfileFragment : Fragment() {
             if (result.isSuccess && SessionManager.refreshCount() > refreshCountBefore) {
                 bindUser(result.getOrThrow())
                 binding.tvSessionStatus.text = getString(R.string.main_session_refreshed)
-                Toast.makeText(requireContext(), R.string.main_refresh_success, Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), R.string.main_refresh_success, Toast.LENGTH_LONG)
+                    .show()
             } else {
                 val errorMsg = result.exceptionOrNull()?.message ?: "Thất bại"
                 Toast.makeText(requireContext(), "Lỗi: $errorMsg", Toast.LENGTH_LONG).show()

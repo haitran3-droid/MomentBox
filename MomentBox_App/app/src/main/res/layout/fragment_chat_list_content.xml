@@ -4,30 +4,33 @@
     android:layout_height="match_parent"
     android:background="@color/surface"
     android:orientation="vertical">
-
-    <LinearLayout
+    <!-- Chip ôm nội dung như CSS; Flow xuống dòng khi locale/font lớn, giữ nút tạo chat chạm được. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
         android:minHeight="56dp"
         android:paddingStart="12dp"
         android:paddingEnd="4dp">
 
         <TextView
+            android:id="@+id/chatListTitle"
+            style="@style/M5ChatListTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/be_vietnam_pro_bold"
+            android:letterSpacing="-0.008333333"
+            android:paddingStart="6dp"
             android:text="@string/m5_chat_title"
             android:textColor="@color/text_primary"
             android:textSize="24sp" />
 
-        <TextView
+        <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/connection"
-            android:layout_width="0dp"
+            style="@style/M5ChatConnectionLabel"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
             android:background="@drawable/bg_chat_chip"
+            android:drawablePadding="5dp"
             android:ellipsize="end"
             android:fontFamily="@font/be_vietnam_pro_semibold"
             android:maxWidth="120dp"
@@ -35,7 +38,23 @@
             android:paddingHorizontal="9dp"
             android:paddingVertical="4dp"
             android:textColor="@color/mood_1_text"
-            android:textSize="11.5sp" />
+            android:textSize="11.5sp"
+            app:drawableStartCompat="@drawable/ic_chat_connection_dot" />
+
+        <androidx.constraintlayout.helper.widget.Flow
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:constraint_referenced_ids="chatListTitle,connection"
+            app:flow_horizontalBias="0"
+            app:flow_horizontalGap="10dp"
+            app:flow_horizontalStyle="packed"
+            app:flow_verticalAlign="center"
+            app:flow_verticalGap="4dp"
+            app:flow_wrapMode="chain"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/newChat"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <ImageButton
             android:id="@+id/newChat"
@@ -44,9 +63,12 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/m5_chat_new"
             android:padding="12dp"
-            android:src="@drawable/ic_edit"
+            android:src="@drawable/ic_chat_edit_square"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/text_primary" />
-    </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <EditText
         android:id="@+id/search"
@@ -63,7 +85,8 @@
         android:inputType="text"
         android:maxLines="1"
         android:paddingHorizontal="14dp"
-        android:textSize="14sp" />
+        android:textSize="14sp"
+        app:drawableTint="@color/text_tertiary" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/onlineUsers"

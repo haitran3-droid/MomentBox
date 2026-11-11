@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.graphics.Paint
+import android.graphics.text.LineBreaker
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -74,7 +75,7 @@ class ChatBubbleTextView @JvmOverloads constructor(c: Context, a: AttributeSet? 
         val width = minOf(available, kotlin.math.ceil(natural).toInt().coerceAtLeast(1))
         val layout = StaticLayout.Builder.obtain(content, 0, content.length, body, width)
             .setIncludePad(false).setLineSpacing(0f, 1.4f)
-            .setBreakStrategy(Layout.BREAK_STRATEGY_HIGH_QUALITY).build()
+            .setBreakStrategy(LineBreaker.BREAK_STRATEGY_HIGH_QUALITY).build()
         textLayout = layout
         val last = layout.lineCount - 1
         val stampHeight = stamp.fontMetrics.descent - stamp.fontMetrics.ascent

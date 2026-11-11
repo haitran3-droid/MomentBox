@@ -66,6 +66,7 @@ class PlayerService : Service() {
     private var focusGeneration = 0L
     private var legacyFocus: AudioManager.OnAudioFocusChangeListener? = null
     private var noisyRegistered = false;
+
     @Volatile
     private var closed = false;
     private var route = "unknown"
@@ -73,8 +74,10 @@ class PlayerService : Service() {
     private var sleepDuration = 0L;
     private var endOfTrack = false;
     private var sleepJob: Runnable? = null
+
     @Volatile
     private var foreground = false
+
     @Volatile
     private var snapshot = PlayerState(servicePid = Process.myPid())
     private val callbacks = object : RemoteCallbackList<IPlayerCallback>() {
@@ -417,7 +420,7 @@ class PlayerService : Service() {
         if (next == null) {
             pause(true); seek(0); return
         }
-        val intent = focusPolicy.wantsPlay || !automatic
+        val intent = focusPolicy.wantsPlay
         releaseEngine(); duration = 0; error = null
         // Hẹn phút giữ deadline khi đổi bài; hết-bài gắn bài hiện tại nên hủy khi user đổi bài.
         if (endOfTrack) cancelSleep()
@@ -531,7 +534,7 @@ class PlayerService : Service() {
     }
 
     private fun updateRoute() {
-        val current = player?.routedDevice
+        val current = if (Build.VERSION.SDK_INT >= 28) player?.routedDevice else null
         val type = current?.type ?: audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).firstOrNull {
             it.type in setOf(
                 AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,

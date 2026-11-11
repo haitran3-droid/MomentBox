@@ -58,6 +58,7 @@ class PlayerActivity : AppCompatActivity() {
         requested = if (saved == null) intent.getStringExtra("trackId")
             ?.takeIf { it.length <= 128 } else saved.getString("pendingTrackId")
             ?.takeIf { it.length <= 128 }
+        model.reload(requested)
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()); v.setPadding(
             bars.left,
@@ -138,7 +139,7 @@ class PlayerActivity : AppCompatActivity() {
                         finish(); return@collect
                     }
                     val data = library.library
-                    if (connection == "bound" && data != null && data.scope.isNotEmpty()) {
+                    if (connection == "bound" && !library.loading && data != null && data.scope.isNotEmpty()) {
                         val key = "${state.servicePid}|${data.scope}"
                         if (requested != null) {
                             val target = requested
@@ -299,7 +300,7 @@ class PlayerActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent); setIntent(intent); requested =
             intent.getStringExtra("trackId")?.takeIf { it.length <= 128 }; entrySubmitted =
-            ""; provision = ""; model.reload()
+            ""; provision = ""; model.reload(requested)
     }
 
     override fun onStart() {

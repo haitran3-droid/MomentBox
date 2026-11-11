@@ -1,9 +1,11 @@
 package com.ntq.training.momentbox.feature.player
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.os.DeadObjectException
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -14,21 +16,28 @@ import com.ntq.training.momentbox.MomentBoxApp
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.cancellation.CancellationException
 
 class PlayerAudioBridge(private val app: MomentBoxApp) {
     private val main = Handler(Looper.getMainLooper());
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val commands = Channel<() -> Unit>(32)
+
     @Volatile
     private var remote: IPlayerService? = null
+
     @Volatile
     var active = false; private set
     private var connection: ServiceConnection? = null;
     private var callback: IAudioPeer? = null;
+
     @Volatile
     private var epoch = 0L
 
@@ -107,6 +116,43 @@ class PlayerAudioBridge(private val app: MomentBoxApp) {
             )
         ) {
             connection = null; active = false
+        }
+    }
+
+    suspend fun closeForLogout(): Boolean {
+        val service = Intent(app, PlayerService::class.java)
+        try {
+            val api = withContext(Dispatchers.IO) {
+                remote ?: object : BroadcastReceiver() {
+                    override fun onReceive(context: Context, intent: Intent?) {}
+                }
+                    .peekService(app, service)?.let(IPlayerService.Stub::asInterface)
+            }
+            if (api == null) {
+                // Không có Binder thì chưa có queue/engine điều khiển qua AIDL. Dọn pending bind và
+                // stop service rỗng nếu một start đang chờ, không BIND_AUTO_CREATE chỉ để đóng.
+                withContext(Dispatchers.Main.immediate) { disconnect(); app.stopService(service) }
+                return true
+            }
+            return withContext(Dispatchers.IO) {
+                try {
+                    api.close()
+                    withTimeoutOrNull(1500) {
+                        while (api.asBinder().isBinderAlive && api.state.error != "PLAYER_CLOSED") delay(
+                            25
+                        )
+                        true
+                    } == true
+                } catch (_: DeadObjectException) {
+                    true
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    false
+                }
+            }
+        } finally {
+            withContext(NonCancellable + Dispatchers.Main.immediate) { disconnect() }
         }
     }
 

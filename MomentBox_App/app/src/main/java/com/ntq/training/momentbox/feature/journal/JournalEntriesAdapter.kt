@@ -8,18 +8,19 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.ntq.training.momentbox.MomentBoxApp
-import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.data.local.db.JournalEntryWithDetails
 import com.ntq.training.momentbox.databinding.ItemJournalEntryBinding
 import com.ntq.training.momentbox.databinding.ItemJournalHeaderBinding
+import com.ntq.training.momentbox.feature.player.PlayerActivity
+import com.ntq.training.momentbox.MomentBoxApp
+import com.ntq.training.momentbox.R
 import java.time.Clock
+import java.time.format.DateTimeFormatter
 import java.time.Instant
 import java.time.LocalDate
+import java.time.temporal.WeekFields
 import java.time.YearMonth
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.temporal.WeekFields
 import java.util.Locale
 
 sealed interface JournalListItem {
@@ -136,6 +137,11 @@ class JournalEntriesAdapter(
                 binding.tvAudioCount.text = audioCount.toString()
             } else {
                 binding.layoutAudioCount.visibility = View.GONE
+            }
+            binding.layoutAudioCount.setOnClickListener {
+                entryDetails.attachments.firstOrNull { it.type == "audio" }?.let { audio ->
+                    context.startActivity(PlayerActivity.intent(context, "journal:${audio.id}"))
+                }
             }
 
             // 6. Xử lý sự kiện click

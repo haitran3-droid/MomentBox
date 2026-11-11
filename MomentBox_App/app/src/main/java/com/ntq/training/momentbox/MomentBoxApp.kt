@@ -1,11 +1,15 @@
 package com.ntq.training.momentbox
 
+import android.app.ActivityManager
 import android.app.Application
+import android.os.Build
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.google.gson.Gson
-import com.ntq.training.momentbox.BuildConfig
+import android.os.Process
 import com.ntq.training.momentbox.core.coroutines.DefaultDispatcherProvider
 import com.ntq.training.momentbox.core.coroutines.DispatcherProvider
 import com.ntq.training.momentbox.core.network.NetworkModule
+import com.ntq.training.momentbox.core.realtime.ChatRuntime
 import com.ntq.training.momentbox.core.realtime.NotificationScope
 import com.ntq.training.momentbox.core.realtime.SocketManager
 import com.ntq.training.momentbox.data.local.db.AppDatabase
@@ -14,12 +18,15 @@ import com.ntq.training.momentbox.data.local.prefs.PostDraftStore
 import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import com.ntq.training.momentbox.data.local.prefs.TokenStore
 import com.ntq.training.momentbox.data.remote.api.AuthApi
+import com.ntq.training.momentbox.data.remote.api.ChatApi
+import com.ntq.training.momentbox.data.remote.api.ChatUploadApi
 import com.ntq.training.momentbox.data.remote.api.ConfigApi
 import com.ntq.training.momentbox.data.remote.api.DummyJsonApi
 import com.ntq.training.momentbox.data.remote.api.FeedApi
 import com.ntq.training.momentbox.data.remote.api.UserApi
 import com.ntq.training.momentbox.data.repository.AuthRepository
 import com.ntq.training.momentbox.data.repository.AuthRepositoryImpl
+import com.ntq.training.momentbox.data.repository.ChatMediaRepository
 import com.ntq.training.momentbox.data.repository.ConfigRepository
 import com.ntq.training.momentbox.data.repository.ConfigRepositoryImpl
 import com.ntq.training.momentbox.data.repository.FeedRepository
@@ -28,6 +35,9 @@ import com.ntq.training.momentbox.data.repository.JournalRepository
 import com.ntq.training.momentbox.data.repository.JournalRepositoryImpl
 import com.ntq.training.momentbox.data.repository.UploadRepository
 import com.ntq.training.momentbox.domain.model.User
+import com.ntq.training.momentbox.feature.player.PlayerAudioBridge
+import com.ntq.training.momentbox.feature.player.PlayerLibraryApi
+import com.ntq.training.momentbox.feature.player.PlayerLibraryRepository
 import java.time.Clock
 
 class MomentBoxApp : Application() {
@@ -50,6 +60,11 @@ class MomentBoxApp : Application() {
 
     lateinit var dispatcherProvider: DispatcherProvider
         private set
+    lateinit var playerAudioBridge: PlayerAudioBridge private set
+    lateinit var playerLibraryRepository: PlayerLibraryRepository private set
+
+    lateinit var chatMediaRepository: ChatMediaRepository private set
+    lateinit var chatRuntime: ChatRuntime private set
 
     lateinit var socketManager: SocketManager
         private set
@@ -70,6 +85,11 @@ class MomentBoxApp : Application() {
         super.onCreate()
         // Lưu lại tham chiếu tĩnh để truy cập nhanh khi cần ApplicationContext
         instance = this
+        val process = if (Build.VERSION.SDK_INT >= 28) getProcessName() else {
+            (getSystemService(ACTIVITY_SERVICE) as ActivityManager).runningAppProcesses
+                ?.firstOrNull { it.pid == Process.myPid() }?.processName
+        }
+        if (process == packageName + ":player") return
 
         // 1. Khởi tạo tầng lưu trữ cục bộ (Local Storage) và Threading
         tokenStore = TokenStore(this)
@@ -109,6 +129,18 @@ class MomentBoxApp : Application() {
 
         // 3. Khởi tạo các instance Retrofit tương ứng với từng nguồn dữ liệu (MB Server, DummyJSON)
         val mainRetrofit = NetworkModule.provideRetrofit(authenticatedClient)
+        chatRuntime = ChatRuntime(
+            tokenStore, settingsDataStore, socketManager, database, mainRetrofit.create(
+                ChatApi::class.java
+            )
+        )
+        ProcessLifecycleOwner.get().lifecycle.addObserver(chatRuntime)
+        chatMediaRepository = ChatMediaRepository(
+            this, chatRuntime, mainRetrofit.create(
+                ChatUploadApi::class.java
+            )
+        )
+        chatRuntime.retryMedia = chatMediaRepository::retry
         val dummyJsonRetrofit = NetworkModule.provideDummyJsonRetrofit(authenticatedClient)
         val configRetrofit = NetworkModule.provideRetrofit(configClient)
 
@@ -140,6 +172,9 @@ class MomentBoxApp : Application() {
                 dispatcher = dispatcherProvider.io,
                 invalidateFeedCache = { feedRepository.clearCache() },
             )
+        playerAudioBridge = PlayerAudioBridge(this).also { it.connect() }
+        playerLibraryRepository =
+            PlayerLibraryRepository(this, mainRetrofit.create(PlayerLibraryApi::class.java))
         journalRepository =
             JournalRepositoryImpl(
                 context = this,

@@ -1,0 +1,36 @@
+<resources>
+    <string name="m5_player_channel">Audio playback</string>
+    <string name="m5_player_title">Audio player</string>
+    <string name="m5_player_playing">Playing</string>
+    <string name="m5_player_paused">Paused</string>
+    <string name="m5_player_previous">Previous</string>
+    <string name="m5_player_next">Next</string>
+    <string name="m5_player_pause">Pause</string>
+    <string name="m5_player_play">Play</string>
+    <string name="m5_player_close">Close</string>
+    <string name="m5_player_from">PLAYING FROM</string>
+    <string name="m5_player_journal">Voice journal</string>
+    <string name="m5_player_saved">Saved voice posts</string>
+    <string name="m5_player_recording">Recording</string>
+    <string name="m5_player_saved_voice">Voice post</string>
+    <string name="m5_player_queue">Queue</string>
+    <string name="m5_player_shuffle">Shuffle</string>
+    <string name="m5_player_repeat">Repeat mode</string>
+    <string name="m5_player_speed">Playback speed</string>
+    <string name="m5_player_sleep">Sleep timer</string>
+    <string name="m5_player_route">Audio output</string>
+    <string name="m5_player_speaker">Speaker</string>
+    <string name="m5_player_headphones">Headphones</string>
+    <string name="m5_player_bluetooth">Bluetooth</string>
+    <string name="m5_player_timer_off">Sleep timer</string>
+    <string name="m5_player_timer_minutes">Sleep %1$d′</string>
+    <string name="m5_player_timer_end">End of track</string>
+    <string name="m5_player_empty">No recordings yet. Add audio to your journal or save a voice post.</string>
+    <string name="m5_player_load_error">Saved posts could not load. Offline recordings remain available.</string>
+    <string name="m5_player_retry">Retry</string>
+    <string name="m5_player_error">Audio could not play. Check the file or connection.</string>
+    <string name="m5_player_favorite">Favorite recording</string>
+    <string name="m5_player_queue_hint">Up to 50 recent recordings. Drag to reorder.</string>
+    <string name="m5_player_seek">Seek audio</string>
+    <string name="m5_player_timer_clear">Turn off timer</string>
+</resources>

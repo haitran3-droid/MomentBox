@@ -23,6 +23,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Quyền truy cập mạng internet để gọi REST API (DummyJSON / MB Server) -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -41,6 +42,29 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MomentBox">
+
+        <activity
+            android:name=".feature.chat.ChatImageActivity"
+            android:exported="false" />
+        <!-- Chat chỉ mở nội bộ hoặc PendingIntent explicit do app tạo; không nhận ID từ app khác. -->
+        <activity
+            android:name=".feature.chat.ChatActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- Service riêng process, Binder chỉ nội bộ cùngUID; không start từBOOT. -->
+        <activity
+            android:name=".feature.player.PlayerActivity"
+            android:exported="false"
+            android:launchMode="singleTop" />
+
+        <service
+            android:name=".feature.player.PlayerService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"
+            android:process=":player" />
+
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
             android:enabled="false"
@@ -116,6 +140,15 @@
             android:name=".feature.create.CreateActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+
+        <service
+            android:name=".feature.recorder.RecordingService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+        <receiver
+            android:name=".data.repository.UploadCancelReceiver"
+            android:exported="false" />
+
         <provider
             android:name=".core.media.CreateMediaFileProvider"
             android:authorities="${applicationId}.media"

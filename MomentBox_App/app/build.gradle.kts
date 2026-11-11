@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.net.URI
 
 plugins {
@@ -8,8 +9,12 @@ plugins {
 val momentBoxDebugBaseUrl = providers.gradleProperty("momentboxBaseUrl")
     .orElse("http://10.0.2.2:3000/").map { value ->
         URI(value).also { uri ->
-            require(uri.scheme in listOf("http", "https") && uri.host != null &&
-                    uri.userInfo == null && uri.query == null && uri.fragment == null && uri.path.endsWith("/")) {
+            require(
+                uri.scheme in listOf("http", "https") && uri.host != null &&
+                        uri.userInfo == null && uri.query == null && uri.fragment == null && uri.path.endsWith(
+                    "/"
+                )
+            ) {
                 "momentboxBaseUrl must be an HTTP(S) base URL ending in / without credentials, query or fragment"
             }
         }.toASCIIString()
@@ -33,13 +38,14 @@ android {
         }
     }
 
-    buildFeatures{
+    buildFeatures {
         viewBinding = true
+        aidl = true
         buildConfig = true
     }
 
     buildTypes {
-        debug{
+        debug {
             buildConfigField("String", "BASE_URL", "\"$momentBoxDebugBaseUrl\"")
             buildConfigField("String", "DUMMY_JSON_URL", "\"https://dummyjson.com/\"")
         }
@@ -57,7 +63,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    testOptions{
+    testOptions {
         unitTests.isReturnDefaultValues = true
     }
 }
@@ -82,6 +88,7 @@ dependencies {
     // Quản lý trạng thái và vòng đời kiến trúc MVVM
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.process)
 
     // Xử lý bất đồng bộ đa luồng với Kotlin Coroutines
     implementation(libs.kotlinx.coroutines.android)
@@ -93,6 +100,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
+    implementation("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.2.10")
 
     // S11/S12: CameraX + EXIF
     implementation(libs.androidx.camera.core)
@@ -124,4 +132,18 @@ dependencies {
     // Kiểm thử giao diện trên thiết bị thật / giả lập (Instrumented Tests)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+}
+val parcelizeCompiler = configurations.create("momentboxParcelizeCompiler") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    isTransitive = false
+}
+dependencies {
+    add(
+        parcelizeCompiler.name,
+        "org.jetbrains.kotlin:kotlin-parcelize-compiler:2.2.10"
+    )
+}
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions.freeCompilerArgs.add(parcelizeCompiler.elements.map { files -> "-Xplugin=" + files.single().asFile.absolutePath })
 }

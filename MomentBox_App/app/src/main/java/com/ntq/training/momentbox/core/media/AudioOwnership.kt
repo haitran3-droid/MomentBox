@@ -1,7 +1,7 @@
 package com.ntq.training.momentbox.core.media
 
 /** Voice chỉ mượn focus tạm thời; video dùng focus cho phiên xem liên tục. */
-enum class AudioPlaybackKind { VOICE, VIDEO }
+enum class AudioPlaybackKind { VOICE, VIDEO, RECORDING }
 
 /** Cổng âm thanh để kiểm thử chính sách phát mà không cần Android. */
 interface PlaybackAudio {

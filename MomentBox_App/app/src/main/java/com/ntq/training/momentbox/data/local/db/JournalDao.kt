@@ -232,6 +232,10 @@ interface JournalDao {
     @Query("SELECT * FROM journal_entries WHERE deleted_at IS NULL ORDER BY created_at ASC")
     suspend fun getAllEntries(): List<JournalEntryWithDetails>
 
+    @Transaction
+    @Query("SELECT * FROM journal_entries WHERE deleted_at IS NULL AND audio_count > 0 ORDER BY created_at DESC, id DESC LIMIT :limit")
+    suspend fun audioLibrary(limit: Int): List<JournalEntryWithDetails>
+
     // === THAO TÁC GHIM & XÓA MỀM / HOÀN TÁC (PIN, SOFT DELETE & UNDO) ===
 
     /**

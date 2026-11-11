@@ -1,0 +1,122 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/playerRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_player_gradient"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:paddingStart="4dp"
+        android:paddingEnd="8dp">
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/playerCollapse"
+            style="@style/PlayerIcon"
+            android:contentDescription="@string/m5_player_close"
+            app:srcCompat="@drawable/ic_player_keyboard_arrow_down" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/PlayerText"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:text="@string/m5_player_from"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                app:fontFamily="@font/be_vietnam_pro_semibold" />
+
+            <TextView
+                android:id="@+id/playerSource"
+                style="@style/PlayerText"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:text="@string/m5_player_journal"
+                android:textSize="14sp"
+                app:fontFamily="@font/be_vietnam_pro_semibold" />
+        </LinearLayout>
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/playerQueue"
+            style="@style/PlayerIcon"
+            android:contentDescription="@string/m5_player_queue"
+            app:srcCompat="@drawable/ic_player_queue_music" />
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="false"
+        android:paddingHorizontal="28dp"
+        android:paddingBottom="28dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="10dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/playerCoverCard"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                app:cardBackgroundColor="#D7ECE2"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="12dp"
+                app:cardUseCompatPadding="false"
+                app:layout_constraintDimensionRatio="1:1"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:strokeWidth="0dp">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <ImageView
+                        android:id="@+id/playerCover"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:importantForAccessibility="no"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/art_onboarding_dalat" />
+
+                    <TextView
+                        android:id="@+id/playerCoverBadge"
+                        style="@style/PlayerText"
+                        android:layout_gravity="bottom|start"
+                        android:layout_margin="14dp"
+                        android:background="@drawable/bg_player_badge"
+                        android:drawablePadding="4dp"
+                        android:drawableTint="#FFFFFF"
+                        android:paddingHorizontal="9dp"
+                        android:paddingVertical="4dp"
+                        android:text="@string/m5_player_recording"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11.5sp"
+                        app:drawableStartCompat="@drawable/ic_mic"
+                        app:fontFamily="@font/be_vietnam_pro_semibold" />
+                </FrameLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <include
+                android:id="@+id/playerControls"
+                layout="@layout/player_controls"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/playerCoverCard" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

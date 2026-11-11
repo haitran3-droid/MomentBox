@@ -1,0 +1,32 @@
+<resources>
+
+    <style name="PlayerText">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">@font/be_vietnam_pro_regular</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="PlayerIcon">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:padding">12dp</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="tint">@color/text_primary</item>
+    </style>
+
+    <style
+        name="PlayerChip"
+        parent="PlayerText">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:drawablePadding">4dp</item>
+        <item name="android:paddingLeft">9dp</item>
+        <item name="android:paddingRight">9dp</item>
+        <item name="android:background">@drawable/bg_player_chip_touch</item>
+    </style>
+</resources>

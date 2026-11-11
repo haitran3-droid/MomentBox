@@ -67,17 +67,26 @@ class RecordingService : Service() {
                 .setAction(action)
                 .putExtra("session", session)
 
+        fun interruptForPlayback(context: Context) {
+            val snapshot = state.value
+            if (snapshot.phase in listOf(
+                    RecordPhase.PREPARING,
+                    RecordPhase.RECORDING
+                )
+            ) context.startService(intent(context, INTERRUPT, snapshot.session))
+        }
+
         /** Chạy trên Main, chỉ đọc marker bằng IO, không khởi động lại mic sau process death. */
         suspend fun restoreInterrupted(context: Context): RecordingSnapshot? {
             if (
                 mutable.value.phase in
-                    listOf(
-                        RecordPhase.PREPARING,
-                        RecordPhase.RECORDING,
-                        RecordPhase.PAUSED,
-                        RecordPhase.STOPPING,
-                        RecordPhase.SAVED,
-                    )
+                listOf(
+                    RecordPhase.PREPARING,
+                    RecordPhase.RECORDING,
+                    RecordPhase.PAUSED,
+                    RecordPhase.STOPPING,
+                    RecordPhase.SAVED,
+                )
             )
                 return null
             val pending =
@@ -90,22 +99,22 @@ class RecordingService : Service() {
                 }
             if (
                 pending == null ||
-                    mutable.value.phase in
-                        listOf(
-                            RecordPhase.PREPARING,
-                            RecordPhase.RECORDING,
-                            RecordPhase.PAUSED,
-                            RecordPhase.STOPPING,
-                            RecordPhase.SAVED,
-                        )
+                mutable.value.phase in
+                listOf(
+                    RecordPhase.PREPARING,
+                    RecordPhase.RECORDING,
+                    RecordPhase.PAUSED,
+                    RecordPhase.STOPPING,
+                    RecordPhase.SAVED,
+                )
             )
                 return null
             return RecordingSnapshot(
-                    pending.session,
-                    RecordPhase.ERROR,
-                    error = true,
-                    interrupted = true,
-                )
+                pending.session,
+                RecordPhase.ERROR,
+                error = true,
+                interrupted = true,
+            )
                 .also { mutable.value = it }
         }
     }
@@ -148,8 +157,8 @@ class RecordingService : Service() {
         super.onCreate()
         tick =
             runCatching {
-                    StaticPcmSound(this, "audio/sfx-tick.wav")
-                }
+                StaticPcmSound(this, "audio/sfx-tick.wav")
+            }
                 .getOrNull()
         manager.registerAudioDeviceCallback(routes, Handler(Looper.getMainLooper()))
         if (Build.VERSION.SDK_INT >= 26)
@@ -166,13 +175,13 @@ class RecordingService : Service() {
                 try {
                     if (
                         action == START &&
-                            mutable.value.phase !in
-                                listOf(
-                                    RecordPhase.PREPARING,
-                                    RecordPhase.RECORDING,
-                                    RecordPhase.PAUSED,
-                                    RecordPhase.STOPPING,
-                                )
+                        mutable.value.phase !in
+                        listOf(
+                            RecordPhase.PREPARING,
+                            RecordPhase.RECORDING,
+                            RecordPhase.PAUSED,
+                            RecordPhase.STOPPING,
+                        )
                     )
                         start(session)
                     else if (session == mutable.value.session)
@@ -181,6 +190,7 @@ class RecordingService : Service() {
                             TOGGLE ->
                                 if (mutable.value.phase == RecordPhase.RECORDING) pause()
                                 else if (mutable.value.phase == RecordPhase.PAUSED) resume()
+
                             SAVE -> finish(false)
                             CANCEL -> finish(true)
                         }
@@ -220,20 +230,19 @@ class RecordingService : Service() {
     }
 
     private fun acquireFocus(): Boolean {
-        if (
-            !shared.acquireOwnership(owner) {
-                if (mutable.value.phase == RecordPhase.RECORDING)
-                    commands.trySend(INTERRUPT to mutable.value.session)
-            }
-        )
-            return false
+        if (!shared.acquireRecordingOwnership(owner) {
+                if (mutable.value.phase == RecordPhase.RECORDING) commands.trySend(
+                    INTERRUPT to mutable.value.session
+                )
+            }) return false
+
         val generation = ++focusGeneration
         val listener =
             AudioManager.OnAudioFocusChangeListener { change ->
                 if (
                     change < 0 &&
-                        generation == focusGeneration &&
-                        mutable.value.phase == RecordPhase.RECORDING
+                    generation == focusGeneration &&
+                    mutable.value.phase == RecordPhase.RECORDING
                 )
                     commands.trySend(INTERRUPT to mutable.value.session)
             }
@@ -286,7 +295,12 @@ class RecordingService : Service() {
         val output =
             File(
                 folder,
-                "rec_${SimpleDateFormat("yyyyMMdd_HHmmss",Locale.ROOT).format(Date())}_${UUID.randomUUID()}.pending.m4a",
+                "rec_${
+                    SimpleDateFormat(
+                        "yyyyMMdd_HHmmss",
+                        Locale.ROOT
+                    ).format(Date())
+                }_${UUID.randomUUID()}.pending.m4a",
             )
         file = output
         // Ghi marker trước khi mở mic. onDestroy không được bảo đảm chạy khi OS giết tiến trình.
@@ -416,7 +430,8 @@ class RecordingService : Service() {
                         elapsedMs = duration,
                         waveform = samples.toList(),
                         uri =
-                            FileProvider.getUriForFile(this, "$packageName.media", final).toString(),
+                            FileProvider.getUriForFile(this, "$packageName.media", final)
+                                .toString(),
                     )
             }
         } catch (_: Exception) {
@@ -504,7 +519,7 @@ class RecordingService : Service() {
         releaseFocus()
         if (
             mutable.value.phase in
-                listOf(RecordPhase.RECORDING, RecordPhase.PAUSED, RecordPhase.PREPARING)
+            listOf(RecordPhase.RECORDING, RecordPhase.PAUSED, RecordPhase.PREPARING)
         )
             mutable.value = mutable.value.copy(phase = RecordPhase.ERROR, error = true)
         scope.cancel()

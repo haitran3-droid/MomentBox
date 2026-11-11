@@ -25,6 +25,9 @@ class WaveformView @JvmOverloads constructor(
     private var barGap = 2f * density
     private var barMinHeight = 4f * density
     private var barRadius = 1.5f * density
+    private var displayCount: Int? = null
+    private var displayHeight = .85f
+    private var sourceAmplitudes: List<Float> = emptyList()
 
     private var progress: Float = 0f
     private var amplitudes: List<Float> = emptyList()
@@ -58,10 +61,28 @@ class WaveformView @JvmOverloads constructor(
     fun getProgress(): Float = progress
 
     fun setAmplitudes(amps: List<Float>) {
-        if (amps.isNotEmpty()) {
-            amplitudes = amps
-            invalidate()
+        if (sourceAmplitudes == amps && (amps.isNotEmpty() || amplitudes.isEmpty())) return
+        sourceAmplitudes = amps.toList()
+        val count = displayCount
+        if (count == null || amps.isEmpty()) amplitudes = amps.toList() else {
+            val maximum = amps.maxOrNull()?.coerceAtLeast(.001f) ?: 1f
+            amplitudes = List(count) { i ->
+                val x = i.toFloat() * (amps.size - 1) / (count - 1);
+                val lower = x.toInt();
+                val upper = (lower + 1).coerceAtMost(amps.lastIndex)
+                ((amps[lower] + (amps[upper] - amps[lower]) * (x - lower)) / maximum).coerceIn(
+                    0f,
+                    1f
+                )
+            }
         }
+        invalidate()
+    }
+
+    fun configureBars(count: Int, gapDp: Float, heightFraction: Float) {
+        require(count in 2..120 && gapDp in 0f..5f && heightFraction in 0f..1f)
+        displayCount = count; barGap = gapDp * density; displayHeight =
+            heightFraction; barMinHeight = 3 * density
     }
 
     fun generateDefaultAmplitudes(seed: Int = 3) {
@@ -113,7 +134,7 @@ class WaveformView @JvmOverloads constructor(
             val left = paddingLeft + i * (actualBarWidth + barGap)
             val right = left + actualBarWidth
             val amp = amplitudes[i].coerceIn(0.1f, 1f)
-            val barH = max(barMinHeight, contentHeight * amp * 0.85f)
+            val barH = max(barMinHeight, contentHeight * amp * displayHeight)
             val top = centerY - barH / 2f
             val bottom = centerY + barH / 2f
 
@@ -125,20 +146,20 @@ class WaveformView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        when(event.action){
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE ->{
+        when (event.action) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
                 parent?.requestDisallowInterceptTouchEvent(true)
                 val contentWidth = width - paddingLeft - paddingRight
-                if(contentWidth > 0 ){
+                if (contentWidth > 0) {
                     val touchX = (event.x - paddingLeft).coerceIn(0f, contentWidth.toFloat())
-                    val newProgress = touchX/ contentWidth
+                    val newProgress = touchX / contentWidth
                     setProgress(newProgress)
                     onSeekListener?.invoke(newProgress)
                 }
                 return true
             }
 
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->{
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 parent?.requestDisallowInterceptTouchEvent(false)
                 if (event.actionMasked == MotionEvent.ACTION_UP) performClick()
                 return true

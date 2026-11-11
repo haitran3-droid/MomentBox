@@ -1,0 +1,157 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:gravity="center_vertical">
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/playerTitle"
+                style="@style/PlayerText"
+                android:layout_width="match_parent"
+                android:textSize="21sp"
+                android:fontFamily="@font/be_vietnam_pro_bold"
+                app:fontFamily="@font/be_vietnam_pro_bold"
+                android:letterSpacing="-0.014" />
+            <TextView
+                android:id="@+id/playerSubtitle"
+                style="@style/PlayerText"
+                android:layout_width="match_parent"
+                android:layout_marginTop="3dp"
+                android:textSize="13.5sp"
+                android:textColor="@color/text_secondary" />
+        </LinearLayout>
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/playerFavorite"
+            style="@style/PlayerIcon"
+            app:srcCompat="@drawable/ic_favorite"
+            app:tint="#F43F5E"
+            android:contentDescription="@string/m5_player_favorite" />
+    </LinearLayout>
+    <com.ntq.training.momentbox.core.ui.WaveformView
+        android:id="@+id/playerWaveform"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginTop="18dp"
+        android:contentDescription="@string/m5_player_seek" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp">
+        <TextView
+            android:id="@+id/playerElapsed"
+            style="@style/PlayerText"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"
+            android:fontFamily="@font/be_vietnam_pro_semibold"
+            app:fontFamily="@font/be_vietnam_pro_semibold" />
+        <TextView
+            android:id="@+id/playerRemaining"
+            style="@style/PlayerText"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"
+            android:fontFamily="@font/be_vietnam_pro_semibold"
+            app:fontFamily="@font/be_vietnam_pro_semibold" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:layout_marginTop="14dp"
+        android:gravity="center_vertical">
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/playerShuffle"
+            style="@style/PlayerIcon"
+            app:srcCompat="@drawable/ic_player_shuffle"
+            android:contentDescription="@string/m5_player_shuffle" />
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/playerPrevious"
+            style="@style/PlayerIcon"
+            android:padding="6dp"
+            app:srcCompat="@drawable/ic_player_skip_previous"
+            android:contentDescription="@string/m5_player_previous" />
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/playerPlay"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:padding="16dp"
+            android:background="@drawable/bg_player_play"
+            android:elevation="8dp"
+            app:srcCompat="@drawable/ic_player_play_arrow"
+            app:tint="#FFFFFF"
+            android:contentDescription="@string/m5_player_play" />
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/playerNext"
+            style="@style/PlayerIcon"
+            android:padding="6dp"
+            app:srcCompat="@drawable/ic_player_skip_next"
+            android:contentDescription="@string/m5_player_next" />
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/playerRepeat"
+            style="@style/PlayerIcon"
+            app:srcCompat="@drawable/ic_player_repeat"
+            android:contentDescription="@string/m5_player_repeat" />
+    </LinearLayout>
+    <com.ntq.training.momentbox.feature.player.PlayerChipRow
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="11dp">
+        <TextView
+            android:id="@+id/playerSpeed"
+            style="@style/PlayerChip"
+            app:drawableStartCompat="@drawable/ic_speed"
+            android:contentDescription="@string/m5_player_speed" />
+        <TextView
+            android:id="@+id/playerSleep"
+            style="@style/PlayerChip"
+            app:drawableStartCompat="@drawable/ic_player_bedtime"
+            android:contentDescription="@string/m5_player_sleep" />
+        <TextView
+            android:id="@+id/playerRoute"
+            style="@style/PlayerChip"
+            android:contentDescription="@string/m5_player_route" />
+    </com.ntq.training.momentbox.feature.player.PlayerChipRow>
+    <TextView
+        android:id="@+id/playerDebug"
+        style="@style/PlayerText"
+        android:layout_width="match_parent"
+        android:layout_marginTop="3dp"
+        android:paddingVertical="5dp"
+        android:paddingHorizontal="10dp"
+        android:background="@drawable/bg_player_debug"
+        android:textColor="#6B6B7B"
+        android:textSize="11sp"
+        android:fontFamily="monospace" />
+    <TextView
+        android:id="@+id/playerError"
+        style="@style/PlayerText"
+        android:layout_width="match_parent"
+        android:layout_marginTop="8dp"
+        android:textSize="13sp"
+        android:visibility="gone" />
+</LinearLayout>

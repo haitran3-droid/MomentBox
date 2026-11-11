@@ -1,0 +1,36 @@
+<resources>
+    <string name="m5_player_channel">音声再生</string>
+    <string name="m5_player_title">オーディオプレーヤー</string>
+    <string name="m5_player_playing">再生中</string>
+    <string name="m5_player_paused">一時停止中</string>
+    <string name="m5_player_previous">前へ</string>
+    <string name="m5_player_next">次へ</string>
+    <string name="m5_player_pause">一時停止</string>
+    <string name="m5_player_play">再生</string>
+    <string name="m5_player_close">閉じる</string>
+    <string name="m5_player_from">再生元</string>
+    <string name="m5_player_journal">音声日記</string>
+    <string name="m5_player_saved">保存済みの音声投稿</string>
+    <string name="m5_player_recording">録音</string>
+    <string name="m5_player_saved_voice">音声投稿</string>
+    <string name="m5_player_queue">再生キュー</string>
+    <string name="m5_player_shuffle">シャッフル</string>
+    <string name="m5_player_repeat">リピート</string>
+    <string name="m5_player_speed">再生速度</string>
+    <string name="m5_player_sleep">スリープタイマー</string>
+    <string name="m5_player_route">音声出力</string>
+    <string name="m5_player_speaker">スピーカー</string>
+    <string name="m5_player_headphones">ヘッドホン</string>
+    <string name="m5_player_bluetooth">Bluetooth</string>
+    <string name="m5_player_timer_off">タイマー</string>
+    <string name="m5_player_timer_minutes">タイマー %1$d分</string>
+    <string name="m5_player_timer_end">曲の終わり</string>
+    <string name="m5_player_empty">録音がありません。日記に音声を追加するか音声投稿を保存してください。</string>
+    <string name="m5_player_load_error">保存した投稿を読み込めません。端末の録音は再生できます。</string>
+    <string name="m5_player_retry">再試行</string>
+    <string name="m5_player_error">再生できません。ファイルまたは接続を確認してください。</string>
+    <string name="m5_player_favorite">録音のお気に入り</string>
+    <string name="m5_player_queue_hint">最新50件。ドラッグして並べ替え。</string>
+    <string name="m5_player_seek">音声の再生位置</string>
+    <string name="m5_player_timer_clear">タイマーをオフ</string>
+</resources>

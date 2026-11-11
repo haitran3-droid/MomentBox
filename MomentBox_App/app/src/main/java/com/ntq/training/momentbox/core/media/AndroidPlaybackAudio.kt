@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.core.media
 
+import kotlinx.coroutines.flow.MutableStateFlow
 import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -12,8 +13,17 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import com.ntq.training.momentbox.MomentBoxApp
+import kotlinx.coroutines.flow.first
 
 class AndroidPlaybackAudio private constructor(private val context: Application) : PlaybackAudio {
+    private val bridge get() = (context as? MomentBoxApp)?.playerAudioBridge
+    private val recordingOwners = mutableSetOf<Any>()
+    private val recordersIdle = MutableStateFlow(true)
+    suspend fun awaitRecordersReleased() {
+        recordersIdle.first { it }
+    }
+
     private val ownership = AudioOwnership()
     private val manager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var focusRequest: AudioFocusRequest? = null
@@ -26,8 +36,23 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         }
     }
 
-    fun acquireOwnership(owner: Any, onInterrupted: () -> Unit): Boolean {
+    fun acquireOwnership(owner: Any, onInterrupted: () -> Unit): Boolean =
+        acquireOwnershipInternal(owner, onInterrupted, false)
+
+    fun acquireRecordingOwnership(owner: Any, onInterrupted: () -> Unit): Boolean =
+        acquireOwnershipInternal(owner, onInterrupted, true)
+
+    private fun acquireOwnershipInternal(
+        owner: Any,
+        onInterrupted: () -> Unit,
+        transientLoss: Boolean
+    ): Boolean {
+        if (recordingOwners.any { it !== owner }) return false
         if (!ownership.acquire(owner, onInterrupted, true)) return false
+        if (transientLoss) {
+            recordingOwners.add(owner); recordersIdle.value = false
+        }
+        bridge?.interruptForMain(transientLoss)
         abandonPlatformFocus()
         unregisterNoisyReceiver()
         return true
@@ -39,16 +64,28 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         mayInterrupt: Boolean,
         kind: AudioPlaybackKind
     ): Boolean {
+        // Mic đang ghi có ưu tiên hơn media; tránh khởi động engine thứ hai trong lúc stop IO.
+        if (recordingOwners.any { it !== owner }) return false
+        if (!mayInterrupt && bridge?.active == true) return false
         if (ownership.isOwner(owner)) return true
         if (!ownership.acquire(owner, onInterrupted, mayInterrupt)) return false
+        if (kind == AudioPlaybackKind.RECORDING) {
+            recordingOwners.add(owner); recordersIdle.value = false
+        }
+        bridge?.interruptForMain(kind != AudioPlaybackKind.VIDEO)
+        // Mỗi yêu cầu giữ generation riêng để callback focus cũ không dừng player mới.
         abandonPlatformFocus()
         val requestGeneration = ++focusGeneration
         val listener = AudioManager.OnAudioFocusChangeListener { change ->
             if (requestGeneration == focusGeneration && change < 0) interrupt()
         }
-        val gain = if (kind == AudioPlaybackKind.VOICE) AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
-        else AudioManager.AUDIOFOCUS_GAIN
-        val contentType = if (kind == AudioPlaybackKind.VOICE) AudioAttributes.CONTENT_TYPE_SPEECH
+        // Cùng một owner trong app nhưng hợp đồng với âm thanh ngoài app khác theo loại media.
+        val gain = when (kind) {
+            AudioPlaybackKind.VOICE -> AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+            AudioPlaybackKind.RECORDING -> AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
+            AudioPlaybackKind.VIDEO -> AudioManager.AUDIOFOCUS_GAIN
+        }
+        val contentType = if (kind != AudioPlaybackKind.VIDEO) AudioAttributes.CONTENT_TYPE_SPEECH
         else AudioAttributes.CONTENT_TYPE_MOVIE
         val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val request = AudioFocusRequest.Builder(gain)
@@ -67,6 +104,9 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
             manager.requestAudioFocus(listener, AudioManager.STREAM_MUSIC, gain)
         } == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         if (!granted) {
+            // Quick recorder chưa vào PREPARING nên callback finish có thể chưa chạy cleanup.
+            // Request bị OS từ chối chưa sở hữu mic: rollback lease ngay, không khóa owner kế tiếp.
+            recordingOwners.remove(owner); recordersIdle.value = recordingOwners.isEmpty()
             interrupt()
             return false
         }
@@ -83,10 +123,15 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
     }
 
     override fun release(owner: Any) {
+        recordingOwners.remove(owner); recordersIdle.value = recordingOwners.isEmpty()
         if (!ownership.isOwner(owner)) return
         ownership.release(owner)
         abandonPlatformFocus()
         unregisterNoisyReceiver()
+    }
+
+    fun interruptForRemotePlayer() {
+        interrupt()
     }
 
     private fun interrupt() {

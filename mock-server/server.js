@@ -86,6 +86,8 @@ function userDto(base, u, viewer) {
   const following = [...db.follows].filter(f => f.startsWith(u.id + ':')).length;
   return {
     ...authorDto(base, u), bio: u.bio, location: u.location,
+    // S21/S22: email chỉ thuộc hồ sơ chính chủ, không xuất hiện ở suggestions/hồ sơ người khác.
+    ...(viewer && viewer.id === u.id ? { email: u.email } : {}),
     postCount: db.posts.filter(p => p.authorId === u.id).length, followerCount: followers, followingCount: following,
     isFollowing: viewer ? db.follows.has(`${viewer.id}:${u.id}`) : false, isMe: viewer ? viewer.id === u.id : false,
     online: online.has(u.id), lastSeenAt: lastSeen.get(u.id) || null,
@@ -119,7 +121,7 @@ function conversationDto(base, c, viewer) {
     id: c.id, type: c.type,
     title: c.title || others[0].displayName,
     avatarUrl: c.type === 'direct' ? absUrl(base, others[0].avatar) : null,
-    members: c.memberIds.map(id => ({ ...authorDto(base, findUser(id)), online: online.has(id) })),
+    members: c.memberIds.map(id => ({ ...authorDto(base, findUser(id)), online: online.has(id), lastSeenAt: lastSeen.get(id) || null })),
     lastMessage: msgs[0] ? messageDto(base, msgs[0]) : null,
     unreadCount: msgs.filter(m => m.senderId !== viewer.id && m.status !== 'seen').length,
     updatedAt: msgs[0] ? msgs[0].createdAt : null,
@@ -206,6 +208,13 @@ app.post('/v1/me/avatar', auth, upload.single('avatar'), (req, res) => {
   if (!req.file) return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['avatar'] });
   req.user.avatar = '/uploads/' + req.file.filename;
   ok(res, userDto(baseOf(req), req.user, req.user));
+});
+
+// S16: danh sách đang theo dõi khác suggestions (suggestions loại chính những người này).
+// Luôn suy owner từ token đã auth, không nhận ownerId do client tự khai báo.
+app.get('/v1/me/following', auth, (req, res) => {
+  const list = db.users.filter(u => u.id !== req.user.id && db.follows.has(`${req.user.id}:${u.id}`));
+  ok(res, list.map(u => userDto(baseOf(req), u, req.user)));
 });
 
 app.get('/v1/users/suggestions', auth, (req, res) => {
@@ -369,6 +378,46 @@ app.get('/v1/conversations/:id/messages', auth, (req, res) => {
   ok(res, items.map(m => messageDto(baseOf(req), m)), { limit, hasMore: list.length > limit, nextBefore: items.length ? items[items.length - 1].id : null });
 });
 
+// S17/S19: một nghiệp vụ ghi tin cho cả Socket lẫn REST. Dedupe ở server,
+// không chỉ ở RecyclerView; khóa gồm owner/phòng/clientId và chỉ sống trong RAM.
+function acceptMessage(uid, conversationId, payload) {
+  const conv = db.conversations.find(c => c.id === +conversationId);
+  if (!conv || !conv.memberIds.includes(uid)) return { status: 403, code: 'FORBIDDEN' };
+  const clientId = typeof payload.clientId === 'string' ? payload.clientId : '';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientId)) return { status: 400, code: 'VALIDATION_ERROR' };
+  const prior = db.messages.find(m => m.senderId === uid && m.conversationId === conv.id && m.clientId === clientId);
+  if (prior) return { conv, message: prior, created: false, slow: false };
+  const type = payload.type || 'text';
+  const content = String(payload.content || '').trim();
+  if (!['text', 'image', 'voice'].includes(type) || (type === 'text' && !content) ||
+      (type !== 'text' && (typeof payload.mediaUrl !== 'string' || !/^https?:\/\//.test(payload.mediaUrl)))) return { status: 400, code: 'VALIDATION_ERROR' };
+  if (payload.durationMs != null && (!Number.isFinite(payload.durationMs) || payload.durationMs < 0)) return { status: 400, code: 'VALIDATION_ERROR' };
+  if (content.includes('#fail')) return { status: 422, code: 'SIMULATED_FAILURE' };
+  const message = { id: nextId(db.messages), clientId, conversationId: conv.id, senderId: uid,
+    type, content, mediaUrl: type === 'text' ? null : payload.mediaUrl,
+    durationMs: type === 'voice' ? payload.durationMs || null : null, status: 'sent', createdAt: new Date().toISOString() };
+  // Không await giữa lookup và insert: hai transport chạy cùng event loop không thể chèn đua.
+  db.messages.push(message);
+  return { conv, message, created: true, slow: content.includes('#slow') };
+}
+function publishMessage(result, uid, base, senderSocket) {
+  if (!result.created) return;
+  const { conv, message } = result;
+  const target = senderSocket ? senderSocket.to('conv:' + conv.id) : io.to('conv:' + conv.id);
+  target.emit('message:new', { message: messageDto(base, message) });
+  if (conv.memberIds.some(id => id !== uid && online.has(id)) && message.status === 'sent') {
+    message.status = 'delivered';
+    io.to('user:' + uid).emit('message:status', { conversationId: conv.id, messageId: message.id, clientId: message.clientId, status: 'delivered' });
+  }
+  botReply(conv, uid, message, base);
+}
+app.post('/v1/conversations/:id/messages', auth, (req, res) => {
+  const result = acceptMessage(req.user.id, req.params.id, req.body || {});
+  if (result.code) return fail(req, res, result.status, result.code);
+  const deliver = () => { publishMessage(result, req.user.id, baseOf(req)); ok(res, messageDto(baseOf(req), result.message)); };
+  result.slow ? setTimeout(deliver, 8000) : deliver();
+});
+
 app.post('/v1/uploads', auth, upload.single('file'), (req, res) => {
   if (!req.file) return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['file'] });
   res.status(201);
@@ -475,29 +524,13 @@ io.on('connection', socket => {
   // Test hooks: content containing "#fail" -> ack error; "#slow" -> ack after 8s (longer than a 5s client timeout)
   socket.on('message:send', (payload = {}, ack) => {
     const reply = typeof ack === 'function' ? ack : () => {};
-    const conv = member(payload.conversationId);
-    const type = ['text', 'image', 'voice'].includes(payload.type) ? payload.type : 'text';
-    const content = String(payload.content || '').trim();
-    if (!conv) return reply({ ok: false, error: { code: 'FORBIDDEN' } });
-    if (type === 'text' && !content) return reply({ ok: false, error: { code: 'VALIDATION_ERROR' } });
-    if (type !== 'text' && !payload.mediaUrl) return reply({ ok: false, error: { code: 'VALIDATION_ERROR' } });
-    if (content.includes('#fail')) return reply({ ok: false, error: { code: 'SIMULATED_FAILURE' } });
-
-    const msg = {
-      id: nextId(db.messages), clientId: payload.clientId || null, conversationId: conv.id, senderId: uid, type, content,
-      mediaUrl: payload.mediaUrl || null, durationMs: payload.durationMs || null, status: 'sent', createdAt: new Date().toISOString(),
-    };
-    db.messages.push(msg);
+    const result = acceptMessage(uid, payload.conversationId, payload);
+    if (result.code) return reply({ ok: false, error: { code: result.code } });
     const deliver = () => {
-      reply({ ok: true, message: messageDto(base, msg) });
-      socket.to('conv:' + conv.id).emit('message:new', { message: messageDto(base, msg) });
-      if (conv.memberIds.some(id => id !== uid && online.has(id))) {
-        msg.status = 'delivered';
-        socket.emit('message:status', { conversationId: conv.id, messageId: msg.id, clientId: msg.clientId, status: 'delivered' });
-      }
-      botReply(conv, uid, msg, base);
+      publishMessage(result, uid, base, socket);
+      reply({ ok: true, message: messageDto(base, result.message) });
     };
-    content.includes('#slow') ? setTimeout(deliver, 8000) : deliver();
+    result.slow ? setTimeout(deliver, 8000) : deliver();
   });
 
   socket.on('message:seen', ({ conversationId, messageId } = {}) => {

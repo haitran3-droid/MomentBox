@@ -147,6 +147,7 @@ Base path: `/v1`. Mọi response đều bọc trong một **envelope** — luy�
 | Method | Path | Body / Query | Mô tả |
 |---|---|---|---|
 | GET | `/v1/me` | – | Hồ sơ của tôi |
+| GET | `/v1/me/following` | – | S16: người đang theo dõi của chủ token; envelope `{success,data:[User]}`, không bao gồm bản thân; auth bắt buộc |
 | PATCH | `/v1/me` | `{ displayName?, bio?, location? }` | Sửa hồ sơ |
 | POST | `/v1/me/avatar` | multipart `avatar` | Đổi ảnh đại diện |
 | GET | `/v1/me/bookmarks` | `page, pageSize` | Bài đã lưu (tab "Đã lưu") |
@@ -289,3 +290,23 @@ Nếu chưa muốn chạy server, phần REST cơ bản có thể dùng **DummyJ
 | Người dùng | `GET /users/{id}` |
 
 Hạn chế: DummyJSON **không có** Socket.IO, upload file, bài viết dạng video/voice và envelope `success/data`. Các phần đó dùng mock server này hoặc chế độ **Offline** (MockInterceptor đọc JSON trong `assets/`).
+
+### M5 gửi chat qua Socket và REST
+
+`POST /v1/conversations/{id}/messages` (Bearer) dùng body `{clientId,type,content,mediaUrl?,durationMs?}`.
+`clientId` là UUID; type text/image/voice, text không trống, media cần URL HTTP(S).
+Response 200 `{success:true,data:<messageDto>}`; lỗi 401 auth,403 membership,400 validation,422 SIMULATED_FAILURE.
+Socket `message:send` dùng cùng body thêm conversationId, trả `{ok:true,message}` hoặc `{ok:false,error:{code}}`.
+Cả hai dùng một nghiệp vụ: cùng sender/conversation/clientId trả cùng server ID, không tạo broadcast/bot reply thứ hai.
+Retry với payload thay đổi vẫn trả operation đầu; scope khác có thể dùng lại clientId. Dedupe chỉ trong RAM, mất khi restart.
+`#fail` không lưu; lần gửi mới `#slow` lưu trước rồi ack/response sau8s. Retry operation đã lưu trả ngay cùng ID.
+Hook outage/transport và refresh giữ nguyên. Test thật: `node --test test/m5-send.cjs`.
+
+
+### M5 S21/S22 profile contract
+
+`userDto` trả `email` chỉ khi viewer là chính user đó: login, GET/PATCH `/v1/me`, POST `/v1/me/avatar`, hoặc GET own `/v1/users/{id}`. Hồ sơ người khác/suggestions không xuất email. Client không suy email từ username.
+
+Avatar multipart dùng field `avatar`; response trả user sau ACK và `avatarUrl` có thể đọc bằng HTTP. Không có `updatedAt` giả trong DTO: client quản lý local cache version sau ACK. Posts dùng `/v1/users/{id}/posts?type=VIDEO&page=&pageSize=`; Saved chính chủ dùng `/v1/me/bookmarks`; tôn trọng `meta.hasMore/total/page`. Dữ liệu server vẫn RAM, mất khi restart.
+
+Regression: `node --test test/m5-profile.cjs` chạy server cách ly3111, fixture JPEG công khai và chỉ dọn file upload do chính test tạo.

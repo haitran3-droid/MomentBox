@@ -17,7 +17,7 @@ object NetworkModule {
     private val gson: Gson =
         GsonBuilder()
             .registerTypeAdapter(
-                com.ntq.training.momentbox.data.remote.dto.RawFeedItemDto::class.java,
+                RawFeedItemDto::class.java,
                 RawFeedItemDeserializer(),
             )
             .create()

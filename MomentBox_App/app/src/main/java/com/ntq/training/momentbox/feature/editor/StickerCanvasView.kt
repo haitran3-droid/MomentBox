@@ -12,10 +12,16 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.os.Bundle
+import android.os.Parcelable
 import android.util.AttributeSet
 import android.view.DragEvent
 import android.view.MotionEvent
 import android.view.View
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
+import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.media.BitmapRenderSnapshot
 import com.ntq.training.momentbox.feature.camera.PhotoFilter
 import com.ntq.training.momentbox.feature.camera.PhotoFilters
 import com.ntq.training.momentbox.feature.crop.Affine
@@ -86,14 +92,14 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
             0f,
         )
     private val deleteIcon =
-        androidx.core.content.ContextCompat.getDrawable(
+        ContextCompat.getDrawable(
             context,
-            com.ntq.training.momentbox.R.drawable.ic_m4_editor_handle_close,
+            R.drawable.ic_m4_editor_handle_close,
         )!!
     private val expandIcon =
-        androidx.core.content.ContextCompat.getDrawable(
+        ContextCompat.getDrawable(
             context,
-            com.ntq.training.momentbox.R.drawable.ic_m4_editor_handle_expand,
+            R.drawable.ic_m4_editor_handle_expand,
         )!!
     private var drop = false
     private var strokeInterrupted = false
@@ -142,9 +148,9 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
                 textSize = textSize(layer)
                 typeface =
                     if (layer.kind == "text")
-                        androidx.core.content.res.ResourcesCompat.getFont(
+                        ResourcesCompat.getFont(
                             context,
-                            com.ntq.training.momentbox.R.font.be_vietnam_pro_bold,
+                            R.font.be_vietnam_pro_bold,
                         )
                     else Typeface.DEFAULT
             }
@@ -305,9 +311,9 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
                 paint.textSize = textSize(l)
                 paint.typeface =
                     if (l.kind == "text")
-                        androidx.core.content.res.ResourcesCompat.getFont(
+                        ResourcesCompat.getFont(
                             context,
-                            com.ntq.training.momentbox.R.font.be_vietnam_pro_bold,
+                            R.font.be_vietnam_pro_bold,
                         )
                     else Typeface.DEFAULT
                 if (l.background) {
@@ -400,12 +406,12 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
         }
     }
 
-    fun exportSnapshot(): com.ntq.training.momentbox.core.media.BitmapRenderSnapshot {
+    fun exportSnapshot(): BitmapRenderSnapshot {
         val bm = requireNotNull(image).copy(Bitmap.Config.ARGB_8888, false)
 
         val document = history.document
         // Renderer riêng tránh chia sẻ Paint/Canvas giữa Main và worker.
-        return com.ntq.training.momentbox.core.media.BitmapRenderSnapshot(bm) { input ->
+        return BitmapRenderSnapshot(bm) { input ->
             val out = Bitmap.createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
             try {
                 val renderer = StickerCanvasView(context.applicationContext)
@@ -640,8 +646,8 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
         }
     }
 
-    override fun onSaveInstanceState(): android.os.Parcelable =
-        android.os.Bundle().apply {
+    override fun onSaveInstanceState(): Parcelable =
+        Bundle().apply {
             putParcelable("parent", super.onSaveInstanceState())
             putString("selected", selectedId)
             putString("tool", tool)
@@ -650,8 +656,8 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
         }
 
     @Suppress("DEPRECATION")
-    override fun onRestoreInstanceState(state: android.os.Parcelable?) {
-        if (state is android.os.Bundle) {
+    override fun onRestoreInstanceState(state: Parcelable?) {
+        if (state is Bundle) {
             super.onRestoreInstanceState(state.getParcelable("parent"))
             selectedId = state.getString("selected")
             tool = state.getString("tool") ?: "sticker"

@@ -1,7 +1,9 @@
 package com.ntq.training.momentbox.feature.compose
 
+import android.R as AndroidR
 import android.app.Dialog
 import android.os.Bundle
+import android.text.InputFilter
 import android.widget.EditText
 import androidx.fragment.app.DialogFragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -49,9 +51,9 @@ class ComposeOptionsDialog : DialogFragment() {
             "location" -> {
                 val input =
                     EditText(requireContext()).apply {
-                        id = android.R.id.edit
+                        id = AndroidR.id.edit
                         setText(state?.getString("text") ?: arguments?.getString("value"))
-                        filters = arrayOf(android.text.InputFilter.LengthFilter(200))
+                        filters = arrayOf(InputFilter.LengthFilter(200))
                     }
                 builder
                     .setTitle(R.string.m4_location)
@@ -87,7 +89,7 @@ class ComposeOptionsDialog : DialogFragment() {
 
     override fun onSaveInstanceState(out: Bundle) {
         super.onSaveInstanceState(out)
-        dialog?.findViewById<EditText>(android.R.id.edit)?.let {
+        dialog?.findViewById<EditText>(AndroidR.id.edit)?.let {
             out.putString("text", it.text.toString())
         }
     }

@@ -1,12 +1,16 @@
 package com.ntq.training.momentbox.feature.compose
 
+import android.graphics.Rect
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.text.Spannable
 import android.text.style.ForegroundColorSpan
+import android.view.TouchDelegate
 import android.view.View
 import androidx.activity.OnBackPressedCallback
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
@@ -21,7 +25,9 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import com.google.gson.Gson
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
@@ -29,7 +35,12 @@ import com.ntq.training.momentbox.core.media.AudioPlaybackKind
 import com.ntq.training.momentbox.data.repository.UploadPhase
 import com.ntq.training.momentbox.databinding.FragmentComposeBinding
 import com.ntq.training.momentbox.feature.create.CreateViewModel
+import com.ntq.training.momentbox.feature.create.SelectedMedia
 import com.ntq.training.momentbox.feature.recorder.RecordAudioContract
+import com.ntq.training.momentbox.feature.recorder.RecordedAudio
+import java.text.NumberFormat
+import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /** UI chỉ gửi intent lên VM/repository, danh sách khi upload là snapshot không đổi. */
@@ -142,11 +153,10 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
         val launchIntent = requireActivity().intent
         launchIntent.getStringExtra("voice")?.let { json ->
             runCatching {
-                    com.google.gson
-                        .Gson()
+                    Gson()
                         .fromJson(
                             json,
-                            com.ntq.training.momentbox.feature.recorder.RecordedAudio::class.java,
+                            RecordedAudio::class.java,
                         )
                 }
                 .getOrNull()
@@ -161,11 +171,11 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                 b.composeCancelUpload.performClick()
             else {
                 b.composeCaption.clearFocus()
-                androidx.core.view.WindowCompat.getInsetsController(
+                WindowCompat.getInsetsController(
                         requireActivity().window,
                         b.root,
                     )
-                    .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+                    .hide(WindowInsetsCompat.Type.ime())
                 model.post()
             }
         }
@@ -198,13 +208,13 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
         // Label hủy gọn theo mockup nhưng mở rộng vùng chạm48dp trong thẻ cha.
         b.composeCancelUpload.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             if (b.composeCancelUpload.width > 0) {
-                val hit = android.graphics.Rect()
+                val hit = Rect()
                 b.composeCancelUpload.getHitRect(hit)
 
                 val extra = (10 * resources.displayMetrics.density).toInt()
                 hit.inset(0, -extra)
                 b.composeUploadBox.touchDelegate =
-                    android.view.TouchDelegate(hit, b.composeCancelUpload)
+                    TouchDelegate(hit, b.composeCancelUpload)
             }
         }
         b.composeComments.setOnCheckedChangeListener { _, checked ->
@@ -218,8 +228,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                 UploadPhase.JOURNAL_FAILED -> model.upload.retryJournal()
                 UploadPhase.FAILED,
                 UploadPhase.CANCELLED ->
-                    com.google.android.material.dialog
-                        .MaterialAlertDialogBuilder(requireContext())
+                    MaterialAlertDialogBuilder(requireContext())
                         .setMessage(R.string.m4_retry_uncertain)
                         .setNegativeButton(R.string.cancel, null)
                         .setPositiveButton(R.string.m4_retry) { _, _ -> model.post() }
@@ -239,7 +248,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                         val selected = model.resolveRestore(choice == "keep", create.items.value)
                         create.restoreSelection(selected)
                         model.importMedia(selected, ::acceptPrepared)
-                    } catch (e: kotlinx.coroutines.CancellationException) {
+                    } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
                         model.error.value = true
@@ -299,7 +308,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                             b.composeCaption.setText(draft.caption)
                         b.composeCounter.text =
                             "${draft.caption.length} / ${
-                            java.text.NumberFormat.getIntegerInstance(resources.configuration.locales[0])
+                            NumberFormat.getIntegerInstance(resources.configuration.locales[0])
                                 .format(2200)
                         }"
                         b.composePrivacy.setText(
@@ -322,7 +331,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                             draft.voice
                                 ?.let {
                                     String.format(
-                                        java.util.Locale.ROOT,
+                                        Locale.ROOT,
                                         "%d:%02d",
                                         it.durationMs / 60000,
                                         it.durationMs / 1000 % 60,
@@ -407,7 +416,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
      * Copy xong khi Gallery đang mở chỉ cập nhật draft, không ghi đè lựa chọn tạm của người dùng.
      */
     private fun acceptPrepared(
-        items: List<com.ntq.training.momentbox.feature.create.SelectedMedia>
+        items: List<SelectedMedia>
     ) {
         if (
             binding != null &&

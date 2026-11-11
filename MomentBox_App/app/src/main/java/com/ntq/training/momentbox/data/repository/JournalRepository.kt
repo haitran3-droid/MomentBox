@@ -7,6 +7,8 @@ import com.ntq.training.momentbox.data.local.db.JournalEntryWithDetails
 import com.ntq.training.momentbox.data.local.db.TagCount
 import com.ntq.training.momentbox.data.local.prefs.JournalDraft
 import com.ntq.training.momentbox.data.local.prefs.JournalFilterState
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlin.collections.emptyList
@@ -16,7 +18,7 @@ interface JournalRepository {
     fun observeAtomicPages(query: String?, filter: JournalFilterState, pages: Int): Flow<JournalPageSnapshot>? = null
     fun observeDayCounts(query: String?, filter: JournalFilterState): Flow<List<JournalDayCount>> = flowOf(emptyList())
     fun observeWrittenDays(): Flow<List<String>> = kotlinx.coroutines.flow.flow {
-        emit(getEntriesForStats().map { java.time.Instant.ofEpochMilli(it.entry.createdAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString() }.distinct())
+        emit(getEntriesForStats().map { Instant.ofEpochMilli(it.entry.createdAt).atZone(ZoneId.systemDefault()).toLocalDate().toString() }.distinct())
     }
     val handlesDeletionDeadlines: Boolean get() = false
     fun observePendingDeletes(): Flow<List<PendingJournalDelete>> = flowOf(emptyList())

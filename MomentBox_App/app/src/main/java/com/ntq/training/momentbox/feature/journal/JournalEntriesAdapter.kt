@@ -8,14 +8,18 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.data.local.db.JournalEntryWithDetails
 import com.ntq.training.momentbox.databinding.ItemJournalEntryBinding
 import com.ntq.training.momentbox.databinding.ItemJournalHeaderBinding
+import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.WeekFields
 import java.util.Locale
 
 sealed interface JournalListItem {
@@ -200,24 +204,24 @@ class JournalEntriesAdapter(
 
     companion object {
         fun localizedHeader(context: Context, header: JournalListItem.Header): String {
-            val clock = (context.applicationContext as? com.ntq.training.momentbox.MomentBoxApp)?.journalClock ?: java.time.Clock.systemDefaultZone()
-            val today = java.time.LocalDate.now(clock)
+            val clock = (context.applicationContext as? MomentBoxApp)?.journalClock ?: Clock.systemDefaultZone()
+            val today = LocalDate.now(clock)
             val locale = context.resources.configuration.locales[0]
             if (header.id.startsWith("header_day_")) {
-                val day = java.time.LocalDate.parse(header.id.removePrefix("header_day_"))
+                val day = LocalDate.parse(header.id.removePrefix("header_day_"))
                 return when (day) {
                     today -> context.getString(R.string.journal_header_today)
                     today.minusDays(1) -> context.getString(R.string.journal_header_yesterday)
                     else -> day.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", locale))
                 }
             }
-            if (header.id.startsWith("header_month_")) return java.time.YearMonth.parse(header.id.removePrefix("header_month_"))
+            if (header.id.startsWith("header_month_")) return YearMonth.parse(header.id.removePrefix("header_month_"))
                 .atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", locale)).uppercase(locale)
             val parts = header.id.removePrefix("header_week_").split("_")
             val year = parts.getOrNull(0)?.toIntOrNull() ?: return header.title
             val week = parts.getOrNull(1)?.toIntOrNull() ?: return header.title
-            val fields = java.time.temporal.WeekFields.ISO
-            fun same(date: java.time.LocalDate) = date.get(fields.weekBasedYear()) == year && date.get(fields.weekOfWeekBasedYear()) == week
+            val fields = WeekFields.ISO
+            fun same(date: LocalDate) = date.get(fields.weekBasedYear()) == year && date.get(fields.weekOfWeekBasedYear()) == week
             return when {
                 same(today) -> context.getString(R.string.journal_header_this_week)
                 same(today.minusWeeks(1)) -> context.getString(R.string.journal_header_previous_week)

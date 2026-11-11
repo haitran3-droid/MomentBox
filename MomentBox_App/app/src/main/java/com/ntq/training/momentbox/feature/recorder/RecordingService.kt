@@ -27,6 +27,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.FileProvider
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
+import com.ntq.training.momentbox.core.media.StaticPcmSound
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -139,7 +140,7 @@ class RecordingService : Service() {
                 mutable.value = mutable.value.copy(input = actualInput())
             }
         }
-    private var tick: com.ntq.training.momentbox.core.media.StaticPcmSound? = null
+    private var tick: StaticPcmSound? = null
     private var lastNotify = 0L
     private var wake: PowerManager.WakeLock? = null
 
@@ -147,7 +148,7 @@ class RecordingService : Service() {
         super.onCreate()
         tick =
             runCatching {
-                    com.ntq.training.momentbox.core.media.StaticPcmSound(this, "audio/sfx-tick.wav")
+                    StaticPcmSound(this, "audio/sfx-tick.wav")
                 }
                 .getOrNull()
         manager.registerAudioDeviceCallback(routes, Handler(Looper.getMainLooper()))

@@ -14,6 +14,8 @@ import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.ntq.training.momentbox.R
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +50,7 @@ class AmbientAudioController(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val trackMutex = Mutex()
     private var writer: Job? = null
-    internal val completedLoops = java.util.concurrent.atomic.AtomicLong()
+    internal val completedLoops = AtomicLong()
     private var releaseJob: Job? = null
     private var audioTrack: AudioTrack? = null
     private var currentSound = SoundType.RAIN
@@ -210,7 +212,7 @@ class AmbientAudioController(
                     }
                 }
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is CancellationException) throw e
                 withContext(Dispatchers.Main) {
                     if (generation == expected && !released) {
                         pause(); onPlaybackError?.invoke()

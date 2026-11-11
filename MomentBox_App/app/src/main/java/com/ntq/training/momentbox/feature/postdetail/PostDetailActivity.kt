@@ -1,4 +1,6 @@
 package com.ntq.training.momentbox.feature.postdetail
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -10,6 +12,7 @@ import android.widget.EditText
 import android.view.inputmethod.InputMethodManager
 import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,10 +27,13 @@ import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.ntq.training.momentbox.MainActivity
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.databinding.ActivityPostDetailABinding
 import com.ntq.training.momentbox.databinding.ActivityPostDetailBBinding
+import com.ntq.training.momentbox.databinding.DialogPostMenuBottomSheetBinding
 import com.ntq.training.momentbox.domain.model.Author
 import com.ntq.training.momentbox.domain.model.Comment
 import com.ntq.training.momentbox.domain.model.Post
@@ -126,7 +132,7 @@ class PostDetailActivity : AppCompatActivity() {
             setupVersionB()
         }
 
-        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 handleBackNavigation()
             }
@@ -403,7 +409,7 @@ class PostDetailActivity : AppCompatActivity() {
      */
     private fun handleBackNavigation() {
         if (isTaskRoot) {
-            val intent = Intent(this, com.ntq.training.momentbox.MainActivity::class.java).apply {
+            val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
             startActivity(intent)
@@ -415,16 +421,16 @@ class PostDetailActivity : AppCompatActivity() {
      * Hiển thị Bottom Sheet tùy chọn bài viết thực tế thay vì Toast giả (D01).
      */
     private fun showPostMoreBottomSheet() {
-        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(this)
-        val sheetBinding = com.ntq.training.momentbox.databinding.DialogPostMenuBottomSheetBinding.inflate(layoutInflater)
+        val dialog = BottomSheetDialog(this)
+        val sheetBinding = DialogPostMenuBottomSheetBinding.inflate(layoutInflater)
         dialog.setContentView(sheetBinding.root)
 
         val currentPost = viewModel.post.value
 
         // 1. Sao chép liên kết bài viết
         sheetBinding.menuCopyLink.setOnClickListener {
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-            val clip = android.content.ClipData.newPlainText("Post Link", "momentbox://post/$postId")
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            val clip = ClipData.newPlainText("Post Link", "momentbox://post/$postId")
             clipboard?.setPrimaryClip(clip)
             Toast.makeText(this, getString(R.string.detail_link_copied), Toast.LENGTH_SHORT).show()
             dialog.dismiss()

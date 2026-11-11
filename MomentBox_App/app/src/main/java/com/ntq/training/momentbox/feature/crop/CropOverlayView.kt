@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.crop
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -13,6 +14,8 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import androidx.core.os.BundleCompat
+import com.ntq.training.momentbox.core.media.BitmapRenderSnapshot
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -30,7 +33,7 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
 
     private var angle = 0.0
     private var restored: Bundle? = null
-    private var ratioAnimation: android.animation.ValueAnimator? = null
+    private var ratioAnimation: ValueAnimator? = null
     val currentAngle
         get() = angle
 
@@ -158,7 +161,7 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
         } else {
             val before = crop
             ratioAnimation =
-                android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+                ValueAnimator.ofFloat(0f, 1f).apply {
                     duration = 160
                     addUpdateListener { animator ->
                         val f = (animator.animatedValue as Float).toDouble()
@@ -218,12 +221,12 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
     }
 
     /** Snapshot trên Main trước khi giao pixel work sang Default, worker sở hữu bản copy riêng. */
-    fun exportSnapshot(): com.ntq.training.momentbox.core.media.BitmapRenderSnapshot {
+    fun exportSnapshot(): BitmapRenderSnapshot {
         val bitmap = requireNotNull(image).copy(Bitmap.Config.ARGB_8888, false)
         val state = transform
 
         val frame = crop
-        return com.ntq.training.momentbox.core.media.BitmapRenderSnapshot(bitmap) { input ->
+        return BitmapRenderSnapshot(bitmap) { input ->
             run {
                 val pixelScale = hypot(state.a, state.b)
                 val w = (frame.width / pixelScale).roundToInt().coerceIn(1, 2048)
@@ -457,7 +460,7 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
     override fun onRestoreInstanceState(state: Parcelable?) {
         if (state is Bundle) {
             super.onRestoreInstanceState(
-                androidx.core.os.BundleCompat.getParcelable(state, "super", Parcelable::class.java)
+                BundleCompat.getParcelable(state, "super", Parcelable::class.java)
             )
             restored = state
             if (image != null && width > 0) initialize()

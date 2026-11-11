@@ -1,13 +1,19 @@
 package com.ntq.training.momentbox.feature.crop
 
+import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.InsetDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
@@ -28,11 +34,11 @@ class CropFragment : Fragment(R.layout.fragment_crop) {
         if (value < 0) "−${kotlin.math.abs(value)}°" else "$value°"
 
     private fun ratioIcon(
-        context: android.content.Context,
+        context: Context,
         index: Int,
         dp: Float,
-    ): android.graphics.drawable.Drawable? =
-        androidx.core.content.ContextCompat.getDrawable(
+    ): Drawable? =
+        ContextCompat.getDrawable(
                 context,
                 when (index) {
                     0 -> R.drawable.ic_m4_crop_free
@@ -70,7 +76,7 @@ class CropFragment : Fragment(R.layout.fragment_crop) {
                     textSize = 13f
                     gravity = Gravity.CENTER
                     typeface =
-                        androidx.core.content.res.ResourcesCompat.getFont(
+                        ResourcesCompat.getFont(
                             context,
                             R.font.be_vietnam_pro_medium,
                         )
@@ -80,8 +86,8 @@ class CropFragment : Fragment(R.layout.fragment_crop) {
                     compoundDrawablePadding = (5 * dp).toInt()
                     setCompoundDrawables(ratioIcon(context, i, dp), null, null, null)
                     background =
-                        android.graphics.drawable.InsetDrawable(
-                            androidx.core.content.ContextCompat.getDrawable(
+                        InsetDrawable(
+                            ContextCompat.getDrawable(
                                 context,
                                 R.drawable.bg_media_crop_chip,
                             ),
@@ -94,7 +100,7 @@ class CropFragment : Fragment(R.layout.fragment_crop) {
                     // không sát góc bo.
                     setPadding((12 * dp).toInt(), 0, (12 * dp).toInt(), (16 * dp).toInt())
                     layoutParams =
-                        android.widget.LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams(
                                 ViewGroup.LayoutParams.WRAP_CONTENT,
                                 (48 * dp).toInt(),
                             )

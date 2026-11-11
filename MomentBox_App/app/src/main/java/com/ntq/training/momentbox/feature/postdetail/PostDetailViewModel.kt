@@ -7,6 +7,7 @@ import com.ntq.training.momentbox.data.repository.FeedRepository
 import com.ntq.training.momentbox.domain.model.Author
 import com.ntq.training.momentbox.domain.model.Comment
 import com.ntq.training.momentbox.domain.model.Post
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -110,7 +111,7 @@ class PostDetailViewModel(
         }
     }
 
-    private var loadCommentsJob: kotlinx.coroutines.Job? = null
+    private var loadCommentsJob: Job? = null
 
     /**
      * Tải danh sách bình luận (có hỗ trợ phân trang và hủy tác vụ cũ khi đổi chế độ sắp xếp).

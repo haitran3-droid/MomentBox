@@ -3,19 +3,28 @@ package com.ntq.training.momentbox.feature.journal.view
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Parcelable
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.GestureDetector
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.os.BundleCompat
+import androidx.core.view.ViewCompat
+import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.data.local.db.DayMood
+import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import kotlin.math.abs
 
 class MoodCalendarView @JvmOverloads constructor(
@@ -25,7 +34,7 @@ class MoodCalendarView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     // === TRẠNG THÁI HIỂN THỊ LỊCH ===
-    private val clock = (context.applicationContext as? com.ntq.training.momentbox.MomentBoxApp)?.journalClock ?: java.time.Clock.systemDefaultZone()
+    private val clock = (context.applicationContext as? MomentBoxApp)?.journalClock ?: Clock.systemDefaultZone()
     private var displayedYearMonth: YearMonth = YearMonth.now(clock)
     private val currentRealDate: LocalDate = LocalDate.now(clock)
     private var selectedDate: LocalDate? = null
@@ -43,7 +52,7 @@ class MoodCalendarView @JvmOverloads constructor(
     private val headerTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
         color = context.getColor(R.color.text_tertiary)
-        textSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 12f, resources.displayMetrics)
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, resources.displayMetrics)
         try {
             typeface = ResourcesCompat.getFont(context, R.font.be_vietnam_pro_semibold)
         } catch (_: Exception) {
@@ -53,7 +62,7 @@ class MoodCalendarView @JvmOverloads constructor(
 
     private val dayTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
-        textSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 13.5f, resources.displayMetrics)
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 13.5f, resources.displayMetrics)
         try {
             typeface = ResourcesCompat.getFont(context, R.font.be_vietnam_pro_semibold)
         } catch (_: Exception) {
@@ -269,7 +278,7 @@ class MoodCalendarView @JvmOverloads constructor(
         val cell = (width - paddingLeft - paddingRight) / 7f
         if (cell <= 0) return emptyList()
         val offset = displayedYearMonth.atDay(1).dayOfWeek.value - 1
-        val formatter = java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.FULL).withLocale(resources.configuration.locales[0])
+        val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(resources.configuration.locales[0])
         return (1..displayedYearMonth.lengthOfMonth()).map { day ->
             val index = offset + day - 1
             val left = paddingLeft + (index % 7) * cell
@@ -278,7 +287,7 @@ class MoodCalendarView @JvmOverloads constructor(
             val mood = dayMoodMap[day]?.mood
             val label = if (mood == null) date.format(formatter) else context.getString(R.string.journal_day_mood_description,
                 date.format(formatter), resources.getStringArray(R.array.journal_mood_names)[mood.coerceIn(1, 5) - 1])
-            CanvasNode(day, android.graphics.Rect(left.toInt(), top.toInt(), (left + cell).toInt(), (top + cell).toInt()), label,
+            CanvasNode(day, Rect(left.toInt(), top.toInt(), (left + cell).toInt(), (top + cell).toInt()), label,
                 !date.isAfter(currentRealDate), date == selectedDate)
         }
     }
@@ -290,10 +299,10 @@ class MoodCalendarView @JvmOverloads constructor(
     }
     private val accessibility = CanvasAccessibility(this, ::dateNodes,
         { x, y -> dateNodes().firstOrNull { it.bounds.contains(x.toInt(), y.toInt()) }?.id }, ::activateDay)
-    init { androidx.core.view.ViewCompat.setAccessibilityDelegate(this, accessibility); isFocusable = true }
+    init { ViewCompat.setAccessibilityDelegate(this, accessibility); isFocusable = true }
     override fun dispatchHoverEvent(event: MotionEvent) = accessibility.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
-    override fun dispatchKeyEvent(event: android.view.KeyEvent) = accessibility.dispatchKeyEvent(event) || super.dispatchKeyEvent(event)
-    override fun onFocusChanged(gain: Boolean, direction: Int, rect: android.graphics.Rect?) {
+    override fun dispatchKeyEvent(event: KeyEvent) = accessibility.dispatchKeyEvent(event) || super.dispatchKeyEvent(event)
+    override fun onFocusChanged(gain: Boolean, direction: Int, rect: Rect?) {
         super.onFocusChanged(gain, direction, rect); accessibility.onFocusChanged(gain, direction, rect)
     }
 
@@ -351,7 +360,7 @@ class MoodCalendarView @JvmOverloads constructor(
 
     override fun onRestoreInstanceState(state: Parcelable?) {
         if (state is Bundle) {
-            val superState = androidx.core.os.BundleCompat.getParcelable(state, "SUPER_STATE", Parcelable::class.java)
+            val superState = BundleCompat.getParcelable(state, "SUPER_STATE", Parcelable::class.java)
             super.onRestoreInstanceState(superState)
             val year = state.getInt("YEAR", currentRealDate.year)
             val month = state.getInt("MONTH", currentRealDate.monthValue)

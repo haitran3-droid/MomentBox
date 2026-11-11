@@ -1,5 +1,9 @@
 package com.ntq.training.momentbox.feature.compose
 
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -7,9 +11,12 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.RequestManager
 import com.google.android.material.imageview.ShapeableImageView
+import com.google.android.material.shape.CornerFamily
+import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.feature.create.SelectedMedia
 
 /** Tile84×112dp, ItemTouchHelper đổi model ngay khi drag để thứ tự multipart trùng UI. */
@@ -38,25 +45,25 @@ class ComposeMediaAdapter(
                     shapeAppearanceModel
                         .toBuilder()
                         .setAllCorners(
-                            com.google.android.material.shape.CornerFamily.ROUNDED,
+                            CornerFamily.ROUNDED,
                             14 * dp,
                         )
                         .build()
             }
         val number =
             TextView(parent.context).apply {
-                setTextColor(android.graphics.Color.WHITE)
+                setTextColor(Color.WHITE)
                 textSize = 11f
                 typeface =
-                    androidx.core.content.res.ResourcesCompat.getFont(
+                    ResourcesCompat.getFont(
                         context,
-                        com.ntq.training.momentbox.R.font.be_vietnam_pro_bold,
+                        R.font.be_vietnam_pro_bold,
                     )
                 background =
-                    android.graphics.drawable.GradientDrawable().apply {
-                        shape = android.graphics.drawable.GradientDrawable.OVAL
+                    GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
                         setColor(0xFF5B4BDB.toInt())
-                        setStroke((2 * dp).toInt(), android.graphics.Color.WHITE)
+                        setStroke((2 * dp).toInt(), Color.WHITE)
                     }
                 layoutParams =
                     FrameLayout.LayoutParams(
@@ -69,9 +76,9 @@ class ComposeMediaAdapter(
             }
         val close =
             ImageButton(parent.context).apply {
-                setImageResource(com.ntq.training.momentbox.R.drawable.ic_close)
+                setImageResource(R.drawable.ic_close)
                 contentDescription =
-                    context.getString(com.ntq.training.momentbox.R.string.m4_discard)
+                    context.getString(R.string.m4_discard)
                 setPadding(
                     (17 * dp).toInt(),
                     (10 * dp).toInt(),
@@ -79,7 +86,7 @@ class ComposeMediaAdapter(
                     (24 * dp).toInt(),
                 )
                 imageTintList =
-                    android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
+                    ColorStateList.valueOf(Color.WHITE)
                 layoutParams =
                     FrameLayout.LayoutParams(
                             (48 * dp).toInt(),
@@ -88,9 +95,9 @@ class ComposeMediaAdapter(
                         )
                         .apply { marginEnd = dp.toInt() }
                 background =
-                    android.graphics.drawable.InsetDrawable(
-                        android.graphics.drawable.GradientDrawable().apply {
-                            shape = android.graphics.drawable.GradientDrawable.OVAL
+                    InsetDrawable(
+                        GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
                             setColor(0x8C000000.toInt())
                         },
                         (13 * dp).toInt(),
@@ -111,9 +118,9 @@ class ComposeMediaAdapter(
             close.visibility = View.GONE
             frame.layoutParams = RecyclerView.LayoutParams((60 * dp).toInt(), (112 * dp).toInt())
             frame.background =
-                android.graphics.drawable.InsetDrawable(
-                    android.graphics.drawable.GradientDrawable().apply {
-                        setColor(android.graphics.Color.WHITE)
+                InsetDrawable(
+                    GradientDrawable().apply {
+                        setColor(Color.WHITE)
                         cornerRadius = 14 * dp
                         setStroke(
                             (1.5f * dp).toInt().coerceAtLeast(1),
@@ -129,18 +136,18 @@ class ComposeMediaAdapter(
                 )
             frame.addView(
                 TextView(parent.context).apply {
-                    text = context.getString(com.ntq.training.momentbox.R.string.m4_add)
+                    text = context.getString(R.string.m4_add)
                     textSize = 11f
                     typeface =
-                        androidx.core.content.res.ResourcesCompat.getFont(
+                        ResourcesCompat.getFont(
                             context,
-                            com.ntq.training.momentbox.R.font.be_vietnam_pro_regular,
+                            R.font.be_vietnam_pro_regular,
                         )
                     gravity = Gravity.CENTER
                     setTextColor(0xFF9A9AAA.toInt())
                     setCompoundDrawablesWithIntrinsicBounds(
                         0,
-                        com.ntq.training.momentbox.R.drawable.ic_m4_add,
+                        R.drawable.ic_m4_add,
                         0,
                         0,
                     )

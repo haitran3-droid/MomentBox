@@ -1,11 +1,13 @@
 package com.ntq.training.momentbox.core.media
 
 import android.content.Context
+import android.graphics.Rect
 import android.view.View
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -60,7 +62,7 @@ class FeedVideoPlayerManager(
                         currentPoster?.visibility = View.GONE
                     }
 
-                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    override fun onPlayerError(error: PlaybackException) {
                         firstFrameRendered = false
                         currentPoster?.visibility = View.VISIBLE
                         pauseForInterruption()
@@ -156,7 +158,7 @@ class FeedVideoPlayerManager(
      */
     fun checkAndPauseIfOffscreen() {
         val view = currentPlayerView ?: return
-        val rect = android.graphics.Rect()
+        val rect = Rect()
         val isVisible = view.getGlobalVisibleRect(rect)
         if (!isVisible) {
             pause()

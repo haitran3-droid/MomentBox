@@ -28,6 +28,7 @@ import com.ntq.training.momentbox.domain.model.FeedItem
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.domain.model.Story
 import com.ntq.training.momentbox.domain.model.User
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -45,6 +46,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import retrofit2.Response
 
 class FeedRepositoryImpl(
     private val feedApi: FeedApi,
@@ -73,7 +75,7 @@ class FeedRepositoryImpl(
         val response = feedApi.createPost(fields, media, voice, SessionRequest(scope.generation))
         val body = response.body()
         if (!response.isSuccessful || body?.success != true || body.data == null)
-            return@scoped Result.failure(java.io.IOException("HTTP ${response.code()}"))
+            return@scoped Result.failure(IOException("HTTP ${response.code()}"))
         val post = postMapper.map(body.data)
         commit(scope) {
             _postsMap.value = _postsMap.value + (post.id to post)
@@ -603,7 +605,7 @@ class FeedRepositoryImpl(
                         response.isSuccessful &&
                             (response.code() == 204 || response.body()?.success == true)
                     )
-                        retrofit2.Response.success(ApiResponse(success = true, data = Unit))
+                        Response.success(ApiResponse(success = true, data = Unit))
                     else response
                 }
             if (callResult.isFailure) {

@@ -1,14 +1,17 @@
 package com.ntq.training.momentbox.data.repository
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
@@ -16,10 +19,14 @@ import com.ntq.training.momentbox.core.media.OwnedImageFiles
 import com.ntq.training.momentbox.core.network.ProgressRequestBody
 import com.ntq.training.momentbox.data.local.db.JournalAttachmentEntity
 import com.ntq.training.momentbox.data.local.db.JournalEntryEntity
+import com.ntq.training.momentbox.data.local.prefs.PendingJournalReceipt
+import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.feature.compose.ComposeDraft
 import com.ntq.training.momentbox.feature.compose.UploadProgress
+import com.ntq.training.momentbox.feature.postdetail.PostDetailActivity
 import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,7 +88,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private var lastNotice = 0L
     private var uploadId = ""
     private var journalEntryId = 0L
-    private var receipt: com.ntq.training.momentbox.data.local.prefs.PendingJournalReceipt? = null
+    private var receipt: PendingJournalReceipt? = null
     private var loadingReceipt: Job? = null
     private var recoveryEpoch = 0L
     private val subscription =
@@ -180,10 +187,10 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
         val input = draft.snapshot()
         if (!input.canPost) return
         snapshot = input
-        uploadId = java.util.UUID.randomUUID().toString()
+        uploadId = UUID.randomUUID().toString()
         lastNotice = -1000L
         journalEntryId =
-            (java.util.UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE).coerceAtLeast(1L)
+            (UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE).coerceAtLeast(1L)
         job =
             scope.launch {
                 val temporary = mutableListOf<File>()
@@ -198,7 +205,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     source = app.settingsDataStore.getDataSource()
                     check(
                         source ==
-                            com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
+                            SettingsDataStore
                                 .SOURCE_MB_SERVER
                     ) {
                         "Posting requires MomentBox server"
@@ -323,7 +330,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     withContext(NonCancellable) {
                         if (input.saveToJournal) {
                             val record =
-                                com.ntq.training.momentbox.data.local.prefs.PendingJournalReceipt(
+                                PendingJournalReceipt(
                                     input,
                                     post,
                                     journalEntryId,
@@ -508,11 +515,11 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private fun notifyProgress() {
         if (
             Build.VERSION.SDK_INT >= 33 &&
-                app.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
-                    android.content.pm.PackageManager.PERMISSION_GRANTED
+                app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED
         )
             return
-        val now = android.os.SystemClock.elapsedRealtime()
+        val now = SystemClock.elapsedRealtime()
         if (now - lastNotice < 1000) return
         lastNotice = now
         val s = mutable.value
@@ -553,8 +560,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private fun notifySuccess(id: Long) {
         if (
             Build.VERSION.SDK_INT >= 33 &&
-                app.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
-                    android.content.pm.PackageManager.PERMISSION_GRANTED
+                app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED
         )
             return
         val manager = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -564,7 +571,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                 id.hashCode(),
                 Intent(
                         app,
-                        com.ntq.training.momentbox.feature.postdetail.PostDetailActivity::class.java,
+                        PostDetailActivity::class.java,
                     )
                     .setAction(Intent.ACTION_VIEW)
                     .setData(Uri.parse("momentbox://post/$id")),

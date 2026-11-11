@@ -11,6 +11,7 @@ import com.ntq.training.momentbox.data.repository.FeedRepository
 import com.ntq.training.momentbox.domain.model.FeedItem
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.domain.model.User
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -348,7 +349,7 @@ class FeedViewModel(
                 val result = feedRepository.toggleFollowUser(user.id, previousFollowing)
                 if (followOperations[user.id] != operation) return@launch
                 // Repository loại phản hồi khác session/source, không rollback lên tài khoản mới.
-                if (result.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+                if (result.exceptionOrNull() is CancellationException)
                     return@launch
                 if (result.isFailure) {
                     // Chỉ hoàn tác trường theo dõi, không khôi phục bài đã xóa hoặc ghi đè trang

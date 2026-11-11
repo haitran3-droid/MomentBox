@@ -2,6 +2,9 @@ package com.ntq.training.momentbox.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
+import android.webkit.MimeTypeMap
+import androidx.sqlite.db.SimpleSQLiteQuery
 import com.ntq.training.momentbox.data.local.db.DayMood
 import com.ntq.training.momentbox.data.local.db.JournalAttachmentEntity
 import com.ntq.training.momentbox.data.local.db.JournalDao
@@ -11,6 +14,14 @@ import com.ntq.training.momentbox.data.local.db.TagCount
 import com.ntq.training.momentbox.data.local.prefs.JournalDataStore
 import com.ntq.training.momentbox.data.local.prefs.JournalDraft
 import com.ntq.training.momentbox.data.local.prefs.JournalFilterState
+import java.io.Closeable
+import java.io.IOException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.ensureActive
@@ -28,18 +39,18 @@ class JournalRepositoryImpl(
     private val journalDao: JournalDao,
     private val journalDataStore: JournalDataStore,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
-) : JournalRepository, java.io.Closeable {
-    private val deletionMutex = kotlinx.coroutines.sync.Mutex()
-    private val cleanupScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + dispatcher)
+) : JournalRepository, Closeable {
+    private val deletionMutex = Mutex()
+    private val cleanupScope = CoroutineScope(SupervisorJob() + dispatcher)
     private val deletionScheduler = JournalDeletionScheduler(this, cleanupScope)
-    override fun close() { cleanupScope.coroutineContext[kotlinx.coroutines.Job]?.cancel() }
+    override fun close() { cleanupScope.coroutineContext[Job]?.cancel() }
     override val handlesDeletionDeadlines = true
     override fun observePendingDeletes() = journalDao.observePendingDeletes()
 
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeAtomicPages(query: String?, filter: JournalFilterState, pages: Int): Flow<JournalPageSnapshot> =
-        journalDao.observeJournalChanges(androidx.sqlite.db.SimpleSQLiteQuery("SELECT 1")).mapLatest {
+        journalDao.observeJournalChanges(SimpleSQLiteQuery("SELECT 1")).mapLatest {
             withContext(dispatcher) {
                 journalDao.readPageSnapshot(escapeSqlLikePattern(query), filter.selectedMoods, filter.selectedMoods.isEmpty(), filter.hasPhoto,
                     filter.hasAudio, filter.fromDateEpochMs ?: 0L, filter.toDateEpochMs ?: Long.MAX_VALUE, filter.sort, pages)
@@ -125,7 +136,7 @@ class JournalRepositoryImpl(
             try { deleteUnreferencedFiles(oldFilesToDeleteAfterCommit) }
             catch (e: Exception) {
                 if (e is CancellationException) throw e
-                android.util.Log.w("JournalRepository", "Committed entry; attachment cleanup will retry after draft clear", e)
+                Log.w("JournalRepository", "Committed entry; attachment cleanup will retry after draft clear", e)
             }
             Result.success(savedId)
         } catch (e: Exception) {
@@ -255,7 +266,7 @@ class JournalRepositoryImpl(
                 val directory = File(context.filesDir, if (isAudio) "recordings" else "journal").also { check(it.exists() || it.mkdirs()) }
                 val uri = Uri.parse(sourcePathOrUri)
                 val extension = if (uri.scheme == "content") {
-                    context.contentResolver.getType(uri)?.let { android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }?.let { ".$it" }
+                    context.contentResolver.getType(uri)?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }?.let { ".$it" }
                 } else getExtension(sourcePathOrUri)
                 val file = File(directory, "journal_${UUID.randomUUID()}${extension ?: if (isAudio) ".audio" else ".jpg"}")
                 target = file
@@ -276,7 +287,7 @@ class JournalRepositoryImpl(
             }
         } catch (e: Exception) {
             // Bắt ở ngoài withContext để cả cancellation lúc dispatch kết quả về Main cũng dọn được file.
-            withContext(kotlinx.coroutines.NonCancellable + dispatcher) { target?.delete() }
+            withContext(NonCancellable + dispatcher) { target?.delete() }
             if (e is CancellationException) throw e
             return Result.failure(e)
         }
@@ -290,7 +301,7 @@ class JournalRepositoryImpl(
         val file = File(path).canonicalFile
         val roots = listOf(File(context.filesDir, "journal").canonicalFile, File(context.filesDir, "recordings").canonicalFile)
         if (roots.none { file.path.startsWith(it.path + File.separator) }) return
-        if (file.exists() && !file.delete()) throw java.io.IOException("Cannot delete owned attachment")
+        if (file.exists() && !file.delete()) throw IOException("Cannot delete owned attachment")
     }
 
     private fun getExtension(pathOrUri: String): String {

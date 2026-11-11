@@ -2,6 +2,8 @@ package com.ntq.training.momentbox.feature.camera
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -9,6 +11,7 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
+import android.util.Rational
 import android.util.Size
 import android.view.Gravity
 import android.view.MotionEvent
@@ -16,6 +19,9 @@ import android.view.ScaleGestureDetector
 import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -40,14 +46,20 @@ import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
+import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.lifecycleScope
+import com.bumptech.glide.Glide
+import com.google.android.material.imageview.ShapeableImageView
 import com.google.android.material.shape.CornerFamily
 import com.google.android.material.shape.RelativeCornerSize
 import com.ntq.training.momentbox.R
@@ -57,6 +69,8 @@ import com.ntq.training.momentbox.core.media.OwnedImageFiles
 import com.ntq.training.momentbox.core.media.StaticPcmSound
 import com.ntq.training.momentbox.databinding.FragmentCameraBinding
 import com.ntq.training.momentbox.feature.create.CreateViewModel
+import com.ntq.training.momentbox.feature.recorder.RecordPhase
+import com.ntq.training.momentbox.feature.recorder.RecordingService
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -149,15 +163,15 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
     override fun onViewCreated(view: View, state: Bundle?) {
         val b = FragmentCameraBinding.bind(view)
         binding = b
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
-            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            (b.cameraHeader.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
+        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            (b.cameraHeader.layoutParams as FrameLayout.LayoutParams).apply {
                 topMargin = bars.top + dp(6)
                 b.cameraHeader.layoutParams = this
             }
             insets
         }
-        androidx.core.view.ViewCompat.requestApplyInsets(view)
+        ViewCompat.requestApplyInsets(view)
         b.cameraLatest.shapeAppearanceModel =
             b.cameraLatest.shapeAppearanceModel
                 .toBuilder()
@@ -253,7 +267,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
         val latestPhoto = create.items.value.lastOrNull { !it.isVideo }
         b.cameraLatest.isEnabled = latestPhoto != null
         if (latestPhoto != null) {
-            com.bumptech.glide.Glide.with(this)
+            Glide.with(this)
                 .load(latestPhoto.uri)
                 .centerCrop()
                 .into(b.cameraLatest)
@@ -275,23 +289,23 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                 R.string.m4_filter_vintage,
                 R.string.m4_filter_negative,
             )
-        val thumbnails = mutableListOf<com.google.android.material.imageview.ShapeableImageView>()
+        val thumbnails = mutableListOf<ShapeableImageView>()
         val labels = mutableListOf<TextView>()
         PhotoFilter.entries.forEachIndexed { i, f ->
             val column =
-                android.widget.LinearLayout(requireContext()).apply {
-                    orientation = android.widget.LinearLayout.VERTICAL
+                LinearLayout(requireContext()).apply {
+                    orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
                     layoutParams =
-                        android.widget.LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams(
                             dp(66),
-                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT,
                         )
                 }
             val image =
-                com.google.android.material.imageview.ShapeableImageView(requireContext()).apply {
-                    layoutParams = android.widget.LinearLayout.LayoutParams(dp(54), dp(54))
-                    scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                ShapeableImageView(requireContext()).apply {
+                    layoutParams = LinearLayout.LayoutParams(dp(54), dp(54))
+                    scaleType = ImageView.ScaleType.CENTER_CROP
                     // Corner tương đối giữ thumbnail tròn cả khi path stroke bị inset vào trong.
                     shapeAppearanceModel =
                         shapeAppearanceModel
@@ -300,7 +314,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                             .setAllCornerSizes(RelativeCornerSize(.5f))
                             .build()
                     strokeColor =
-                        android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
+                        ColorStateList.valueOf(Color.WHITE)
                     strokeWidth = if (f == filter) 2.5f * resources.displayMetrics.density else 0f
                     colorFilter = ColorMatrixColorFilter(PhotoFilters.matrix(f))
                 }
@@ -308,11 +322,11 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
             val label =
                 TextView(requireContext()).apply {
                     text = getString(names[i])
-                    setTextColor(android.graphics.Color.WHITE)
+                    setTextColor(Color.WHITE)
                     textSize = 11f
                     gravity = Gravity.CENTER
                     typeface =
-                        androidx.core.content.res.ResourcesCompat.getFont(
+                        ResourcesCompat.getFont(
                             requireContext(),
                             if (f == filter) R.font.be_vietnam_pro_bold
                             else R.font.be_vietnam_pro_regular,
@@ -326,9 +340,9 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     kotlin.math.ceil(label.paint.measureText(label.text.toString())).toInt() + dp(8),
                 )
             label.layoutParams =
-                android.widget.LinearLayout.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
                     )
                     .apply { topMargin = dp(5) }
             column.addView(image)
@@ -346,7 +360,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                 }
                 labels.forEachIndexed { n, v ->
                     v.typeface =
-                        androidx.core.content.res.ResourcesCompat.getFont(
+                        ResourcesCompat.getFont(
                             requireContext(),
                             if (n == i) R.font.be_vietnam_pro_bold
                             else R.font.be_vietnam_pro_regular,
@@ -367,7 +381,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                         .toInt(),
             )
         (b.cameraFilters.parent as View).layoutParams.height = band
-        var thumbnailBitmap: android.graphics.Bitmap? = null
+        var thumbnailBitmap: Bitmap? = null
         b.cameraOverlay.onThumbnail = { bitmap ->
             if (binding === b) {
                 if (thumbnailBitmap === bitmap) thumbnails.forEach { it.invalidate() }
@@ -602,25 +616,25 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                         if (wide) AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
                         else AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
                     val rotation =
-                        b.cameraPreview.display?.rotation ?: android.view.Surface.ROTATION_0
+                        b.cameraPreview.display?.rotation ?: Surface.ROTATION_0
                     val landscape =
                         resources.configuration.orientation ==
-                            android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                            Configuration.ORIENTATION_LANDSCAPE
                     val viewportAspect =
-                        if (ratio == 2 && !videoMode) android.util.Rational(1, 1)
+                        if (ratio == 2 && !videoMode) Rational(1, 1)
                         else if (wide) {
-                            if (landscape) android.util.Rational(16, 9)
-                            else android.util.Rational(9, 16)
+                            if (landscape) Rational(16, 9)
+                            else Rational(9, 16)
                         } else {
-                            if (landscape) android.util.Rational(4, 3)
-                            else android.util.Rational(3, 4)
+                            if (landscape) Rational(4, 3)
+                            else Rational(3, 4)
                         }
                     val viewport =
                         ViewPort.Builder(viewportAspect, rotation)
                             .setScaleType(ViewPort.FILL_CENTER)
                             .build()
                     b.cameraPreview.scaleType =
-                        androidx.camera.view.PreviewView.ScaleType.FILL_CENTER
+                        PreviewView.ScaleType.FILL_CENTER
                     b.cameraOverlay.showFrames = !videoMode
                     val preview =
                         Preview.Builder()
@@ -725,13 +739,13 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                         tag = zoom
                                         textSize = 12f
                                         typeface =
-                                            androidx.core.content.res.ResourcesCompat.getFont(
+                                            ResourcesCompat.getFont(
                                                 requireContext(),
                                                 R.font.be_vietnam_pro_bold,
                                             )
                                         gravity = Gravity.CENTER
                                         layoutParams =
-                                            android.widget.LinearLayout.LayoutParams(dp(32), dp(32))
+                                            LinearLayout.LayoutParams(dp(32), dp(32))
                                         setOnClickListener {
                                             camera?.cameraControl?.setZoomRatio(zoom)
                                         }
@@ -751,7 +765,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                 label.isSelected = selected
                                 label.setTextColor(
                                     if (selected) 0xFFFFD54F.toInt()
-                                    else android.graphics.Color.WHITE
+                                    else Color.WHITE
                                 )
                                 label.setBackgroundResource(
                                     if (selected) R.drawable.bg_m4_zoom_selected else 0
@@ -776,10 +790,10 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
             b.cameraTimer.isVisible = !videoMode
             b.cameraRatio.isVisible = !videoMode
             // Khi video ẩn filter, đưa zoom xuống sát đáy thay vì chừa khoảng trống của khay ảnh.
-            (b.cameraZoom.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
+            (b.cameraZoom.layoutParams as FrameLayout.LayoutParams).apply {
                 val landscape =
                     resources.configuration.orientation ==
-                        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                        Configuration.ORIENTATION_LANDSCAPE
                 bottomMargin =
                     if (videoMode) dp(8)
                     else
@@ -808,7 +822,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     }
                 )
             val timerIcon =
-                androidx.core.content.ContextCompat.getDrawable(
+                ContextCompat.getDrawable(
                         requireContext(),
                         R.drawable.ic_media_timer,
                     )
@@ -821,10 +835,10 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
             b.cameraRatio.text = listOf("4:3", "16:9", "1:1")[ratio]
             // Mockup dùng chữ trắng opacity60% cho mode chưa chọn, không dùng màu xám pha tím.
             b.cameraPhotoMode.setTextColor(
-                if (!videoMode) 0xFFFFD54F.toInt() else android.graphics.Color.WHITE
+                if (!videoMode) 0xFFFFD54F.toInt() else Color.WHITE
             )
             b.cameraVideoMode.setTextColor(
-                if (videoMode) 0xFFFFD54F.toInt() else android.graphics.Color.WHITE
+                if (videoMode) 0xFFFFD54F.toInt() else Color.WHITE
             )
             b.cameraPhotoMode.alpha = if (!videoMode) 1f else .6f
             b.cameraVideoMode.alpha = if (videoMode) 1f else .6f
@@ -983,14 +997,14 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     // RecorderService serialize pause qua actor. Chờ nhả mic thật rồi mới mở
                     // encoder CameraX.
                     withTimeout(2500) {
-                        com.ntq.training.momentbox.feature.recorder.RecordingService.state.first {
+                        RecordingService.state.first {
                             it.phase !in
                                 listOf(
-                                    com.ntq.training.momentbox.feature.recorder.RecordPhase
+                                    RecordPhase
                                         .RECORDING,
-                                    com.ntq.training.momentbox.feature.recorder.RecordPhase
+                                    RecordPhase
                                         .PREPARING,
-                                    com.ntq.training.momentbox.feature.recorder.RecordPhase.STOPPING,
+                                    RecordPhase.STOPPING,
                                 )
                         }
                     }

@@ -14,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.gson.Gson
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.network.SessionManager
 import com.ntq.training.momentbox.databinding.ActivityMainBinding
@@ -34,7 +35,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(
                     Intent(this, CreateActivity::class.java)
                         .putExtra("start", "text")
-                        .putExtra("voice", com.google.gson.Gson().toJson(it))
+                        .putExtra("voice", Gson().toJson(it))
                 )
             }
         }

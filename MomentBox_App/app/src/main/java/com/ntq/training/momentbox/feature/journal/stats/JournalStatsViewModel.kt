@@ -7,6 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ntq.training.momentbox.data.repository.JournalRepository
+import java.time.Clock
+import java.time.DayOfWeek
+import java.time.temporal.TemporalAdjusters
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,9 +37,9 @@ class JournalStatsViewModel(
     private val zoneId: ZoneId = ZoneId.systemDefault(),
     private val anchorDate: LocalDate = LocalDate.now(zoneId),
     private val savedState: SavedStateHandle = SavedStateHandle(),
-    private val clock: java.time.Clock = java.time.Clock.system(zoneId),
-    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
-    private val calculationDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
+    private val clock: Clock = Clock.system(zoneId),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val calculationDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
 
     private val calculator = JournalStatsCalculator(zoneId)
@@ -91,7 +96,7 @@ class JournalStatsViewModel(
     }
 
     private fun startOfPeriod(period: StatsPeriod, date: LocalDate): LocalDate = when (period) {
-        StatsPeriod.WEEK -> date.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+        StatsPeriod.WEEK -> date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         StatsPeriod.MONTH -> date.withDayOfMonth(1)
         StatsPeriod.YEAR -> date.withDayOfYear(1)
     }
@@ -128,7 +133,7 @@ class JournalStatsViewModel(
                     )
                 }
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is CancellationException) throw e
                 if (currentRev == requestRevision) _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -144,7 +149,7 @@ class JournalStatsViewModel(
             journalRepository: JournalRepository,
             zoneId: ZoneId = ZoneId.systemDefault(),
             anchorDate: LocalDate = LocalDate.now(zoneId),
-            clock: java.time.Clock = java.time.Clock.system(zoneId)
+            clock: Clock = Clock.system(zoneId)
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T =

@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.ntq.training.momentbox.R
 
 class JournalStickyHeader(
     private val entries: JournalEntriesAdapter,
@@ -26,7 +27,7 @@ class JournalStickyHeader(
                     entries.bindViewHolder(it, index); cached = header to it
                 }
         val view = holder.itemView
-        view.setBackgroundColor(parent.context.getColor(com.ntq.training.momentbox.R.color.background))
+        view.setBackgroundColor(parent.context.getColor(R.color.background))
         view.measure(
             View.MeasureSpec.makeMeasureSpec(parent.width, View.MeasureSpec.EXACTLY),
             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)

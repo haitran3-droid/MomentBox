@@ -10,6 +10,8 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import androidx.core.content.ContextCompat
+import com.ntq.training.momentbox.R
 
 /** Khóa tampon khi vẽ: analyzer không ghi đè bitmap UI đang đọc. Đếm xử lý/vẽ riêng. */
 class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
@@ -48,9 +50,9 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
     var exposureAvailable = false
     var exposureFraction = .5f
     private val sun by lazy {
-        androidx.core.content.ContextCompat.getDrawable(
+        ContextCompat.getDrawable(
             context,
-            com.ntq.training.momentbox.R.drawable.ic_m4_camera_sun,
+            R.drawable.ic_m4_camera_sun,
         )
     }
     var processedFrames = 0L

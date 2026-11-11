@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.postdetail
 
+import android.R as AndroidR
 import android.app.Dialog
 import android.graphics.Color
 import android.graphics.drawable.Drawable
@@ -29,7 +30,7 @@ class PostPhotoViewerDialog : DialogFragment() {
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val images = requireArguments().getStringArrayList("images").orEmpty()
-        val dialog = Dialog(requireContext(), android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        val dialog = Dialog(requireContext(), AndroidR.style.Theme_Black_NoTitleBar_Fullscreen)
         val root = FrameLayout(requireContext()).apply { setBackgroundColor(Color.BLACK) }
         val counter = TextView(requireContext()).apply {
             setTextColor(Color.WHITE)

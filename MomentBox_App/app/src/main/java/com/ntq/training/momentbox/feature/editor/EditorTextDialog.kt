@@ -1,8 +1,10 @@
 package com.ntq.training.momentbox.feature.editor
 
+import android.R as AndroidR
 import android.app.Dialog
 import android.graphics.Color
 import android.os.Bundle
+import android.text.InputFilter
 import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.EditText
@@ -21,13 +23,13 @@ class EditorTextDialog : DialogFragment() {
             }
         val input =
             EditText(requireContext()).apply {
-                id = android.R.id.edit
+                id = AndroidR.id.edit
                 setText(state?.getString("text") ?: arguments?.getString("text") ?: "")
-                filters = arrayOf(android.text.InputFilter.LengthFilter(240))
+                filters = arrayOf(InputFilter.LengthFilter(240))
             }
         val background =
             CheckBox(requireContext()).apply {
-                id = android.R.id.checkbox
+                id = AndroidR.id.checkbox
                 setText(R.string.m4_text_background)
                 isChecked =
                     state?.getBoolean("background") ?: arguments?.getBoolean("background") ?: false
@@ -43,11 +45,11 @@ class EditorTextDialog : DialogFragment() {
             )
         val spinner =
             Spinner(requireContext()).apply {
-                id = android.R.id.list
+                id = AndroidR.id.list
                 adapter =
                     ArrayAdapter(
                         requireContext(),
-                        android.R.layout.simple_spinner_dropdown_item,
+                        AndroidR.layout.simple_spinner_dropdown_item,
                         resources.getStringArray(R.array.m4_colors),
                     )
                 setSelection(
@@ -79,13 +81,13 @@ class EditorTextDialog : DialogFragment() {
 
     override fun onSaveInstanceState(out: Bundle) {
         super.onSaveInstanceState(out)
-        dialog?.findViewById<EditText>(android.R.id.edit)?.let {
+        dialog?.findViewById<EditText>(AndroidR.id.edit)?.let {
             out.putString("text", it.text.toString())
         }
-        dialog?.findViewById<CheckBox>(android.R.id.checkbox)?.let {
+        dialog?.findViewById<CheckBox>(AndroidR.id.checkbox)?.let {
             out.putBoolean("background", it.isChecked)
         }
-        dialog?.findViewById<Spinner>(android.R.id.list)?.let {
+        dialog?.findViewById<Spinner>(AndroidR.id.list)?.let {
             out.putInt("color", it.selectedItemPosition)
         }
     }

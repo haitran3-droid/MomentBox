@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
+import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.feature.compose.ComposeDraft
 import kotlin.jvm.java
 import kotlinx.coroutines.flow.first
@@ -70,7 +71,7 @@ class PostDraftStore(context: Context) {
  */
 data class PendingJournalReceipt(
     val draft: ComposeDraft,
-    val post: com.ntq.training.momentbox.domain.model.Post,
+    val post: Post,
     val entryId: Long,
     val source: String,
 )

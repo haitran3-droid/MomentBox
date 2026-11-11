@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
@@ -14,12 +15,14 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.datepicker.MaterialDatePicker
+import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.data.local.prefs.JournalFilterState
 import com.ntq.training.momentbox.data.repository.JournalRepository
 import com.ntq.training.momentbox.databinding.DialogJournalFilterBinding
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
@@ -83,11 +86,11 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
             try {
                 pendingFilter = journalRepository.getFilter()
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                if (_binding != null) com.google.android.material.snackbar.Snackbar.make(
+                if (e is CancellationException) throw e
+                if (_binding != null) Snackbar.make(
                     binding.root,
                     R.string.journal_storage_error,
-                    com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                    Snackbar.LENGTH_LONG
                 ).show()
                 return@launch
             }
@@ -197,11 +200,11 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
 
     // Chip selected trong CSS dùng600, còn unchecked500; gán sau khi checked state đổi để Material không ép về400.
     private fun updateMoodTypography() {
-        val medium = androidx.core.content.res.ResourcesCompat.getFont(
+        val medium = ResourcesCompat.getFont(
             requireContext(),
             R.font.be_vietnam_pro_medium
         )
-        val semibold = androidx.core.content.res.ResourcesCompat.getFont(
+        val semibold = ResourcesCompat.getFont(
             requireContext(),
             R.font.be_vietnam_pro_semibold
         )
@@ -297,13 +300,13 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
                     setFragmentResult(REQUEST_KEY, bundleOf(RESULT_FILTER_APPLIED to true))
                     dismiss()
                 } catch (e: Exception) {
-                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    if (e is CancellationException) throw e
                     if (_binding != null) {
                         binding.btnApplyFilter.isEnabled = true
-                        com.google.android.material.snackbar.Snackbar.make(
+                        Snackbar.make(
                             binding.root,
                             R.string.journal_storage_error,
-                            com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                            Snackbar.LENGTH_LONG
                         ).show()
                     }
                 }
@@ -365,11 +368,11 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
         countJob = viewLifecycleOwner.lifecycleScope.launch {
             // [Intern]: Truyền đồng bộ searchQuery từ màn hình S07 để đếm chính xác theo search hiện hành (F15)
             journalRepository.countEntries(searchQuery, pendingFilter).catch { e ->
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                if (_binding != null) com.google.android.material.snackbar.Snackbar.make(
+                if (e is CancellationException) throw e
+                if (_binding != null) Snackbar.make(
                     binding.root,
                     R.string.journal_storage_error,
-                    com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                    Snackbar.LENGTH_LONG
                 ).show()
             }.collect { count ->
                 if (_binding != null) {

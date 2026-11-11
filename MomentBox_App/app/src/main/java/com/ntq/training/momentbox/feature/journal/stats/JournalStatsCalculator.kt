@@ -6,6 +6,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
 import java.util.Locale
@@ -132,7 +133,7 @@ class JournalStatsCalculator(
             .sortedBy { it.key }
             .map { entry ->
                 // [Intern]: Tính khoảng cách số ngày tính từ ngày bắt đầu kỳ để vẽ trục X chuẩn xác (F19)
-                val dayOffset = java.time.temporal.ChronoUnit.DAYS.between(currentStart, entry.key).toInt()
+                val dayOffset = ChronoUnit.DAYS.between(currentStart, entry.key).toInt()
                 TrendPoint(
                     dayOfMonth = entry.key.dayOfMonth,
                     mood = entry.value.second,

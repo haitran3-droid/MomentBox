@@ -1,20 +1,33 @@
 package com.ntq.training.momentbox.feature.journal.stats
 
 import android.content.Intent
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.text.TextUtils
+import android.view.GestureDetector
+import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
 import androidx.activity.viewModels
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.chip.ChipGroup
+import com.google.android.material.snackbar.Snackbar
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.databinding.ActivityJournalStatsBinding
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.time.LocalDate
@@ -55,13 +68,13 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
         setupPeriodToggle()
         binding.btnPreviousPeriod.setOnClickListener { viewModel.navigatePreviousPeriod() }
         binding.btnNextPeriod.setOnClickListener { viewModel.navigateNextPeriod() }
-        val gestures = android.view.GestureDetector(
+        val gestures = GestureDetector(
             this,
-            object : android.view.GestureDetector.SimpleOnGestureListener() {
-                override fun onDown(e: android.view.MotionEvent) = true
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onDown(e: MotionEvent) = true
                 override fun onFling(
-                    e1: android.view.MotionEvent?,
-                    e2: android.view.MotionEvent,
+                    e1: MotionEvent?,
+                    e2: MotionEvent,
                     vx: Float,
                     vy: Float
                 ): Boolean {
@@ -140,10 +153,10 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
                         )
                         binding.lineChartView.setData(emptyList(), 1)
                         binding.tvInsightText.setText(R.string.journal_storage_error)
-                        com.google.android.material.snackbar.Snackbar.make(
+                        Snackbar.make(
                             binding.root,
                             R.string.journal_storage_error,
-                            com.google.android.material.snackbar.Snackbar.LENGTH_INDEFINITE
+                            Snackbar.LENGTH_INDEFINITE
                         )
                             .setAction(R.string.journal_retry) { viewModel.retry() }.show()
                         return@collect
@@ -202,7 +215,7 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
 
         // 6. Biểu đồ đường Xu hướng cảm xúc (Line Chart)
         val daysInPeriod =
-            java.time.temporal.ChronoUnit.DAYS.between(stats.periodStart, stats.periodEnd)
+            ChronoUnit.DAYS.between(stats.periodStart, stats.periodEnd)
                 .toInt() + 1
         binding.tvTrendDateRange.text = stats.dateRangeText
         binding.lineChartView.setData(stats.trendPoints, daysInPeriod, stats.periodStart)
@@ -236,16 +249,16 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
     }
 
     private fun makeStatsTag(label: String, more: Boolean = false, selected: Boolean = false) =
-        android.widget.TextView(this).apply {
+        TextView(this).apply {
             val density = resources.displayMetrics.density
             text = label
             textSize = 12f
-            typeface = androidx.core.content.res.ResourcesCompat.getFont(
+            typeface = ResourcesCompat.getFont(
                 context,
                 if (selected) R.font.be_vietnam_pro_semibold else R.font.be_vietnam_pro_medium
             )
             includeFontPadding = false
-            gravity = android.view.Gravity.CENTER
+            gravity = Gravity.CENTER
             setPadding((9 * density).toInt(), 0, (9 * density).toInt(), 0)
             setTextColor(
                 getColor(
@@ -254,7 +267,7 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
                     }
                 )
             )
-            background = android.graphics.drawable.GradientDrawable().apply {
+            background = GradientDrawable().apply {
                 cornerRadius = 13 * density
                 setColor(getColor(if (selected) R.color.primary_container else R.color.surface))
                 if (!selected) setStroke(
@@ -262,16 +275,16 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
                     getColor(R.color.outline)
                 )
             }
-            layoutParams = com.google.android.material.chip.ChipGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            layoutParams = ChipGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
                 (26 * density).toInt()
             )
         }
 
     private fun insightText(insight: JournalInsight): String {
         if (insight.empty) return getString(R.string.journal_insight_empty)
-        val day = java.time.DayOfWeek.of(insight.frequentDay)
-            .getDisplayName(java.time.format.TextStyle.FULL, resources.configuration.locales[0])
+        val day = DayOfWeek.of(insight.frequentDay)
+            .getDisplayName(TextStyle.FULL, resources.configuration.locales[0])
         return if (insight.improvementPct != null) getString(
             R.string.journal_insight_weekend,
             insight.improvementPct,
@@ -282,12 +295,12 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
 
     private fun styledInsightText(insight: JournalInsight): CharSequence {
         if (insight.empty) return getText(R.string.journal_insight_empty)
-        val day = java.time.DayOfWeek.of(insight.frequentDay)
-            .getDisplayName(java.time.format.TextStyle.FULL, resources.configuration.locales[0])
-        return if (insight.improvementPct != null) android.text.TextUtils.expandTemplate(
+        val day = DayOfWeek.of(insight.frequentDay)
+            .getDisplayName(TextStyle.FULL, resources.configuration.locales[0])
+        return if (insight.improvementPct != null) TextUtils.expandTemplate(
             getText(R.string.journal_insight_weekend_styled), insight.improvementPct.toString(), day
         )
-        else android.text.TextUtils.expandTemplate(
+        else TextUtils.expandTemplate(
             getText(R.string.journal_insight_habit_styled),
             day,
             insight.count.toString()

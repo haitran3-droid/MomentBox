@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.gallery
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ntq.training.momentbox.data.local.mediastore.GalleryFilter
@@ -23,7 +24,7 @@ data class GalleryState(
 /** Một job tải tại một thời điểm, đổi quyền/album hủy trang cũ trước khi publish. */
 class GalleryViewModel(
     private val repository: MediaStoreRepository,
-    private val saved: androidx.lifecycle.SavedStateHandle = androidx.lifecycle.SavedStateHandle(),
+    private val saved: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(GalleryState())
     val state = _state.asStateFlow()

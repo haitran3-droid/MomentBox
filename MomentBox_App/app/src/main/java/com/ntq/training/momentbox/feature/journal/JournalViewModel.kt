@@ -9,7 +9,11 @@ import androidx.lifecycle.viewModelScope
 import com.ntq.training.momentbox.data.local.db.DayMood
 import com.ntq.training.momentbox.data.local.db.JournalEntryWithDetails
 import com.ntq.training.momentbox.data.local.prefs.JournalFilterState
+import com.ntq.training.momentbox.data.repository.JournalDayCount
+import com.ntq.training.momentbox.data.repository.JournalDeletionScheduler
 import com.ntq.training.momentbox.data.repository.JournalRepository
+import java.time.Clock
+import java.time.temporal.TemporalAdjusters
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
@@ -55,7 +59,7 @@ sealed interface JournalEvent {
 class JournalViewModel(
     private val journalRepository: JournalRepository,
     private val savedState: SavedStateHandle = SavedStateHandle(),
-    private val clock: java.time.Clock = java.time.Clock.systemDefaultZone()
+    private val clock: Clock = Clock.systemDefaultZone()
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow(savedState.get<String>("search").orEmpty())
@@ -135,7 +139,7 @@ class JournalViewModel(
 
     // Repository production sở hữu scheduler ở Application; fake/in-memory dùng scope của VM.
     private val deletionScheduler = if (!journalRepository.handlesDeletionDeadlines)
-        com.ntq.training.momentbox.data.repository.JournalDeletionScheduler(
+        JournalDeletionScheduler(
             journalRepository,
             viewModelScope
         ) else null
@@ -214,7 +218,7 @@ class JournalViewModel(
     private fun groupEntries(
         entries: List<JournalEntryWithDetails>,
         groupBy: String,
-        dayCounts: List<com.ntq.training.momentbox.data.repository.JournalDayCount> = emptyList()
+        dayCounts: List<JournalDayCount> = emptyList()
     ): List<JournalListItem> {
         if (entries.isEmpty()) return emptyList()
 
@@ -225,7 +229,7 @@ class JournalViewModel(
         fun key(date: LocalDate): String = when (groupBy.lowercase(Locale.ROOT)) {
             "day" -> date.toString()
             "month" -> YearMonth.from(date).toString()
-            else -> date.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            else -> date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 .toString()
         }
 
@@ -321,7 +325,7 @@ class JournalViewModel(
     companion object {
         fun provideFactory(
             journalRepository: JournalRepository,
-            clock: java.time.Clock = java.time.Clock.systemDefaultZone()
+            clock: Clock = Clock.systemDefaultZone()
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T =

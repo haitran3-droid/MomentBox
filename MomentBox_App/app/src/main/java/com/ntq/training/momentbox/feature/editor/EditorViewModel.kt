@@ -7,6 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -55,7 +56,7 @@ class EditorViewModel(app: Application, saved: SavedStateHandle) : AndroidViewMo
                 }
             _history.value = loaded ?: EditorHistory(EditorDocument())
             for (snapshot in queue) withContext(Dispatchers.IO) {
-                var stream: java.io.FileOutputStream? = null
+                var stream: FileOutputStream? = null
                 try {
                     file.baseFile.parentFile?.mkdirs()
                     stream = file.startWrite()

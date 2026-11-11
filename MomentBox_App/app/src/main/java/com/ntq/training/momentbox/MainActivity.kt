@@ -1,8 +1,10 @@
 package com.ntq.training.momentbox
 
+import java.text.NumberFormat
 import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -71,6 +73,21 @@ class MainActivity : AppCompatActivity() {
         setupFragments(savedInstanceState)
         setupBottomNav()
         observeSessionExpiry()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                app.chatRuntime.session.collectLatest { session ->
+                    binding.tvChatBadge.visibility = View.GONE
+                    if (session != null) app.database.chatDao()
+                        .unread(session.ownerId, session.source).collect { value ->
+                        val count = value ?: 0
+                        binding.tvChatBadge.visibility =
+                            if (count > 0) View.VISIBLE else View.GONE
+                        binding.tvChatBadge.text =
+                            NumberFormat.getIntegerInstance().format(count)
+                    }
+                }
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

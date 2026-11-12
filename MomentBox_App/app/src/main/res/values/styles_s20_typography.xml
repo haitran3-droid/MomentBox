@@ -1,0 +1,26 @@
+<resources>
+
+    <style name="TextAppearance.MomentBox.S20.Title.Base" parent="">
+        <item name="android:fontFamily">@font/be_vietnam_pro_bold</item>
+        <item name="fontFamily">@font/be_vietnam_pro_bold</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.MomentBox.S20.Title" parent="TextAppearance.MomentBox.S20.Title.Base" />
+
+    <style name="TextAppearance.MomentBox.S20.Clock.Base" parent="">
+        <item name="android:fontFamily">@font/be_vietnam_pro_light</item>
+        <item name="fontFamily">@font/be_vietnam_pro_light</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style name="TextAppearance.MomentBox.S20.Clock" parent="TextAppearance.MomentBox.S20.Clock.Base" />
+
+    <style name="TextAppearance.MomentBox.S20.Action.Base" parent="">
+        <item name="android:fontFamily">@font/be_vietnam_pro_semibold</item>
+        <item name="fontFamily">@font/be_vietnam_pro_semibold</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style name="TextAppearance.MomentBox.S20.Action" parent="TextAppearance.MomentBox.S20.Action.Base" />
+</resources>

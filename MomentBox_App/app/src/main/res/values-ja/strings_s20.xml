@@ -1,0 +1,13 @@
+<resources>
+    <string name="s20_title">日記を書く時間です ✍️</string>
+    <string name="s20_subtitle">今日はどんな一日でしたか？\n気分を選んで始めましょう。</string>
+    <string name="s20_write">今すぐ書く</string>
+    <string name="s20_snooze">10分後に通知</string>
+    <string name="s20_skip">今日はスキップ</string>
+    <string name="s20_mood1">最高</string>
+    <string name="s20_mood2">うれしい</string>
+    <string name="s20_mood3">普通</string>
+    <string name="s20_mood4">悲しい</string>
+    <string name="s20_mood5">最悪</string>
+    <string name="s20_action_error">通知を更新できませんでした。もう一度お試しください。</string>
+</resources>

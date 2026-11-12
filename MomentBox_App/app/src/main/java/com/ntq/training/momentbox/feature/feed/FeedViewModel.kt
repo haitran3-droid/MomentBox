@@ -3,7 +3,6 @@ package com.ntq.training.momentbox.feature.feed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.realtime.SocketManager
 import com.ntq.training.momentbox.data.local.db.AppDatabase
 import com.ntq.training.momentbox.data.local.db.NotificationDao
@@ -11,21 +10,23 @@ import com.ntq.training.momentbox.data.repository.FeedRepository
 import com.ntq.training.momentbox.domain.model.FeedItem
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.domain.model.User
+import com.ntq.training.momentbox.feature.profile.ProfileFeedProjection
+import com.ntq.training.momentbox.R
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class FeedViewModel(
@@ -172,30 +173,42 @@ class FeedViewModel(
      * Lọc sau khi ghép cache để like/bookmark và caption mới từ S05 vẫn phản ánh đúng. Chỉ PostItem
      * được tìm theo caption/hashtag, dữ liệu gốc, story và gợi ý vẫn được giữ để khôi phục.
      */
-    val feedItems: StateFlow<List<FeedItem>> =
-        combine(
-                loadedFeedItems,
-                appliedSearchQuery,
-                feedRepository.createdPostsFlow,
-                feedRepository.postsMapFlow,
-            ) { loaded, query, created, cache ->
-                val createdIds = created.map { it.id }.toSet()
-                val items =
-                    created.map { FeedItem.PostItem(cache[it.id] ?: it) } +
-                        loaded.filterNot { it is FeedItem.PostItem && it.post.id in createdIds }
+    private val ownProfile = MutableStateFlow<User?>(null)
+    fun updateOwnProfile(user: User?) {
+        val old = ownProfile.value
+        if (old != null && old.id != user?.id) {
+            ++feedGeneration
+            loadJob?.cancel()
+            paginationJob?.cancel()
+            _rawFeedItems.value = emptyList()
+            followStates.clear()
+            followOperations.clear()
+        }
+        ownProfile.value = user
+    }
 
-                if (query.isEmpty()) items
-                else
-                    items.filter { item ->
-                        item is FeedItem.PostItem &&
-                            (item.post.caption.contains(query, ignoreCase = true) ||
-                                item.post.tags.any { tag ->
-                                    tag.removePrefix("#")
-                                        .contains(query.removePrefix("#"), ignoreCase = true)
-                                })
-                    }
-            }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val feedItems: StateFlow<List<FeedItem>> = combine(
+        loadedFeedItems,
+        appliedSearchQuery,
+        feedRepository.createdPostsFlow,
+        feedRepository.postsMapFlow,
+        ownProfile
+    ) { loaded, query, created, cache, own ->
+        val createdIds = created.map { it.id }.toSet()
+        val items =
+            ProfileFeedProjection.apply(created.map {
+                FeedItem.PostItem(cache[it.id] ?: it)
+            } + loaded.filterNot { it is FeedItem.PostItem && it.post.id in createdIds }, own)
+        if (query.isEmpty()) items else items.filter { item ->
+            item is FeedItem.PostItem && (
+                    item.post.caption.contains(query, ignoreCase = true) ||
+                            item.post.tags.any { tag ->
+                                tag.removePrefix("#")
+                                    .contains(query.removePrefix("#"), ignoreCase = true)
+                            }
+                    )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         socketManager.connect()
@@ -396,7 +409,7 @@ class FeedViewModel(
                             val state = followStates[user.id]
                             if (
                                 state != null &&
-                                    (state.revision > readRevision || user.id in followOperations)
+                                (state.revision > readRevision || user.id in followOperations)
                             ) {
                                 user.copy(isFollowing = state.following)
                             } else user

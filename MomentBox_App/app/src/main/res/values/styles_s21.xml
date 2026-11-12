@@ -1,0 +1,49 @@
+<resources>
+
+    <style name="S21BoldBase">
+        <item name="android:fontFamily">@font/be_vietnam_pro_bold</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style
+        name="S21Bold"
+        parent="S21BoldBase" />
+
+    <style name="S21SemiboldBase">
+        <item name="android:fontFamily">@font/be_vietnam_pro_semibold</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style
+        name="S21Semibold"
+        parent="S21SemiboldBase" />
+
+    <style
+        name="S21ButtonBase"
+        parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:fontFamily">@font/be_vietnam_pro_semibold</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:paddingLeft">10dp</item>
+        <item name="android:paddingRight">10dp</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="android:insetTop">6dp</item>
+        <item name="android:insetBottom">6dp</item>
+        <item name="strokeColor">@color/outline</item>
+        <item name="strokeWidth">1.5dp</item>
+    </style>
+
+    <style
+        name="S21Button"
+        parent="S21ButtonBase" />
+
+    <style name="S21Circle">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+</resources>

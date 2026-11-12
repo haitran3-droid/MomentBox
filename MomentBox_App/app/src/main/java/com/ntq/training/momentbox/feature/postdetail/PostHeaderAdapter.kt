@@ -32,7 +32,8 @@ class PostHeaderAdapter(
     private val onVoiceSeek: (Post, Float) -> Unit = { _, _ -> },
     private val onVoiceSpeedClick: (Post) -> Unit = {},
     private val initialAlbumPage: Int = 0,
-    private val currentUserId: () -> Long? = { null }
+    private val currentUserId: () -> Long? = { null },
+    private val onProfileClick: (Long) -> Unit = {}
 ) : RecyclerView.Adapter<PostHeaderAdapter.HeaderViewHolder>() {
 
     companion object {
@@ -105,31 +106,31 @@ class PostHeaderAdapter(
 
     inner class HeaderViewHolder(val binding: ItemPostDetailHeaderBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        var boundPost: Post? = null
-        var pageCallback: ViewPager2.OnPageChangeCallback? = null
+            var boundPost: Post? = null
+            var pageCallback: ViewPager2.OnPageChangeCallback? = null
 
-        fun clearMedia() {
-            pageCallback?.let { binding.vpDetailPhotos.unregisterOnPageChangeCallback(it) }
-            pageCallback = null
-            binding.vpDetailPhotos.adapter = null
+            fun clearMedia() {
+                pageCallback?.let { binding.vpDetailPhotos.unregisterOnPageChangeCallback(it) }
+                pageCallback = null
+                binding.vpDetailPhotos.adapter = null
             // Activity có thể đã isDestroyed khi onDestroy gọi release; chỉ lấy app manager để clear request cũ.
-            Glide.with(binding.ivDetailVideoPreview.context.applicationContext).clear(binding.ivDetailVideoPreview)
-            boundPost = null
-        }
+                Glide.with(binding.ivDetailVideoPreview.context.applicationContext).clear(binding.ivDetailVideoPreview)
+                boundPost = null
+            }
 
-        init {
-            binding.btnDetailLike.setOnClickListener { onLikeClick() }
-            binding.btnDetailBookmark.setOnClickListener { onBookmarkClick() }
-            binding.btnDetailShare.setOnClickListener { onShareClick() }
-            binding.btnDetailFollow.setOnClickListener { onFollowClick() }
-            binding.btnSortComments.setOnClickListener { onSortClick(it) }
-            binding.detailVideoContainer.setOnClickListener { boundPost?.let(onVideoClick) }
-            binding.btnDetailVoicePlay.setOnClickListener { boundPost?.let(onVoicePlayClick) }
-            binding.tvDetailVoiceError.setOnClickListener { boundPost?.let(onVoicePlayClick) }
-            binding.btnDetailVoiceSpeed.setOnClickListener { boundPost?.let(onVoiceSpeedClick) }
-            binding.detailWaveform.onSeekListener = { ratio -> boundPost?.let { onVoiceSeek(it, ratio) } }
+            init {
+                binding.btnDetailLike.setOnClickListener { onLikeClick() }
+                binding.btnDetailBookmark.setOnClickListener { onBookmarkClick() }
+                binding.btnDetailShare.setOnClickListener { onShareClick() }
+                binding.btnDetailFollow.setOnClickListener { onFollowClick() }
+                binding.btnSortComments.setOnClickListener { onSortClick(it) }
+                binding.detailVideoContainer.setOnClickListener { boundPost?.let(onVideoClick) }
+                binding.btnDetailVoicePlay.setOnClickListener { boundPost?.let(onVoicePlayClick) }
+                binding.tvDetailVoiceError.setOnClickListener { boundPost?.let(onVoicePlayClick) }
+                binding.btnDetailVoiceSpeed.setOnClickListener { boundPost?.let(onVoiceSpeedClick) }
+                binding.detailWaveform.onSeekListener = { ratio -> boundPost?.let { onVoiceSeek(it, ratio) } }
+            }
         }
-    }
 
     override fun getItemViewType(position: Int): Int = VIEW_TYPE_HEADER
 
@@ -150,6 +151,8 @@ class PostHeaderAdapter(
 
         with(holder.binding) {
             tvDetailAuthorName.text = currentPost.author.displayName
+            tvDetailAuthorName.setOnClickListener { onProfileClick(currentPost.author.id) }
+            ivDetailAuthorAvatar.setOnClickListener { onProfileClick(currentPost.author.id) }
             PostMetadata.bind(tvDetailPostMeta, currentPost)
             tvDetailCaption.text = buildSpannableCaption(currentPost)
 

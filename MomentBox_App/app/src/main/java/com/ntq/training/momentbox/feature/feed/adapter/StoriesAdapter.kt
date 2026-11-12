@@ -16,6 +16,7 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
+import com.bumptech.glide.signature.ObjectKey
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.databinding.ItemFeedStoryBinding
@@ -29,8 +30,8 @@ class StoriesAdapter(
     override fun getItemViewType(position: Int): Int = R.layout.item_feed_story
     inner class StoryViewHolder(val binding: ItemFeedStoryBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        init {
-            binding.root.setOnClickListener {
+            init {
+                binding.root.setOnClickListener {
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) {
                     val item = getItem(pos)
@@ -41,8 +42,8 @@ class StoriesAdapter(
                     }
                 }
             }
+            }
         }
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StoryViewHolder {
         val binding = ItemFeedStoryBinding.inflate(
@@ -112,6 +113,7 @@ class StoriesAdapter(
             // Avatar luôn dùng placeholder và error hình tròn, không dùng nền vuông hay default launcher icon
             Glide.with(ivStoryAvatar.context)
                 .load(MediaImageModel.resolve(ivStoryAvatar.context, story.user.avatarUrl))
+                .signature(ObjectKey(story.user.avatarVersion))
                 .placeholder(R.drawable.bg_avatar_placeholder)
                 .error(R.drawable.bg_avatar_placeholder)
                 .listener(object : RequestListener<Drawable> {

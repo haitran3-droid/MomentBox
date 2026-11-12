@@ -1,8 +1,8 @@
 package com.ntq.training.momentbox.feature.feed
 
 import android.app.Activity
-import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.graphics.LinearGradient
@@ -10,11 +10,11 @@ import android.graphics.Rect
 import android.graphics.Shader
 import android.os.Bundle
 import android.os.Parcelable
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,8 +28,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.ntq.training.momentbox.MomentBoxApp
-import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.FeedVideoPlayerManager
 import com.ntq.training.momentbox.core.media.VoicePlayerManager
 import com.ntq.training.momentbox.databinding.DialogPostMenuBottomSheetBinding
@@ -39,7 +37,10 @@ import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.feature.create.CreateActivity
 import com.ntq.training.momentbox.feature.feed.adapter.FeedAdapter
 import com.ntq.training.momentbox.feature.postdetail.PostDetailActivity
+import com.ntq.training.momentbox.feature.profile.ProfileActivity
 import com.ntq.training.momentbox.feature.videoplayer.VideoPlayerActivity
+import com.ntq.training.momentbox.MomentBoxApp
+import com.ntq.training.momentbox.R
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -144,17 +145,6 @@ class FeedFragment : Fragment() {
         observeVideoProgress()
     }
 
-    /**
-     * Áp dụng dải màu Gradient nằm ngang cho logo MomentBox theo token CSS `.logo-t` (D04 &
-     * mockup-src/src/00_head.html:44).
-     *
-     * [Dành cho Android Intern]:
-     * - Logo title "MomentBox" sử dụng LinearGradient 90 độ trải đều qua 3 điểm dừng:
-     *     1. 0%: Tím chủ đạo (#5B4BDB - token --p)
-     *     2. 60%: Tím sáng (#B04BD6)
-     *     3. 100%: Cam san hô (#FF7A59 - token --s / secondary)
-     * - Trước đây dùng nhầm màu hồng #EC4899, nay đồng bộ chuẩn xác với thiết kế mockup gốc.
-     */
     private fun setupLogoGradient() {
         binding.tvLogoTitle.post {
             val paint = binding.tvLogoTitle.paint
@@ -189,7 +179,7 @@ class FeedFragment : Fragment() {
                         for (index in 0 until list.childCount) {
                             val holder =
                                 list.getChildViewHolder(list.getChildAt(index))
-                                    as? FeedAdapter.VideoPostViewHolder ?: continue
+                                        as? FeedAdapter.VideoPostViewHolder ?: continue
                             val post =
                                 (feedAdapter.currentList.getOrNull(holder.bindingAdapterPosition)
                                         as? FeedItem.PostItem)
@@ -216,14 +206,20 @@ class FeedFragment : Fragment() {
                 onBookmarkClick = { post -> viewModel.toggleBookmark(post) },
                 onCommentClick = { post -> openPostDetail(post.id) },
                 onPostClick = { post -> openPostDetail(post.id) },
+                onProfileClick = { userId ->
+                    if (userId > 0) {
+                        pauseAllMedia()
+                        startActivity(ProfileActivity.intent(requireContext(), userId))
+                    }
+                },
                 onShareClick = { post -> sharePost(post) },
                 onMoreClick = { post -> showPostMenuBottomSheet(post) },
                 onStoryClick = { story ->
                     Toast.makeText(
-                            requireContext(),
-                            "Xem story: ${story.user.displayName}",
-                            Toast.LENGTH_SHORT,
-                        )
+                        requireContext(),
+                        "Xem story: ${story.user.displayName}",
+                        Toast.LENGTH_SHORT,
+                    )
                         .show()
                 },
                 onAddStoryClick = {
@@ -240,10 +236,10 @@ class FeedFragment : Fragment() {
                 onVoiceSpeedClick = { post ->
                     val newSpeed = voicePlayerManager.cycleSpeed(post.id)
                     Toast.makeText(
-                            requireContext(),
-                            getString(R.string.audio_speed_format, newSpeed.toString()),
-                            Toast.LENGTH_SHORT,
-                        )
+                        requireContext(),
+                        getString(R.string.audio_speed_format, newSpeed.toString()),
+                        Toast.LENGTH_SHORT,
+                    )
                         .show()
                 },
                 onVideoMuteToggle = { post, playerView ->
@@ -256,11 +252,11 @@ class FeedFragment : Fragment() {
                     val muted = videoPlayerManager.toggleMute()
                     feedAdapter.updateVideoMuteState(muted)
                     Toast.makeText(
-                            requireContext(),
-                            if (muted) getString(R.string.sound_muted)
-                            else getString(R.string.sound_unmuted),
-                            Toast.LENGTH_SHORT,
-                        )
+                        requireContext(),
+                        if (muted) getString(R.string.sound_muted)
+                        else getString(R.string.sound_unmuted),
+                        Toast.LENGTH_SHORT,
+                    )
                         .show()
                 },
                 onVideoFullscreenClick = { post -> openVideoFullscreen(post) },
@@ -354,8 +350,8 @@ class FeedFragment : Fragment() {
             val query = text?.toString().orEmpty()
             if (
                 viewModel.searchQuery.value.isBlank() &&
-                    query.isNotBlank() &&
-                    viewModel.appliedSearchQuery.value.isEmpty()
+                query.isNotBlank() &&
+                viewModel.appliedSearchQuery.value.isEmpty()
             ) {
                 normalFeedScrollState = binding.rvFeed.layoutManager?.onSaveInstanceState()
             }
@@ -371,7 +367,7 @@ class FeedFragment : Fragment() {
         binding.btnCloseFeedSearch.setOnClickListener { closeSearch() }
         setSearchOpen(
             savedInstanceState?.getBoolean(KEY_SEARCH_OPEN) == true ||
-                viewModel.searchQuery.value.isNotEmpty()
+                    viewModel.searchQuery.value.isNotEmpty()
         )
     }
 
@@ -401,8 +397,8 @@ class FeedFragment : Fragment() {
         binding.tvFeedSearchEmpty.visibility =
             if (
                 viewModel.appliedSearchQuery.value.isNotEmpty() &&
-                    feedAdapter.currentList.isEmpty() &&
-                    !viewModel.isRefreshing.value
+                feedAdapter.currentList.isEmpty() &&
+                !viewModel.isRefreshing.value
             )
                 View.VISIBLE
             else View.GONE
@@ -411,6 +407,7 @@ class FeedFragment : Fragment() {
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { app.authRepository.userFlow.collect { viewModel.updateOwnProfile(it) } }
                 // Quan sát danh sách Feed
                 launch {
                     viewModel.feedItems.collectLatest { items ->

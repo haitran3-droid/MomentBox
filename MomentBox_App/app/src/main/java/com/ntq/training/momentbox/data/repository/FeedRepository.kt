@@ -7,10 +7,19 @@ import com.ntq.training.momentbox.domain.model.Story
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 
+data class FeedProfileUpdate(val generation: Long, val source: String, val change: Change) {
+    sealed interface Change {
+        data object Bookmarks : Change
+        data object Posts : Change
+        data class Follow(val userId: Long, val following: Boolean) : Change
+    }
+}
 interface FeedRepository {
+    val profileUpdates: Flow<FeedProfileUpdate> get() = emptyFlow()
     val createdPostsFlow: StateFlow<List<Post>>
         get() = EMPTY_CREATED
 

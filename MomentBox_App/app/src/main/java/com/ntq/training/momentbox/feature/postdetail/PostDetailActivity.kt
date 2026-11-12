@@ -1,22 +1,22 @@
 package com.ntq.training.momentbox.feature.postdetail
-import kotlinx.coroutines.flow.combine
-import android.content.ClipData
+
 import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.inputmethod.InputMethodManager
 import android.view.View
 import android.widget.EditText
-import android.view.inputmethod.InputMethodManager
 import android.widget.PopupMenu
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -29,9 +29,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.ntq.training.momentbox.MainActivity
-import com.ntq.training.momentbox.MomentBoxApp
-import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.media.VoicePlayerManager
+import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.databinding.ActivityPostDetailABinding
 import com.ntq.training.momentbox.databinding.ActivityPostDetailBBinding
 import com.ntq.training.momentbox.databinding.DialogPostMenuBottomSheetBinding
@@ -40,10 +39,13 @@ import com.ntq.training.momentbox.domain.model.Comment
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.domain.model.User
 import com.ntq.training.momentbox.feature.auth.AuthActivity
+import com.ntq.training.momentbox.feature.profile.ProfileActivity
 import com.ntq.training.momentbox.feature.videoplayer.VideoPlayerActivity
-import com.ntq.training.momentbox.core.media.VoicePlayerManager
-import com.ntq.training.momentbox.core.ui.MediaImageModel
+import com.ntq.training.momentbox.MainActivity
+import com.ntq.training.momentbox.MomentBoxApp
+import com.ntq.training.momentbox.R
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class PostDetailActivity : AppCompatActivity() {
@@ -73,10 +75,17 @@ class PostDetailActivity : AppCompatActivity() {
     private var restoredAlbumPage = 0
     private var videoPositionMs = 0L
     private var videoShouldPlay = true
-    private val videoLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        videoPositionMs = result.data?.getLongExtra(VideoPlayerActivity.EXTRA_RETURN_POSITION_MS, videoPositionMs) ?: videoPositionMs
-        videoShouldPlay = result.data?.getBooleanExtra(VideoPlayerActivity.EXTRA_RETURN_PLAY_WHEN_READY, videoShouldPlay) ?: videoShouldPlay
-    }
+    private val videoLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            videoPositionMs = result.data?.getLongExtra(
+                VideoPlayerActivity.EXTRA_RETURN_POSITION_MS,
+                videoPositionMs
+            ) ?: videoPositionMs
+            videoShouldPlay = result.data?.getBooleanExtra(
+                VideoPlayerActivity.EXTRA_RETURN_PLAY_WHEN_READY,
+                videoShouldPlay
+            ) ?: videoShouldPlay
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,7 +105,11 @@ class PostDetailActivity : AppCompatActivity() {
         // 2. Chốt chặn xác thực (Auth Gate) & Lấy thông tin người dùng
         lifecycleScope.launch {
             if (!app.authRepository.isLoggedIn()) {
-                Toast.makeText(this@PostDetailActivity, getString(R.string.detail_login_required), Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@PostDetailActivity,
+                    getString(R.string.detail_login_required),
+                    Toast.LENGTH_SHORT
+                ).show()
                 val authIntent = Intent(this@PostDetailActivity, AuthActivity::class.java).apply {
                     putExtra("EXTRA_REDIRECT_POST_ID", postId)
                 }
@@ -184,7 +197,8 @@ class PostDetailActivity : AppCompatActivity() {
             onPhotoClick = { post, page ->
                 voicePlayerManager?.pauseVoice()
                 if (supportFragmentManager.findFragmentByTag("detailPhotoViewer") == null) {
-                    PostPhotoViewerDialog.newInstance(post.media.filter { it.isImage }.map { it.url }, page)
+                    PostPhotoViewerDialog.newInstance(post.media.filter { it.isImage }
+                        .map { it.url }, page)
                         .show(supportFragmentManager, "detailPhotoViewer")
                 }
             },
@@ -193,7 +207,14 @@ class PostDetailActivity : AppCompatActivity() {
             onVoiceSeek = { post, progress -> voicePlayerManager?.seekTo(post.id, progress) },
             onVoiceSpeedClick = { post -> voicePlayerManager?.cycleSpeed(post.id) },
             initialAlbumPage = restoredAlbumPage,
-            currentUserId = { currentUser?.id }
+            currentUserId = { currentUser?.id },
+            onProfileClick = { userId ->
+                if (userId > 0) {
+                    voicePlayerManager?.pauseVoice()
+                    startActivity(ProfileActivity.intent(this, userId))
+                }
+            }
+
         )
 
         commentsAdapter = CommentsAdapter(
@@ -241,14 +262,25 @@ class PostDetailActivity : AppCompatActivity() {
                     b.tvCharCounter.visibility = View.VISIBLE
                     b.tvCharCounter.text = getString(R.string.ui_page_counter, len, 500)
                     if (len == 500) {
-                        b.tvCharCounter.setTextColor(ContextCompat.getColor(this@PostDetailActivity, R.color.error))
+                        b.tvCharCounter.setTextColor(
+                            ContextCompat.getColor(
+                                this@PostDetailActivity,
+                                R.color.error
+                            )
+                        )
                     } else {
-                        b.tvCharCounter.setTextColor(ContextCompat.getColor(this@PostDetailActivity, R.color.text_tertiary))
+                        b.tvCharCounter.setTextColor(
+                            ContextCompat.getColor(
+                                this@PostDetailActivity,
+                                R.color.text_tertiary
+                            )
+                        )
                     }
                 } else {
                     b.tvCharCounter.visibility = View.GONE
                 }
             }
+
             override fun afterTextChanged(s: Editable?) {}
         })
 
@@ -328,18 +360,31 @@ class PostDetailActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 if (!isVersionA) launch {
-                    voicePlayerManager?.playbackState?.collectLatest { postHeaderAdapter.updateVoicePlaybackState(it) }
+                    voicePlayerManager?.playbackState?.collectLatest {
+                        postHeaderAdapter.updateVoicePlaybackState(
+                            it
+                        )
+                    }
                 }
                 if (!isVersionA) launch {
                     viewModel.isFollowingAuthor.collectLatest { postHeaderAdapter.setFollowing(it) }
                 }
                 if (!isVersionA) launch {
-                    combine(viewModel.isFollowPending, viewModel.isFollowAvailable) { pending, available ->
+                    combine(
+                        viewModel.isFollowPending,
+                        viewModel.isFollowAvailable
+                    ) { pending, available ->
                         pending || !available
                     }.collectLatest { postHeaderAdapter.setFollowPending(it) }
                 }
                 launch {
-                    viewModel.followErrors.collect { Toast.makeText(this@PostDetailActivity, getString(R.string.detail_follow_failed), Toast.LENGTH_SHORT).show() }
+                    viewModel.followErrors.collect {
+                        Toast.makeText(
+                            this@PostDetailActivity,
+                            getString(R.string.detail_follow_failed),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
                 // Quan sát dữ liệu bài viết
                 launch {
@@ -381,7 +426,8 @@ class PostDetailActivity : AppCompatActivity() {
                         if (b != null) {
                             if (replyingComment != null) {
                                 b.layoutReplyingBanner.visibility = View.VISIBLE
-                                b.tvReplyingTo.text = getString(R.string.reply_to, replyingComment.author.displayName)
+                                b.tvReplyingTo.text =
+                                    getString(R.string.reply_to, replyingComment.author.displayName)
                             } else {
                                 b.layoutReplyingBanner.visibility = View.GONE
                             }
@@ -394,7 +440,9 @@ class PostDetailActivity : AppCompatActivity() {
                     viewModel.sortMode.collectLatest { mode ->
                         if (!isVersionA) {
                             postHeaderAdapter.setSortLabel(
-                                if (mode == "newest") getString(R.string.sort_newest) else getString(R.string.sort_top)
+                                if (mode == "newest") getString(R.string.sort_newest) else getString(
+                                    R.string.sort_top
+                                )
                             )
                         }
                     }
@@ -444,7 +492,8 @@ class PostDetailActivity : AppCompatActivity() {
         }
 
         // 3. Xóa bài viết (nếu người dùng là tác giả bài viết)
-        val isMyPost = currentPost != null && currentUser != null && currentPost.author.id == currentUser?.id
+        val isMyPost =
+            currentPost != null && currentUser != null && currentPost.author.id == currentUser?.id
         if (isMyPost) {
             sheetBinding.menuDelete.visibility = View.VISIBLE
             sheetBinding.menuDelete.setOnClickListener {
@@ -452,10 +501,18 @@ class PostDetailActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     val res = app.feedRepository.deletePost(postId)
                     if (res.isSuccess) {
-                        Toast.makeText(this@PostDetailActivity, getString(R.string.detail_post_deleted), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@PostDetailActivity,
+                            getString(R.string.detail_post_deleted),
+                            Toast.LENGTH_SHORT
+                        ).show()
                         handleBackNavigation()
                     } else {
-                        Toast.makeText(this@PostDetailActivity, getString(R.string.detail_delete_failed), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@PostDetailActivity,
+                            getString(R.string.detail_delete_failed),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             }
@@ -508,7 +565,10 @@ class PostDetailActivity : AppCompatActivity() {
         val p = viewModel.post.value ?: return
         val sendIntent = Intent().apply {
             action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, getString(R.string.detail_share_text, p.author.displayName, p.id))
+            putExtra(
+                Intent.EXTRA_TEXT,
+                getString(R.string.detail_share_text, p.author.displayName, p.id)
+            )
             type = "text/plain"
         }
         startActivity(Intent.createChooser(sendIntent, getString(R.string.detail_share_chooser)))
@@ -535,7 +595,10 @@ class PostDetailActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putInt("detailAlbumPage", if (::postHeaderAdapter.isInitialized) postHeaderAdapter.currentAlbumPage else restoredAlbumPage)
+        outState.putInt(
+            "detailAlbumPage",
+            if (::postHeaderAdapter.isInitialized) postHeaderAdapter.currentAlbumPage else restoredAlbumPage
+        )
         outState.putLong("detailVideoPosition", videoPositionMs)
         outState.putBoolean("detailVideoShouldPlay", videoShouldPlay)
         super.onSaveInstanceState(outState)

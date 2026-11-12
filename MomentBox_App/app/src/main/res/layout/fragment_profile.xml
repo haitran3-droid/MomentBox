@@ -1,162 +1,394 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/profileRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:background="@color/surface">
 
-    <LinearLayout
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/profileAppBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:background="@color/surface"
+        android:stateListAnimator="@null"
+        app:elevation="0dp">
 
-        <!-- Header Thanh tiêu đề Cá nhân -->
-        <LinearLayout
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:id="@+id/profileHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            app:titleEnabled="false">
 
-            <TextView
-                android:layout_width="0dp"
+            <FrameLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:fontFamily="@font/be_vietnam_pro"
-                android:text="@string/profile_account_title"
-                android:textColor="@color/text_primary"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:clipChildren="false">
 
-            <TextView
-                android:id="@+id/tvProfileM1Badge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_chip_api_mock"
-                android:fontFamily="@font/be_vietnam_pro"
-                android:paddingStart="8dp"
-                android:paddingTop="3dp"
-                android:paddingEnd="8dp"
-                android:paddingBottom="3dp"
-                android:text="@string/source_mb_label"
-                android:textColor="@color/chip_api_mock_text"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipChildren="false"
+                    android:orientation="vertical">
 
-        <!-- Thẻ thông tin cá nhân (Profile Card) -->
-        <LinearLayout
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="172dp"
+                        android:background="@color/primary_variant">
+
+                        <ImageView
+                            android:id="@+id/profileCover"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:importantForAccessibility="no"
+                            android:scaleType="centerCrop" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_s21_cover_overlay" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="-46dp"
+                        android:clipChildren="false"
+                        android:gravity="bottom"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp">
+
+                        <FrameLayout
+                            android:layout_width="96dp"
+                            android:layout_height="94dp"
+                            android:layout_marginEnd="-8dp"
+                            android:clipChildren="false">
+
+                            <TextView
+                                android:id="@+id/profileInitials"
+                                style="@style/S21Bold"
+                                android:layout_width="88dp"
+                                android:layout_height="88dp"
+                                android:background="@drawable/bg_s21_avatar"
+                                android:gravity="center"
+                                android:includeFontPadding="false"
+                                android:textColor="@color/white"
+                                android:textSize="32sp" />
+
+                            <com.google.android.material.imageview.ShapeableImageView
+                                android:id="@+id/profileAvatar"
+                                android:layout_width="88dp"
+                                android:layout_height="88dp"
+                                android:importantForAccessibility="no"
+                                android:scaleType="centerCrop"
+                                app:shapeAppearanceOverlay="@style/S21Circle"
+                                app:strokeColor="@color/surface"
+                                app:strokeWidth="4dp" />
+
+                            <ImageButton
+                                android:id="@+id/profileAvatarEdit"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:layout_gravity="bottom|end"
+                                android:layout_marginEnd="0dp"
+                                android:layout_marginBottom="0dp"
+                                android:background="@drawable/bg_s21_camera"
+                                android:contentDescription="@string/s21_avatar"
+                                android:padding="16dp"
+                                android:src="@drawable/ic_s21_photo_camera_filled"
+                                app:tint="@color/white" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_marginBottom="14dp"
+                            android:layout_weight="1"
+                            android:baselineAligned="false">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/profilePostsCount"
+                                    style="@style/S21Bold"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:includeFontPadding="false"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="18sp" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:includeFontPadding="false"
+                                    android:text="@string/s21_posts"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="11.5sp" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/profileFollowersCount"
+                                    style="@style/S21Bold"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:includeFontPadding="false"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="18sp" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:includeFontPadding="false"
+                                    android:text="@string/s21_followers"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="11.5sp" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/profileFollowingCount"
+                                    style="@style/S21Bold"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:includeFontPadding="false"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="18sp" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:includeFontPadding="false"
+                                    android:text="@string/s21_following"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="11.5sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingStart="16dp"
+                        android:paddingTop="4dp"
+                        android:paddingEnd="16dp">
+
+                        <androidx.constraintlayout.widget.ConstraintLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <TextView
+                                android:id="@+id/profileName"
+                                style="@style/S21Bold"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:includeFontPadding="false"
+                                android:textColor="@color/text_primary"
+                                android:textSize="18sp"
+                                app:layout_constrainedWidth="true"
+                                app:layout_constraintEnd_toStartOf="@id/profileVerified"
+                                app:layout_constraintHorizontal_bias="0"
+                                app:layout_constraintHorizontal_chainStyle="packed"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toTopOf="parent" />
+
+                            <ImageView
+                                android:id="@+id/profileVerified"
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:layout_marginStart="5dp"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/ic_s21_verified_filled"
+                                app:layout_constraintBottom_toBottomOf="@id/profileName"
+                                app:layout_constraintEnd_toEndOf="parent"
+                                app:layout_constraintStart_toEndOf="@id/profileName"
+                                app:layout_constraintTop_toTopOf="@id/profileName"
+                                app:tint="@color/verified_blue" />
+                        </androidx.constraintlayout.widget.ConstraintLayout>
+
+                        <TextView
+                            android:id="@+id/profileHandle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:includeFontPadding="false"
+                            android:textColor="@color/text_tertiary"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:id="@+id/profileBio"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:includeFontPadding="false"
+                            android:lineSpacingMultiplier="1.45"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13.5sp" />
+
+                        <LinearLayout
+                            android:id="@+id/profileHeaderError"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/s21_error"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="13sp" />
+
+                            <Button
+                                android:id="@+id/profileRetry"
+                                android:layout_width="wrap_content"
+                                android:layout_height="48dp"
+                                android:text="@string/s21_retry" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:baselineAligned="false">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/profileEdit"
+                                style="@style/S21Button"
+                                android:layout_width="0dp"
+                                android:layout_height="48dp"
+                                android:layout_weight="1"
+                                android:text="@string/s21_edit"
+                                android:textColor="@color/on_primary_container"
+                                app:backgroundTint="@color/primary_container"
+                                app:strokeWidth="0dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/profileShare"
+                                style="@style/S21Button"
+                                android:layout_width="0dp"
+                                android:layout_height="48dp"
+                                android:layout_marginStart="8dp"
+                                android:layout_weight="1"
+                                android:text="@string/s21_share"
+                                android:textColor="@color/text_primary"
+                                app:backgroundTint="@color/surface" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/profilePeople"
+                                style="@style/S21Button"
+                                android:layout_width="44dp"
+                                android:layout_height="48dp"
+                                android:layout_marginStart="8dp"
+                                android:contentDescription="@string/s21_people"
+                                android:text=""
+                                app:backgroundTint="@color/surface"
+                                app:icon="@drawable/ic_s21_person_add"
+                                app:iconPadding="0dp"
+                                app:iconSize="20dp"
+                                app:iconTint="@color/text_primary" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/profileTopActions"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="34dp"
+                    android:layout_marginEnd="6dp">
+
+                    <ImageButton
+                        android:id="@+id/profileTopShare"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_s21_action"
+                        android:contentDescription="@string/s21_share"
+                        android:padding="12dp"
+                        android:src="@drawable/ic_s21_ios_share"
+                        app:tint="@color/white" />
+
+                    <ImageButton
+                        android:id="@+id/profileSettings"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_s21_action"
+                        android:contentDescription="@string/s21_settings"
+                        android:padding="12dp"
+                        android:src="@drawable/ic_s21_settings"
+                        app:tint="@color/white" />
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/profileBack"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_marginTop="34dp"
+                    android:background="@drawable/bg_s21_action"
+                    android:contentDescription="@string/common_back"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_s21_arrow_back"
+                    android:visibility="gone"
+                    app:tint="@color/white" />
+            </FrameLayout>
+
+            <View
+                android:id="@+id/profileStatusScrim"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                app:layout_collapseMode="pin" />
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/profileTabs"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_dialog"
-            android:elevation="4dp"
-            android:orientation="vertical"
-            android:padding="20dp">
+            android:layout_height="58dp"
+            android:layout_marginTop="8dp"
+            android:background="@color/surface"
+            app:tabGravity="fill"
+            app:tabIndicator="@drawable/bg_s21_indicator"
+            app:tabIndicatorFullWidth="false"
+            app:tabIndicatorHeight="3dp"
+            app:tabMinWidth="0dp"
+            app:tabMode="fixed"
+            app:tabPaddingEnd="0dp"
+            app:tabPaddingStart="0dp"
+            app:tabRippleColor="@android:color/transparent" />
+    </com.google.android.material.appbar.AppBarLayout>
 
-            <TextView
-                android:id="@+id/tvUserDisplayName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/be_vietnam_pro"
-                android:textColor="@color/text_primary"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                tools:text="Nguyễn Minh Anh" />
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/profilePager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-            <TextView
-                android:id="@+id/tvUserEmail"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:fontFamily="@font/be_vietnam_pro"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"
-                tools:text="minhanh@momentbox.dev" />
-
-            <TextView
-                android:id="@+id/tvSessionStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_chip"
-                android:fontFamily="@font/be_vietnam_pro"
-                android:paddingStart="10dp"
-                android:paddingTop="4dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="4dp"
-                android:text="@string/main_session_valid"
-                android:textColor="@color/success"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Nút mô phỏng 401 kiểm thử Refresh Token (DEBUG only) -->
-        <LinearLayout
-            android:id="@+id/btnSimulate401"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/bg_btn_tonal"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_bolt"
-                app:tint="@color/primary" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:fontFamily="@font/be_vietnam_pro"
-                android:text="@string/main_trigger_401"
-                android:textColor="@color/primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Nút Đăng xuất (Logout) -->
-        <LinearLayout
-            android:id="@+id/btnLogout"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_btn_outline"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/be_vietnam_pro"
-                android:text="@string/main_logout"
-                android:textColor="@color/error"
-                android:textSize="14.5sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Chỉ báo tải -->
-        <ProgressBar
-            android:id="@+id/pbProfileLoading"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:visibility="gone"
-            tools:visibility="visible" />
-    </LinearLayout>
-</ScrollView>
+    <ProgressBar
+        android:id="@+id/profileLoading"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center" />
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

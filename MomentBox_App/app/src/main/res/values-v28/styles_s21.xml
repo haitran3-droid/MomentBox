@@ -1,0 +1,20 @@
+<resources>
+
+    <style
+        name="S21Bold"
+        parent="S21BoldBase">
+        <item name="android:textFontWeight">700</item>
+    </style>
+
+    <style
+        name="S21Semibold"
+        parent="S21SemiboldBase">
+        <item name="android:textFontWeight">600</item>
+    </style>
+
+    <style
+        name="S21Button"
+        parent="S21ButtonBase">
+        <item name="android:textFontWeight">600</item>
+    </style>
+</resources>

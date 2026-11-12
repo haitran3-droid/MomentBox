@@ -1,0 +1,31 @@
+<resources>
+    <string name="s21_posts">投稿</string>
+    <string name="s21_videos">動画</string>
+    <string name="s21_saved">保存済み</string>
+    <string name="s21_followers">フォロワー</string>
+    <string name="s21_following">フォロー中</string>
+    <string name="s21_edit">プロフィールを編集</string>
+    <string name="s21_share">プロフィールを共有</string>
+    <string name="s21_people">ユーザーを探す</string>
+    <string name="s21_settings">設定</string>
+    <string name="s21_block_unavailable">ブロック（未対応）</string>
+    <string name="s21_report_unavailable">報告（未対応）</string>
+    <string name="s21_avatar">プロフィール画像を変更</string>
+    <string name="s21_retry">再試行</string>
+    <string name="s21_error">読み込めませんでした。再試行してください。</string>
+    <string name="s21_empty">投稿はありません</string>
+    <string name="s21_follow">フォロー</string>
+    <string name="s21_unfollow">フォロー中</string>
+    <string name="s21_message">メッセージ</string>
+    <string name="s21_name">表示名</string>
+    <string name="s21_bio">自己紹介</string>
+    <string name="s21_location">場所</string>
+    <string name="s21_save">保存</string>
+    <string name="s21_cancel">キャンセル</string>
+    <string name="s21_name_required">表示名を入力してください</string>
+    <string name="s21_update_error">更新できませんでした。再試行してください。</string>
+    <string name="s21_source_unsupported">現在のサーバーではこの操作を利用できません。</string>
+    <string name="s21_more">プロフィールの設定</string>
+    <string name="s21_share_text">%1$s のプロフィール: %2$s</string>
+    <string name="s21_unknown_count">—</string>
+</resources>

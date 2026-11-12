@@ -35,6 +35,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,6 +61,15 @@ class FeedRepositoryImpl(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val gson: Gson = Gson(),
 ) : FeedRepository {
+    private val profileUpdateEvents = MutableSharedFlow<FeedProfileUpdate>()
+    override val profileUpdates: Flow<FeedProfileUpdate> = profileUpdateEvents
+
+    private suspend fun publishProfileUpdate(scope: Scope, change: FeedProfileUpdate.Change) {
+        if (scope.source == SettingsDataStore.SOURCE_MB_SERVER) {
+            profileUpdateEvents.emit(FeedProfileUpdate(scope.generation, scope.source, change))
+        }
+    }
+
     private val _createdPosts = MutableStateFlow<List<Post>>(emptyList())
     override val createdPostsFlow: StateFlow<List<Post>> = _createdPosts.asStateFlow()
 
@@ -82,6 +92,7 @@ class FeedRepositoryImpl(
             _createdPosts.value = (listOf(post) + _createdPosts.value).distinctBy { it.id }
             cacheVersion++
         }
+        publishProfileUpdate(scope, FeedProfileUpdate.Change.Posts)
         Result.success(post)
     }
 
@@ -150,7 +161,7 @@ class FeedRepositoryImpl(
                 throw InvalidScope()
             if (
                 generation != lastRecordedGeneration ||
-                    (cacheSource != null && cacheSource != source)
+                (cacheSource != null && cacheSource != source)
             ) {
                 clearLocked()
                 lastRecordedGeneration = generation
@@ -169,8 +180,8 @@ class FeedRepositoryImpl(
             synchronized(cacheLock) {
                 if (
                     scope.epoch != cacheEpoch ||
-                        cacheSource != scope.source ||
-                        (scope.feedEpoch != null && scope.feedEpoch != feedEpoch)
+                    cacheSource != scope.source ||
+                    (scope.feedEpoch != null && scope.feedEpoch != feedEpoch)
                 )
                     throw InvalidScope()
                 output = action()
@@ -574,6 +585,7 @@ class FeedRepositoryImpl(
                             currentMap + (postId to merged)
                         }
                     }
+                    publishProfileUpdate(scope, FeedProfileUpdate.Change.Bookmarks)
                     Result.success(commit(scope) { _postsMap.value[postId] } ?: currentPost)
                 } else {
                     // 3. Hoàn tác chỉ trên trường Bookmark
@@ -603,7 +615,7 @@ class FeedRepositoryImpl(
                     // DELETE của MB Server trả success/data:null, HTTP 204 cũng không có payload.
                     if (
                         response.isSuccessful &&
-                            (response.code() == 204 || response.body()?.success == true)
+                        (response.code() == 204 || response.body()?.success == true)
                     )
                         Response.success(ApiResponse(success = true, data = Unit))
                     else response
@@ -633,8 +645,8 @@ class FeedRepositoryImpl(
     override suspend fun loadFollowingState(userId: Long): Result<Boolean> = scoped { scope ->
         if (
             scope.source == SettingsDataStore.SOURCE_DUMMY_JSON ||
-                scope.source == SettingsDataStore.SOURCE_OFFLINE ||
-                currentStoryAuthor().id == userId
+            scope.source == SettingsDataStore.SOURCE_OFFLINE ||
+            currentStoryAuthor().id == userId
         ) {
             return@scoped Result.success(
                 commit(scope) {
@@ -694,7 +706,9 @@ class FeedRepositoryImpl(
                         response.map { it.isFollowing ?: targetFollowing }
                     }
                 if (result.isSuccess) {
-                    commit(scope) { _followingMap.update { it + (userId to result.getOrThrow()) } }
+                    val following = result.getOrThrow()
+                    commit(scope) { _followingMap.update { it + (userId to following) } }
+                    publishProfileUpdate(scope, FeedProfileUpdate.Change.Follow(userId, following))
                 }
                 result
             } finally {
@@ -851,9 +865,9 @@ class FeedRepositoryImpl(
                     val key = user.id to "follow"
                     val preserve =
                         key in activeMutations ||
-                            (fieldVersions[key] ?: -1L) > scope.cacheVersion ||
-                            (scope.source == SettingsDataStore.SOURCE_DUMMY_JSON &&
-                                user.id in confirmed)
+                                (fieldVersions[key] ?: -1L) > scope.cacheVersion ||
+                                (scope.source == SettingsDataStore.SOURCE_DUMMY_JSON &&
+                                        user.id in confirmed)
                     if (preserve) {
                         user.copy(isFollowing = confirmed[user.id] ?: user.isFollowing)
                     } else {
@@ -877,10 +891,10 @@ class FeedRepositoryImpl(
                         val bookmark = incoming.id to "bookmark"
                         val preserveLike =
                             like in activeMutations ||
-                                (fieldVersions[like] ?: -1L) > scope.cacheVersion
+                                    (fieldVersions[like] ?: -1L) > scope.cacheVersion
                         val preserveBookmark =
                             bookmark in activeMutations ||
-                                (fieldVersions[bookmark] ?: -1L) > scope.cacheVersion
+                                    (fieldVersions[bookmark] ?: -1L) > scope.cacheVersion
                         var post = incoming
                         if (existing != null && preserveLike)
                             post =

@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
+import com.bumptech.glide.signature.ObjectKey
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.core.media.VoicePlaybackState
@@ -61,7 +62,8 @@ class FeedAdapter(
     private val onVideoFullscreenClick: (Post) -> Unit,
     private val onFooterRetryClick: () -> Unit,
     private val onVideoHolderRecycled: (FeedVideoSurface) -> Unit = {},
-    private val presentationState: FeedPresentationState = FeedPresentationState()
+    private val presentationState: FeedPresentationState = FeedPresentationState(),
+    private val onProfileClick: (Long) -> Unit = {}
 ) : ListAdapter<FeedItem, RecyclerView.ViewHolder>(FeedDiffCallback) {
 
     companion object {
@@ -88,7 +90,10 @@ class FeedAdapter(
     fun updateVideoMuteState(isMuted: Boolean) {
         videoMuted = isMuted
         currentList.forEachIndexed { index, item ->
-            if (item is FeedItem.PostItem && item.post.isVideoPost) notifyItemChanged(index, PAYLOAD_VIDEO_MUTE)
+            if (item is FeedItem.PostItem && item.post.isVideoPost) notifyItemChanged(
+                index,
+                PAYLOAD_VIDEO_MUTE
+            )
         }
     }
 
@@ -124,16 +129,53 @@ class FeedAdapter(
                 binding.rvStories.setRecycledViewPool(recycledViewPool)
                 StoryBarViewHolder(binding)
             }
-            VIEW_TYPE_POST_PHOTO -> PhotoPostViewHolder(ItemFeedPostPhotoBinding.inflate(inflater, parent, false))
-            VIEW_TYPE_POST_VIDEO -> VideoPostViewHolder(ItemFeedPostVideoBinding.inflate(inflater, parent, false))
-            VIEW_TYPE_POST_VOICE -> VoicePostViewHolder(ItemFeedPostVoiceBinding.inflate(inflater, parent, false))
-            VIEW_TYPE_POST_TEXT -> TextPostViewHolder(ItemFeedPostTextBinding.inflate(inflater, parent, false))
+
+            VIEW_TYPE_POST_PHOTO -> PhotoPostViewHolder(
+                ItemFeedPostPhotoBinding.inflate(
+                    inflater,
+                    parent,
+                    false
+                )
+            )
+
+            VIEW_TYPE_POST_VIDEO -> VideoPostViewHolder(
+                ItemFeedPostVideoBinding.inflate(
+                    inflater,
+                    parent,
+                    false
+                )
+            )
+
+            VIEW_TYPE_POST_VOICE -> VoicePostViewHolder(
+                ItemFeedPostVoiceBinding.inflate(
+                    inflater,
+                    parent,
+                    false
+                )
+            )
+
+            VIEW_TYPE_POST_TEXT -> TextPostViewHolder(
+                ItemFeedPostTextBinding.inflate(
+                    inflater,
+                    parent,
+                    false
+                )
+            )
+
             VIEW_TYPE_SUGGESTIONS -> {
                 val binding = ItemFeedSuggestionsBinding.inflate(inflater, parent, false)
                 binding.rvSuggestions.setRecycledViewPool(recycledViewPool)
                 SuggestionsViewHolder(binding)
             }
-            VIEW_TYPE_LOADING_FOOTER -> LoadingFooterViewHolder(ItemFeedLoadingFooterBinding.inflate(inflater, parent, false))
+
+            VIEW_TYPE_LOADING_FOOTER -> LoadingFooterViewHolder(
+                ItemFeedLoadingFooterBinding.inflate(
+                    inflater,
+                    parent,
+                    false
+                )
+            )
+
             else -> throw IllegalArgumentException("Unknown viewType: $viewType")
         }
     }
@@ -165,100 +207,103 @@ class FeedAdapter(
 
     inner class StoryBarViewHolder(val binding: ItemFeedStoryBarBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        private val adapter = StoriesAdapter(onStoryClick, onAddStoryClick)
+            private val adapter = StoriesAdapter(onStoryClick, onAddStoryClick)
 
-        init {
-            binding.rvStories.layoutManager = LinearLayoutManager(
+            init {
+                binding.rvStories.layoutManager = LinearLayoutManager(
                 binding.root.context,
                 LinearLayoutManager.HORIZONTAL,
                 false
             )
-            binding.rvStories.adapter = adapter
-        }
+                binding.rvStories.adapter = adapter
+            }
 
-        fun bind(item: FeedItem.StoryBar) {
-            adapter.submitList(item.stories)
+            fun bind(item: FeedItem.StoryBar) {
+                adapter.submitList(item.stories)
+            }
         }
-    }
 
     inner class PhotoPostViewHolder(val binding: ItemFeedPostPhotoBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        private var pageCallback: ViewPager2.OnPageChangeCallback? = null
-        private var boundPost: Post? = null
+            private var pageCallback: ViewPager2.OnPageChangeCallback? = null
+            private var boundPost: Post? = null
 
-        fun recycle() {
-            pageCallback?.let { binding.vpPostPhotos.unregisterOnPageChangeCallback(it) }
-            pageCallback = null
-            boundPost = null
-            binding.ivDoubleTapHeart.animate().cancel()
-            binding.ivDoubleTapHeart.visibility = View.GONE
-        }
+            fun recycle() {
+                pageCallback?.let { binding.vpPostPhotos.unregisterOnPageChangeCallback(it) }
+                pageCallback = null
+                boundPost = null
+                binding.ivDoubleTapHeart.animate().cancel()
+                binding.ivDoubleTapHeart.visibility = View.GONE
+            }
 
-        private fun likePhoto() {
-            val post = getPost() ?: return
-            if (!post.isLiked) onLikeClick(post)
-            val heart = binding.ivDoubleTapHeart
-            heart.animate().cancel()
-            heart.alpha = 1f
-            heart.scaleX = 0.5f
-            heart.scaleY = 0.5f
-            heart.visibility = View.VISIBLE
-            heart.animate().scaleX(1.2f).scaleY(1.2f).alpha(0f)
+            private fun likePhoto() {
+                val post = getPost() ?: return
+                if (!post.isLiked) onLikeClick(post)
+                val heart = binding.ivDoubleTapHeart
+                heart.animate().cancel()
+                heart.alpha = 1f
+                heart.scaleX = 0.5f
+                heart.scaleY = 0.5f
+                heart.visibility = View.VISIBLE
+                heart.animate().scaleX(1.2f).scaleY(1.2f).alpha(0f)
                 .setDuration(450)
                 .withEndAction { heart.visibility = View.GONE }
                 .start()
-        }
+            }
 
-        init {
-            binding.root.setOnClickListener {
+            init {
+                binding.root.setOnClickListener {
                 getPost()?.let { onPostClick(it) }
             }
-            binding.btnLike.setOnClickListener {
+                binding.btnLike.setOnClickListener {
                 getPost()?.let { onLikeClick(it) }
             }
-            binding.btnBookmark.setOnClickListener {
+                binding.btnBookmark.setOnClickListener {
                 getPost()?.let { onBookmarkClick(it) }
             }
-            binding.btnComment.setOnClickListener {
+                binding.btnComment.setOnClickListener {
                 getPost()?.let { onCommentClick(it) }
             }
-            binding.btnShare.setOnClickListener {
+                binding.btnShare.setOnClickListener {
                 getPost()?.let { onShareClick(it) }
             }
-            binding.btnPostMore.setOnClickListener {
+                binding.btnPostMore.setOnClickListener {
                 getPost()?.let { onMoreClick(it) }
             }
-        }
-
-        private fun getPost(): Post? {
-            val pos = bindingAdapterPosition
-            return if (pos != RecyclerView.NO_POSITION) (getItem(pos) as? FeedItem.PostItem)?.post else null
-        }
-
-        private fun bindCaption(post: Post) {
-            bindCaptionView(binding.tvCaption, post)
-        }
-
-        fun bind(post: Post, payloads: List<Any>) {
-            boundPost = post
-            if (payloads.isNotEmpty()) {
-                for (payload in payloads) {
-                    when (payload) {
-                        PAYLOAD_LIKE -> updateLikeState(post)
-                        PAYLOAD_BOOKMARK -> updateBookmarkState(post)
-                    }
-                }
-                return
             }
 
-            with(binding) {
+            private fun getPost(): Post? {
+                val pos = bindingAdapterPosition
+                return if (pos != RecyclerView.NO_POSITION) (getItem(pos) as? FeedItem.PostItem)?.post else null
+            }
+
+            private fun bindCaption(post: Post) {
+                bindCaptionView(binding.tvCaption, post)
+            }
+
+            fun bind(post: Post, payloads: List<Any>) {
+                boundPost = post
+                if (payloads.isNotEmpty()) {
+                    for (payload in payloads) {
+                        when (payload) {
+                            PAYLOAD_LIKE -> updateLikeState(post)
+                            PAYLOAD_BOOKMARK -> updateBookmarkState(post)
+                        }
+                    }
+                    return
+                }
+
+                with(binding) {
                 tvAuthorName.text = post.author.displayName
+                tvAuthorName.setOnClickListener { onProfileClick(post.author.id) }
+                ivAuthorAvatar.setOnClickListener { onProfileClick(post.author.id) }
                 PostMetadata.bind(tvPostMeta, post)
                 bindCaption(post)
 
                 Glide.with(ivAuthorAvatar.context)
                     .load(MediaImageModel.resolve(ivAuthorAvatar.context, post.author.avatarUrl))
+                    .signature(ObjectKey(post.author.avatarVersion))
                     .placeholder(R.drawable.bg_avatar_placeholder)
                     .error(R.drawable.bg_avatar_placeholder)
                     .circleCrop()
@@ -285,18 +330,27 @@ class FeedAdapter(
                     photoIndicator.visibility = View.VISIBLE
                     photoIndicator.setPageCount(imageUrls.size)
 
-                    val savedPos = presentationState.albumPosition(post.id).coerceIn(0, imageUrls.lastIndex)
+                    val savedPos =
+                        presentationState.albumPosition(post.id).coerceIn(0, imageUrls.lastIndex)
                     if (vpPostPhotos.currentItem != savedPos && savedPos < imageUrls.size) {
                         vpPostPhotos.setCurrentItem(savedPos, false)
                     }
                     photoIndicator.setCurrentPage(vpPostPhotos.currentItem)
-                    tvPhotoCounter.text = root.context.getString(R.string.ui_page_counter, vpPostPhotos.currentItem + 1, imageUrls.size)
+                    tvPhotoCounter.text = root.context.getString(
+                        R.string.ui_page_counter,
+                        vpPostPhotos.currentItem + 1,
+                        imageUrls.size
+                    )
 
                     val newCallback = object : ViewPager2.OnPageChangeCallback() {
                         override fun onPageSelected(position: Int) {
                             if (boundPost?.id != post.id) return
                             presentationState.setAlbumPosition(post.id, position)
-                            tvPhotoCounter.text = root.context.getString(R.string.ui_page_counter, position + 1, imageUrls.size)
+                            tvPhotoCounter.text = root.context.getString(
+                                R.string.ui_page_counter,
+                                position + 1,
+                                imageUrls.size
+                            )
                             photoIndicator.setCurrentPage(position)
                         }
 
@@ -316,94 +370,117 @@ class FeedAdapter(
 
                 updateLikeState(post)
                 updateBookmarkState(post)
-                tvCommentCount.text = root.context.getString(R.string.ui_integer_count, post.commentCount)
+                tvCommentCount.text =
+                    root.context.getString(R.string.ui_integer_count, post.commentCount)
             }
-        }
+            }
 
-        private fun updateLikeState(post: Post) {
-            with(binding) {
+            private fun updateLikeState(post: Post) {
+                with(binding) {
                 btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
                     ivLike.clearColorFilter()
                     ivLike.imageTintList = null
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
+                    tvLikeCount.setTextColor(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 } else {
                     ivLike.setImageResource(R.drawable.ic_favorite)
-                    ivLike.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
+                    ivLike.setColorFilter(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
+                    tvLikeCount.setTextColor(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 }
                 tvLikeCount.text = root.context.getString(R.string.ui_integer_count, post.likeCount)
             }
-        }
+            }
 
-        private fun updateBookmarkState(post: Post) {
-            with(binding) {
+            private fun updateBookmarkState(post: Post) {
+                with(binding) {
                 btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                     ivBookmark.imageTintList = null
                 } else {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark)
-                    ivBookmark.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
+                    ivBookmark.setColorFilter(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 }
             }
+            }
         }
-    }
 
     inner class VideoPostViewHolder(val binding: ItemFeedPostVideoBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        init {
-            binding.root.setOnClickListener {
+            init {
+                binding.root.setOnClickListener {
                 getPost()?.let { onPostClick(it) }
             }
-            binding.videoContainer.setOnClickListener {
+                binding.videoContainer.setOnClickListener {
                 getPost()?.let { onVideoFullscreenClick(it) }
             }
-            binding.btnMuteToggle.setOnClickListener {
+                binding.btnMuteToggle.setOnClickListener {
                 getPost()?.let { onVideoMuteToggle(it, binding.playerView) }
             }
-            binding.btnLike.setOnClickListener {
+                binding.btnLike.setOnClickListener {
                 getPost()?.let { onLikeClick(it) }
             }
-            binding.btnBookmark.setOnClickListener {
+                binding.btnBookmark.setOnClickListener {
                 getPost()?.let { onBookmarkClick(it) }
             }
-            binding.btnComment.setOnClickListener {
+                binding.btnComment.setOnClickListener {
                 getPost()?.let { onCommentClick(it) }
             }
-            binding.btnShare.setOnClickListener {
+                binding.btnShare.setOnClickListener {
                 getPost()?.let { onShareClick(it) }
             }
-            binding.btnPostMore.setOnClickListener {
+                binding.btnPostMore.setOnClickListener {
                 getPost()?.let { onMoreClick(it) }
             }
-        }
-
-        private fun getPost(): Post? {
-            val pos = bindingAdapterPosition
-            return if (pos != RecyclerView.NO_POSITION) (getItem(pos) as? FeedItem.PostItem)?.post else null
-        }
-
-        private fun bindCaption(post: Post) {
-            bindCaptionView(binding.tvCaption, post)
-        }
-
-        fun bind(post: Post, payloads: List<Any>) {
-            if (payloads.isNotEmpty()) {
-                for (payload in payloads) {
-                    when (payload) {
-                        PAYLOAD_LIKE -> updateLikeState(post)
-                        PAYLOAD_BOOKMARK -> updateBookmarkState(post)
-                        PAYLOAD_VIDEO_MUTE -> updateMuteDisplay()
-                    }
-                }
-                return
             }
 
-            with(binding) {
+            private fun getPost(): Post? {
+                val pos = bindingAdapterPosition
+                return if (pos != RecyclerView.NO_POSITION) (getItem(pos) as? FeedItem.PostItem)?.post else null
+            }
+
+            private fun bindCaption(post: Post) {
+                bindCaptionView(binding.tvCaption, post)
+            }
+
+            fun bind(post: Post, payloads: List<Any>) {
+                if (payloads.isNotEmpty()) {
+                    for (payload in payloads) {
+                        when (payload) {
+                            PAYLOAD_LIKE -> updateLikeState(post)
+                            PAYLOAD_BOOKMARK -> updateBookmarkState(post)
+                            PAYLOAD_VIDEO_MUTE -> updateMuteDisplay()
+                        }
+                    }
+                    return
+                }
+
+                with(binding) {
                 tvAuthorName.text = post.author.displayName
+                tvAuthorName.setOnClickListener { onProfileClick(post.author.id) }
+                ivAuthorAvatar.setOnClickListener { onProfileClick(post.author.id) }
                 ivVerified.visibility = if (post.author.verified) View.VISIBLE else View.GONE
                 PostMetadata.bind(tvPostMeta, post)
                 bindCaption(post)
@@ -422,6 +499,7 @@ class FeedAdapter(
 
                 Glide.with(ivAuthorAvatar.context)
                     .load(MediaImageModel.resolve(ivAuthorAvatar.context, post.author.avatarUrl))
+                    .signature(ObjectKey(post.author.avatarVersion))
                     .placeholder(R.drawable.bg_avatar_placeholder)
                     .error(R.drawable.bg_avatar_placeholder)
                     .circleCrop()
@@ -429,124 +507,149 @@ class FeedAdapter(
 
                 updateLikeState(post)
                 updateBookmarkState(post)
-                tvCommentCount.text = root.context.getString(R.string.ui_integer_count, post.commentCount)
+                tvCommentCount.text =
+                    root.context.getString(R.string.ui_integer_count, post.commentCount)
             }
-        }
+            }
 
-        fun bindPlaybackProgress(positionMs: Long, durationMs: Long?) {
-            val duration = durationMs?.takeIf { it > 0 }
-            val remaining = duration?.let { (it - positionMs).coerceAtLeast(0) }
-            binding.tvVideoDuration.visibility = if (remaining == null) View.GONE else View.VISIBLE
-            if (remaining != null) {
-                val seconds = (remaining + 999L) / 1000L
-                val text = String.format(Locale.getDefault(), "%d:%02d", seconds / 60, seconds % 60)
-                if (binding.tvVideoDuration.text != text) binding.tvVideoDuration.text = text
-            }
-            binding.pbVideoLine.progress = duration?.let {
+            fun bindPlaybackProgress(positionMs: Long, durationMs: Long?) {
+                val duration = durationMs?.takeIf { it > 0 }
+                val remaining = duration?.let { (it - positionMs).coerceAtLeast(0) }
+                binding.tvVideoDuration.visibility = if (remaining == null) View.GONE else View.VISIBLE
+                if (remaining != null) {
+                    val seconds = (remaining + 999L) / 1000L
+                    val text = String.format(Locale.getDefault(), "%d:%02d", seconds / 60, seconds % 60)
+                    if (binding.tvVideoDuration.text != text) binding.tvVideoDuration.text = text
+                }
+                binding.pbVideoLine.progress = duration?.let {
                 (positionMs.coerceIn(0L, it) * 1000 / it).toInt()
             } ?: 0
-        }
+            }
 
-        private fun updateMuteDisplay() {
-            binding.ivMuteIcon.setImageResource(if (videoMuted) R.drawable.ic_volume_off else R.drawable.ic_volume_up)
-            binding.btnMuteToggle.contentDescription = binding.root.context.getString(
+            private fun updateMuteDisplay() {
+                binding.ivMuteIcon.setImageResource(if (videoMuted) R.drawable.ic_volume_off else R.drawable.ic_volume_up)
+                binding.btnMuteToggle.contentDescription = binding.root.context.getString(
                 if (videoMuted) R.string.sound_muted else R.string.sound_unmuted
             )
-            binding.ivMuteIcon.contentDescription = null
-        }
-        private fun updateLikeState(post: Post) {
-            with(binding) {
+                binding.ivMuteIcon.contentDescription = null
+            }
+
+            private fun updateLikeState(post: Post) {
+                with(binding) {
                 btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
                     ivLike.clearColorFilter()
                     ivLike.imageTintList = null
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
+                    tvLikeCount.setTextColor(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 } else {
                     ivLike.setImageResource(R.drawable.ic_favorite)
-                    ivLike.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
+                    ivLike.setColorFilter(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
+                    tvLikeCount.setTextColor(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 }
                 tvLikeCount.text = root.context.getString(R.string.ui_integer_count, post.likeCount)
             }
-        }
+            }
 
-        private fun updateBookmarkState(post: Post) {
-            with(binding) {
+            private fun updateBookmarkState(post: Post) {
+                with(binding) {
                 btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                     ivBookmark.imageTintList = null
                 } else {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark)
-                    ivBookmark.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
+                    ivBookmark.setColorFilter(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 }
             }
+            }
         }
-    }
 
     inner class VoicePostViewHolder(val binding: ItemFeedPostVoiceBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        init {
-            binding.root.setOnClickListener {
+            init {
+                binding.root.setOnClickListener {
                 getPost()?.let { onPostClick(it) }
             }
-            binding.tvVoiceError.setOnClickListener { getPost()?.let(onVoicePlayClick) }
-            binding.btnVoicePlay.setOnClickListener {
+                binding.tvVoiceError.setOnClickListener { getPost()?.let(onVoicePlayClick) }
+                binding.btnVoicePlay.setOnClickListener {
                 getPost()?.let { onVoicePlayClick(it) }
             }
-            binding.btnVoiceSpeed.setOnClickListener {
+                binding.btnVoiceSpeed.setOnClickListener {
                 getPost()?.let { onVoiceSpeedClick(it) }
             }
-            binding.waveformView.onSeekListener = { progressRatio ->
+                binding.waveformView.onSeekListener = { progressRatio ->
                 getPost()?.let { onVoiceSeek(it, progressRatio) }
             }
-            binding.btnLike.setOnClickListener {
+                binding.btnLike.setOnClickListener {
                 getPost()?.let { onLikeClick(it) }
             }
-            binding.btnBookmark.setOnClickListener {
+                binding.btnBookmark.setOnClickListener {
                 getPost()?.let { onBookmarkClick(it) }
             }
-            binding.btnComment.setOnClickListener {
+                binding.btnComment.setOnClickListener {
                 getPost()?.let { onCommentClick(it) }
             }
-            binding.btnShare.setOnClickListener {
+                binding.btnShare.setOnClickListener {
                 getPost()?.let { onShareClick(it) }
             }
-            binding.btnPostMore.setOnClickListener {
+                binding.btnPostMore.setOnClickListener {
                 getPost()?.let { onMoreClick(it) }
             }
-        }
-
-        private fun getPost(): Post? {
-            val pos = bindingAdapterPosition
-            return if (pos != RecyclerView.NO_POSITION) (getItem(pos) as? FeedItem.PostItem)?.post else null
-        }
-
-        private fun bindCaption(post: Post) {
-            bindCaptionView(binding.tvCaption, post)
-        }
-
-        fun bind(post: Post, payloads: List<Any>) {
-            if (payloads.isNotEmpty()) {
-                for (payload in payloads) {
-                    when (payload) {
-                        PAYLOAD_LIKE -> updateLikeState(post)
-                        PAYLOAD_BOOKMARK -> updateBookmarkState(post)
-                        is VoicePlaybackState -> updatePlaybackDisplay(post, payload)
-                    }
-                }
-                return
             }
 
-            with(binding) {
+            private fun getPost(): Post? {
+                val pos = bindingAdapterPosition
+                return if (pos != RecyclerView.NO_POSITION) (getItem(pos) as? FeedItem.PostItem)?.post else null
+            }
+
+            private fun bindCaption(post: Post) {
+                bindCaptionView(binding.tvCaption, post)
+            }
+
+            fun bind(post: Post, payloads: List<Any>) {
+                if (payloads.isNotEmpty()) {
+                    for (payload in payloads) {
+                        when (payload) {
+                            PAYLOAD_LIKE -> updateLikeState(post)
+                            PAYLOAD_BOOKMARK -> updateBookmarkState(post)
+                            is VoicePlaybackState -> updatePlaybackDisplay(post, payload)
+                        }
+                    }
+                    return
+                }
+
+                with(binding) {
                 tvAuthorName.text = post.author.displayName
+                tvAuthorName.setOnClickListener { onProfileClick(post.author.id) }
+                ivAuthorAvatar.setOnClickListener { onProfileClick(post.author.id) }
                 PostMetadata.bind(tvPostMeta, post)
                 bindCaption(post)
 
                 Glide.with(ivAuthorAvatar.context)
                     .load(MediaImageModel.resolve(ivAuthorAvatar.context, post.author.avatarUrl))
+                    .signature(ObjectKey(post.author.avatarVersion))
                     .placeholder(R.drawable.bg_avatar_placeholder)
                     .error(R.drawable.bg_avatar_placeholder)
                     .circleCrop()
@@ -555,13 +658,14 @@ class FeedAdapter(
                 updatePlaybackDisplay(post, currentVoiceState)
                 updateLikeState(post)
                 updateBookmarkState(post)
-                tvCommentCount.text = root.context.getString(R.string.ui_integer_count, post.commentCount)
+                tvCommentCount.text =
+                    root.context.getString(R.string.ui_integer_count, post.commentCount)
             }
-        }
+            }
 
-        private fun updatePlaybackDisplay(post: Post, state: VoicePlaybackState) {
-            val totalSec = ((post.media.firstOrNull()?.durationMs ?: 42000L) / 1000).toInt()
-            with(binding) {
+            private fun updatePlaybackDisplay(post: Post, state: VoicePlaybackState) {
+                val totalSec = ((post.media.firstOrNull()?.durationMs ?: 42000L) / 1000).toInt()
+                with(binding) {
                 val failed = state.postId == post.id && state.errorMessage != null
                 tvVoiceError.visibility = if (failed) View.VISIBLE else View.GONE
                 btnVoicePlay.contentDescription = root.context.getString(
@@ -595,90 +699,113 @@ class FeedAdapter(
                     )
                 }
             }
-        }
+            }
 
-        private fun updateLikeState(post: Post) {
-            with(binding) {
+            private fun updateLikeState(post: Post) {
+                with(binding) {
                 btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
                     ivLike.clearColorFilter()
                     ivLike.imageTintList = null
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
+                    tvLikeCount.setTextColor(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 } else {
                     ivLike.setImageResource(R.drawable.ic_favorite)
-                    ivLike.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
+                    ivLike.setColorFilter(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
+                    tvLikeCount.setTextColor(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 }
                 tvLikeCount.text = root.context.getString(R.string.ui_integer_count, post.likeCount)
             }
-        }
+            }
 
-        private fun updateBookmarkState(post: Post) {
-            with(binding) {
+            private fun updateBookmarkState(post: Post) {
+                with(binding) {
                 btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                     ivBookmark.imageTintList = null
                 } else {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark)
-                    ivBookmark.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
+                    ivBookmark.setColorFilter(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 }
             }
+            }
         }
-    }
 
     inner class TextPostViewHolder(val binding: ItemFeedPostTextBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        init {
-            binding.root.setOnClickListener {
+            init {
+                binding.root.setOnClickListener {
                 getPost()?.let { onPostClick(it) }
             }
-            binding.btnLike.setOnClickListener {
+                binding.btnLike.setOnClickListener {
                 getPost()?.let { onLikeClick(it) }
             }
-            binding.btnBookmark.setOnClickListener {
+                binding.btnBookmark.setOnClickListener {
                 getPost()?.let { onBookmarkClick(it) }
             }
-            binding.btnComment.setOnClickListener {
+                binding.btnComment.setOnClickListener {
                 getPost()?.let { onCommentClick(it) }
             }
-            binding.btnShare.setOnClickListener {
+                binding.btnShare.setOnClickListener {
                 getPost()?.let { onShareClick(it) }
             }
-            binding.btnPostMore.setOnClickListener {
+                binding.btnPostMore.setOnClickListener {
                 getPost()?.let { onMoreClick(it) }
             }
-        }
-
-        private fun getPost(): Post? {
-            val pos = bindingAdapterPosition
-            return if (pos != RecyclerView.NO_POSITION) (getItem(pos) as? FeedItem.PostItem)?.post else null
-        }
-
-        private fun bindCaption(post: Post) {
-            bindCaptionView(binding.tvCaption, post)
-        }
-
-        fun bind(post: Post, payloads: List<Any>) {
-            if (payloads.isNotEmpty()) {
-                for (payload in payloads) {
-                    when (payload) {
-                        PAYLOAD_LIKE -> updateLikeState(post)
-                        PAYLOAD_BOOKMARK -> updateBookmarkState(post)
-                    }
-                }
-                return
             }
 
-            with(binding) {
+            private fun getPost(): Post? {
+                val pos = bindingAdapterPosition
+                return if (pos != RecyclerView.NO_POSITION) (getItem(pos) as? FeedItem.PostItem)?.post else null
+            }
+
+            private fun bindCaption(post: Post) {
+                bindCaptionView(binding.tvCaption, post)
+            }
+
+            fun bind(post: Post, payloads: List<Any>) {
+                if (payloads.isNotEmpty()) {
+                    for (payload in payloads) {
+                        when (payload) {
+                            PAYLOAD_LIKE -> updateLikeState(post)
+                            PAYLOAD_BOOKMARK -> updateBookmarkState(post)
+                        }
+                    }
+                    return
+                }
+
+                with(binding) {
                 tvAuthorName.text = post.author.displayName
+                tvAuthorName.setOnClickListener { onProfileClick(post.author.id) }
+                ivAuthorAvatar.setOnClickListener { onProfileClick(post.author.id) }
                 PostMetadata.bind(tvPostMeta, post)
                 bindCaption(post)
 
                 Glide.with(ivAuthorAvatar.context)
                     .load(MediaImageModel.resolve(ivAuthorAvatar.context, post.author.avatarUrl))
+                    .signature(ObjectKey(post.author.avatarVersion))
                     .placeholder(R.drawable.bg_avatar_placeholder)
                     .error(R.drawable.bg_avatar_placeholder)
                     .circleCrop()
@@ -686,47 +813,71 @@ class FeedAdapter(
 
                 updateLikeState(post)
                 updateBookmarkState(post)
-                tvCommentCount.text = root.context.getString(R.string.ui_integer_count, post.commentCount)
+                tvCommentCount.text =
+                    root.context.getString(R.string.ui_integer_count, post.commentCount)
             }
-        }
+            }
 
-        private fun updateLikeState(post: Post) {
-            with(binding) {
+            private fun updateLikeState(post: Post) {
+                with(binding) {
                 btnLike.isSelected = post.isLiked
                 if (post.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite_filled)
                     ivLike.clearColorFilter()
                     ivLike.imageTintList = null
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
+                    tvLikeCount.setTextColor(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 } else {
                     ivLike.setImageResource(R.drawable.ic_favorite)
-                    ivLike.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
-                    tvLikeCount.setTextColor(ContextCompat.getColor(root.context, R.color.text_primary))
+                    ivLike.setColorFilter(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
+                    tvLikeCount.setTextColor(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 }
                 tvLikeCount.text = root.context.getString(R.string.ui_integer_count, post.likeCount)
             }
-        }
+            }
 
-        private fun updateBookmarkState(post: Post) {
-            with(binding) {
+            private fun updateBookmarkState(post: Post) {
+                with(binding) {
                 btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                     ivBookmark.imageTintList = null
                 } else {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark)
-                    ivBookmark.setColorFilter(ContextCompat.getColor(root.context, R.color.text_primary))
+                    ivBookmark.setColorFilter(
+                        ContextCompat.getColor(
+                            root.context,
+                            R.color.text_primary
+                        )
+                    )
                 }
             }
+            }
         }
-    }
 
     inner class SuggestionsViewHolder(val binding: ItemFeedSuggestionsBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        private val adapter = SuggestionsAdapter(onSuggestionFollowClick, onSuggestionDismissClick)
+            private val adapter =
+            SuggestionsAdapter(onSuggestionFollowClick, onSuggestionDismissClick) {
+                onProfileClick(it.id)
+            }
 
-        init {
-            binding.rvSuggestions.layoutManager = LinearLayoutManager(
+            init {
+                binding.rvSuggestions.layoutManager = LinearLayoutManager(
                 binding.root.context,
                 LinearLayoutManager.HORIZONTAL,
                 false
@@ -735,25 +886,25 @@ class FeedAdapter(
                 // để GapWorker có cơ hội chuẩn bị trước khi hàng ngang đi vào viewport.
                 initialPrefetchItemCount = 3
             }
-            binding.rvSuggestions.adapter = adapter
-        }
+                binding.rvSuggestions.adapter = adapter
+            }
 
-        fun bind(item: FeedItem.Suggestions) {
-            adapter.submitList(item.users)
+            fun bind(item: FeedItem.Suggestions) {
+                adapter.submitList(item.users)
+            }
         }
-    }
 
     inner class LoadingFooterViewHolder(val binding: ItemFeedLoadingFooterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        init {
-            binding.btnFooterRetry.setOnClickListener {
+            init {
+                binding.btnFooterRetry.setOnClickListener {
                 onFooterRetryClick()
             }
-        }
+            }
 
-        fun bind(item: FeedItem.LoadingFooter) {
-            with(binding) {
+            fun bind(item: FeedItem.LoadingFooter) {
+                with(binding) {
                 if (item.errorMessage != null) {
                     pbFooterLoading.visibility = View.GONE
                     layoutFooterError.visibility = View.VISIBLE
@@ -763,8 +914,8 @@ class FeedAdapter(
                     layoutFooterError.visibility = View.GONE
                 }
             }
+            }
         }
-    }
 
     /** Cắt caption theo chiều rộng thật; trạng thái được giữ theo postId trong ViewModel. */
     /** Đo toàn bộ caption rồi dành chỗ cho liên kết, tránh để nhãn Xem thêm bị cắt ở dòng ba. */
@@ -780,12 +931,14 @@ class FeedAdapter(
             view.doOnLayout { if (view.tag == post.id) bindCaptionView(view, post) }
             return
         }
-        fun layoutOf(text: CharSequence) = StaticLayout.Builder.obtain(text, 0, text.length, view.paint, width)
-            .setIncludePad(view.includeFontPadding)
-            .setLineSpacing(view.lineSpacingExtra, view.lineSpacingMultiplier)
-            .setBreakStrategy(view.breakStrategy)
-            .setHyphenationFrequency(view.hyphenationFrequency)
-            .build()
+        fun layoutOf(text: CharSequence) =
+            StaticLayout.Builder.obtain(text, 0, text.length, view.paint, width)
+                .setIncludePad(view.includeFontPadding)
+                .setLineSpacing(view.lineSpacingExtra, view.lineSpacingMultiplier)
+                .setBreakStrategy(view.breakStrategy)
+                .setHyphenationFrequency(view.hyphenationFrequency)
+                .build()
+
         val layout = if (expanded) null else layoutOf(full)
         if (layout != null && layout.lineCount <= 3) {
             view.maxLines = Int.MAX_VALUE
@@ -796,11 +949,19 @@ class FeedAdapter(
         }
         // Khi recreate, đo bản mở rộng ngay từ lần measure đầu tiên. Đổi maxLines trong
         // doOnLayout của RecyclerView có thể quá muộn và để khung chỉ cao ba dòng.
-        val label = view.context.getString(if (expanded) R.string.post_collapse else R.string.post_read_more)
+        val label =
+            view.context.getString(if (expanded) R.string.post_collapse else R.string.post_read_more)
         val text = if (expanded) SpannableStringBuilder(full) else {
             var end = layout!!.getLineEnd(2).coerceAtMost(full.length)
             val suffix = "…  $label"
-            while (end > 0 && layoutOf(SpannableStringBuilder(full, 0, end).append(suffix)).lineCount > 3) {
+            while (end > 0 && layoutOf(
+                    SpannableStringBuilder(
+                        full,
+                        0,
+                        end
+                    ).append(suffix)
+                ).lineCount > 3
+            ) {
                 // Lùi theo ký tự Unicode đầy đủ để không cắt đôi emoji hoặc chữ ngoài BMP.
                 end = Character.offsetByCodePoints(full, end, -1)
             }
@@ -815,6 +976,7 @@ class FeedAdapter(
                 presentationState.toggleCaption(post.id)
                 bindCaptionView(view, post)
             }
+
             override fun updateDrawState(ds: TextPaint) {
                 super.updateDrawState(ds)
                 ds.isUnderlineText = false
@@ -824,10 +986,13 @@ class FeedAdapter(
         view.maxLines = if (expanded) Int.MAX_VALUE else 3
         view.text = text
         view.movementMethod = LinkMovementMethod.getInstance()
-        ViewCompat.setStateDescription(view, view.context.getString(
-            if (expanded) R.string.feed_caption_expanded else R.string.feed_caption_collapsed
-        ))
+        ViewCompat.setStateDescription(
+            view, view.context.getString(
+                if (expanded) R.string.feed_caption_expanded else R.string.feed_caption_collapsed
+            )
+        )
     }
+
     private fun buildSpannableCaption(authorName: String, caption: String): SpannableString {
         val fullText = "$authorName $caption"
         val spannable = SpannableString(fullText)
@@ -875,11 +1040,16 @@ class FeedAdapter(
                 // Payload chỉ hợp lệ khi mọi trường khác giữ nguyên. Refresh có thể đổi nhiều
                 // trường cùng lúc; chỉ bind nút tim khi đó sẽ để caption/ảnh/bookmark cũ trên UI.
                 if ((oldPost.isLiked != newPost.isLiked || oldPost.likeCount != newPost.likeCount) &&
-                    oldPost.copy(isLiked = newPost.isLiked, likeCount = newPost.likeCount) == newPost) {
+                    oldPost.copy(
+                        isLiked = newPost.isLiked,
+                        likeCount = newPost.likeCount
+                    ) == newPost
+                ) {
                     return PAYLOAD_LIKE
                 }
                 if (oldPost.isBookmarked != newPost.isBookmarked &&
-                    oldPost.copy(isBookmarked = newPost.isBookmarked) == newPost) {
+                    oldPost.copy(isBookmarked = newPost.isBookmarked) == newPost
+                ) {
                     return PAYLOAD_BOOKMARK
                 }
             }

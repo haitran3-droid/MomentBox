@@ -36,16 +36,16 @@ data class ConversationItem(
 class ConversationAdapter(private val click: (Long) -> Unit) :
     ListAdapter<ConversationItem, ConversationAdapter.Holder>(object :
         DiffUtil.ItemCallback<ConversationItem>() {
-        override fun areItemsTheSame(a: ConversationItem, b: ConversationItem) =
+            override fun areItemsTheSame(a: ConversationItem, b: ConversationItem) =
             a.preview.conversation.id == b.preview.conversation.id && a.preview.conversation.ownerId == b.preview.conversation.ownerId && a.preview.conversation.source == b.preview.conversation.source
 
-        override fun areContentsTheSame(a: ConversationItem, b: ConversationItem) = a == b
-        override fun getChangePayload(a: ConversationItem, b: ConversationItem): Any? =
+            override fun areContentsTheSame(a: ConversationItem, b: ConversationItem) = a == b
+            override fun getChangePayload(a: ConversationItem, b: ConversationItem): Any? =
             if (a.preview.conversation.avatarUrl == b.preview.conversation.avatarUrl) "state" else null
-    }) {
-    class Holder(val b: ItemChatConversationBinding) : RecyclerView.ViewHolder(b.root)
+        }) {
+            class Holder(val b: ItemChatConversationBinding) : RecyclerView.ViewHolder(b.root)
 
-    override fun onCreateViewHolder(parent: ViewGroup, type: Int) = Holder(
+            override fun onCreateViewHolder(parent: ViewGroup, type: Int) = Holder(
         ItemChatConversationBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
@@ -53,17 +53,18 @@ class ConversationAdapter(private val click: (Long) -> Unit) :
         )
     )
 
-    override fun onBindViewHolder(h: Holder, position: Int) = bind(h, getItem(position), true)
-    override fun onBindViewHolder(h: Holder, position: Int, payloads: MutableList<Any>) =
+            override fun onBindViewHolder(h: Holder, position: Int) = bind(h, getItem(position), true)
+            override fun onBindViewHolder(h: Holder, position: Int, payloads: MutableList<Any>) =
         bind(h, getItem(position), payloads.isEmpty())
 
-    private fun bind(h: Holder, item: ConversationItem, avatar: Boolean) {
-        with(h.b) {
-            val row = item.preview.conversation;
+            private fun bind(h: Holder, item: ConversationItem, avatar: Boolean) {
+                with(h.b) {
+            val row = item.preview.conversation
             val c = root.context
             if (avatar) Glide.with(this.avatar).load(row.avatarUrl)
                 .placeholder(ChatAvatarDrawable(row.title)).circleCrop().into(this.avatar)
-            title.text = row.title; online.isVisible = item.online && row.type == "direct"
+            title.text = row.title
+            online.isVisible = item.online && row.type == "direct"
             val unread = row.unreadCount > 0
             root.setBackgroundColor(
                 ContextCompat.getColor(
@@ -82,14 +83,18 @@ class ConversationAdapter(private val click: (Long) -> Unit) :
                     if (unread) R.color.primary else R.color.text_tertiary
                 )
             )
-            this.unread.isVisible = unread; this.unread.text =
+            this.unread.isVisible = unread
+            this.unread.text =
             NumberFormat.getIntegerInstance().format(row.unreadCount)
             preview.text = when {
-                item.typing -> c.getString(R.string.m5_chat_typing); row.lastMessageType == "image" -> c.getString(
+                item.typing -> c.getString(R.string.m5_chat_typing)
+                row.lastMessageType == "image" -> c.getString(
                     R.string.m5_chat_image
-                ); row.lastMessageType == "voice" -> c.getString(R.string.m5_chat_voice) + " · " + duration(
+                )
+                row.lastMessageType == "voice" -> c.getString(R.string.m5_chat_voice) + " · " + duration(
                     item.preview.duration ?: 0
-                ); else -> row.lastMessagePreview
+                )
+                else -> row.lastMessagePreview
             }
             preview.setTypeface(
                 null,
@@ -107,47 +112,55 @@ class ConversationAdapter(private val click: (Long) -> Unit) :
                 !item.typing && row.lastSenderId?.toString() == item.owner && item.preview.status != null
             status.setImageResource(
                 when (item.preview.status) {
-                    "SENDING" -> R.drawable.ic_chat_pending; "FAILED" -> R.drawable.ic_error; "SENT" -> R.drawable.ic_chat_done; else -> R.drawable.ic_chat_done_all
+                    "SENDING" -> R.drawable.ic_chat_pending
+                    "FAILED" -> R.drawable.ic_error
+                    "SENT" -> R.drawable.ic_chat_done
+                    else -> R.drawable.ic_chat_done_all
                 }
             )
             status.imageTintList = ColorStateList.valueOf(
                 ContextCompat.getColor(
                     c,
                     when (item.preview.status) {
-                        "SEEN" -> R.color.primary; "FAILED" -> R.color.error; else -> R.color.text_tertiary
+                        "SEEN" -> R.color.primary
+                        "FAILED" -> R.color.error
+                        else -> R.color.text_tertiary
                     }
                 )
             )
             root.setOnClickListener { click(row.id) }
         }
-    }
-}
+            }
+        }
 
 class OnlineAdapter(private val click: (Long) -> Unit) :
     ListAdapter<ChatUserEntity, OnlineAdapter.Holder>(object :
         DiffUtil.ItemCallback<ChatUserEntity>() {
-        override fun areItemsTheSame(a: ChatUserEntity, b: ChatUserEntity) =
+            override fun areItemsTheSame(a: ChatUserEntity, b: ChatUserEntity) =
             a.id == b.id && a.ownerId == b.ownerId && a.source == b.source
 
-        override fun areContentsTheSame(a: ChatUserEntity, b: ChatUserEntity) = a == b
-    }) {
-    class Holder(val b: ItemChatOnlineBinding) : RecyclerView.ViewHolder(b.root)
+            override fun areContentsTheSame(a: ChatUserEntity, b: ChatUserEntity) = a == b
+        }) {
+            class Holder(val b: ItemChatOnlineBinding) : RecyclerView.ViewHolder(b.root)
 
-    override fun onCreateViewHolder(p: ViewGroup, t: Int) =
+            override fun onCreateViewHolder(p: ViewGroup, t: Int) =
         Holder(ItemChatOnlineBinding.inflate(LayoutInflater.from(p.context), p, false))
 
-    override fun onBindViewHolder(h: Holder, p: Int) {
-        val row = getItem(p); h.b.name.text = row.displayName; Glide.with(h.b.avatar)
+            override fun onBindViewHolder(h: Holder, p: Int) {
+                val row = getItem(p)
+                h.b.name.text = row.displayName
+                Glide.with(h.b.avatar)
             .load(row.avatarUrl).placeholder(ChatAvatarDrawable(row.displayName)).circleCrop()
-            .into(h.b.avatar); h.b.root.setOnClickListener { click(row.id) }
-    }
-}
+            .into(h.b.avatar)
+                h.b.root.setOnClickListener { click(row.id) }
+            }
+        }
 
 internal fun duration(ms: Long): String =
     String.format(Locale.getDefault(), "%d:%02d", ms / 60000, ms / 1000 % 60)
 
 internal fun chatTime(ms: Long, c: Context): String {
-    val date = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault());
+    val date = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault())
     val today = LocalDate.now()
     return when (date.toLocalDate()) {
         today -> date.format(
@@ -155,7 +168,9 @@ internal fun chatTime(ms: Long, c: Context): String {
                 "HH:mm",
                 Locale.getDefault()
             )
-        ); today.minusDays(1) -> c.getString(R.string.m5_chat_yesterday); else -> date.format(
+        )
+        today.minusDays(1) -> c.getString(R.string.m5_chat_yesterday)
+        else -> date.format(
             DateTimeFormatter.ofPattern("dd/MM", Locale.getDefault())
         )
     }

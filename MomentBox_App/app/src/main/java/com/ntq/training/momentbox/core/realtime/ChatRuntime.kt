@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.core.realtime
 
+import kotlin.math.sin
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -95,9 +96,11 @@ class ChatRuntime(
         synchronized(gate) {
             if (tokens.getSessionGeneration() != snapshot.generation) return
             if (_session.value == next) {
-                if (foreground) socket.connect(); return
+                if (foreground) socket.connect()
+                return
             }
-            invalidateLocked(); _session.value = next
+            invalidateLocked()
+            _session.value = next
             workers = scope.launch {
                 supervisorScope {
                     launch { sync(next) }
@@ -130,7 +133,9 @@ class ChatRuntime(
                                 } catch (cancelled: CancellationException) {
                                     throw cancelled
                                 } catch (_: Exception) {
-                                    _error.value = "CHAT_RESYNC_REQUIRED"; sync(next); delay(1000)
+                                    _error.value = "CHAT_RESYNC_REQUIRED"
+                                    sync(next)
+                                    delay(1000)
                                 }
                             }
                         }
@@ -194,18 +199,21 @@ class ChatRuntime(
                     ?.let { Instant.parse(it).toEpochMilli() })
 
             "typing" -> {
-                val room = p.optLong("conversationId");
+                val room = p.optLong("conversationId")
                 val user = p.optLong("userId")
                 if (user.toString() == expected.ownerId || database.chatDao()
                         .conversation(expected.ownerId, expected.source, room) == null
                 ) return
                 synchronized(gate) {
-                    val key = room to user; typingJobs.remove(key)?.cancel()
+                    val key = room to user
+                    typingJobs.remove(key)?.cancel()
                     setTyping(room, user, p.optBoolean("isTyping"))
                     if (p.optBoolean("isTyping")) typingJobs[key] = scope.launch {
-                        delay(5000); synchronized(gate) {
+                        delay(5000)
+                        synchronized(gate) {
                         if (_session.value == expected) {
-                            setTyping(room, user, false); typingJobs.remove(key)
+                            setTyping(room, user, false)
+                            typingJobs.remove(key)
                         }
                     }
                     }
@@ -228,9 +236,13 @@ class ChatRuntime(
     fun visible(room: Long?, active: Boolean, panel: String, reading: Boolean = true) {
         synchronized(gate) {
             if (active) {
-                visibleRoom = room; visiblePanel = panel; readingRoom = room.takeIf { reading }
+                visibleRoom = room
+                visiblePanel = panel
+                readingRoom = room.takeIf { reading }
             } else if (visiblePanel == panel) {
-                visibleRoom = null; visiblePanel = null; readingRoom = null
+                visibleRoom = null
+                visiblePanel = null
+                readingRoom = null
             }
         }
     }
@@ -322,18 +334,20 @@ class ChatRuntime(
                 "mediaUrl",
                 it
             )
-        }; row.durationMs?.let { payload.put("durationMs", it) }
+        }
+        row.durationMs?.let { payload.put("durationMs", it) }
         socket.emitForSession(expected, "message:send", payload, callback)
-        delay(5000); callback(null)
+        delay(5000)
+        callback(null)
     }
 
     private suspend fun pop() {
         withContext(Dispatchers.IO) {
             var track: AudioTrack? = null
             try {
-                val rate = 22050;
+                val rate = 22050
                 val samples = ShortArray(rate / 30) { i ->
-                    (kotlin.math.sin(2 * Math.PI * 880 * i / rate) * 5000 * (1.0 - i.toDouble() / (rate / 30))).toInt()
+                    (sin(2 * Math.PI * 880 * i / rate) * 5000 * (1.0 - i.toDouble() / (rate / 30))).toInt()
                         .toShort()
                 }
                 track = AudioTrack.Builder().setAudioAttributes(
@@ -349,7 +363,9 @@ class ChatRuntime(
                     )
                     .setTransferMode(AudioTrack.MODE_STATIC)
                     .setBufferSizeInBytes(samples.size * 2).build()
-                track.write(samples, 0, samples.size); track.play(); delay(100)
+                track.write(samples, 0, samples.size)
+                track.play()
+                delay(100)
             } catch (_: Exception) {
             } finally {
                 track?.release()
@@ -364,25 +380,40 @@ class ChatRuntime(
     }
 
     private fun invalidateLocked() {
-        _session.value = null; visibleRoom = null; visiblePanel = null; readingRoom =
-            null; workers?.cancel(); workers = null
-        typingJobs.values.forEach { it.cancel() }; typingJobs.clear(); _typing.value =
-            emptyMap(); _error.value = null
+        _session.value = null
+        visibleRoom = null
+        visiblePanel = null
+        readingRoom =
+            null
+            workers?.cancel()
+            workers = null
+        typingJobs.values.forEach { it.cancel() }
+        typingJobs.clear()
+        _typing.value =
+            emptyMap()
+            _error.value = null
     }
 
     override fun onStart(owner: LifecycleOwner) {
         synchronized(gate) {
-            foreground = true; backgroundTimer?.cancel(); backgroundTimer = null
+            foreground = true
+            backgroundTimer?.cancel()
+            backgroundTimer = null
             if (_session.value != null) socket.connect()
         }
     }
 
     override fun onStop(owner: LifecycleOwner) {
         synchronized(gate) {
-            foreground = false; visibleRoom = null; visiblePanel = null; readingRoom =
-            null; backgroundTimer?.cancel()
+            foreground = false
+            visibleRoom = null
+            visiblePanel = null
+            readingRoom =
+            null
+            backgroundTimer?.cancel()
             backgroundTimer =
-                scope.launch { delay(300_000); synchronized(gate) { if (!foreground) socket.disconnect() } }
+                scope.launch { delay(300_000)
+                synchronized(gate) { if (!foreground) socket.disconnect() } }
         }
     }
 }

@@ -18,8 +18,11 @@ class ChatAttachmentSheet : BottomSheetDialogFragment() {
             Triple("record", R.string.m4_record_title, R.drawable.ic_mic)
         ).forEach { (kind, label, icon) ->
             content.addView(TextView(requireContext()).apply {
-                setText(label); textSize = 16f; gravity =
-                Gravity.CENTER_VERTICAL; minimumHeight =
+                setText(label)
+                textSize = 16f
+                gravity =
+                Gravity.CENTER_VERTICAL
+                minimumHeight =
                 (56 * resources.displayMetrics.density).toInt()
                 setPadding(
                     (20 * resources.displayMetrics.density).toInt(),
@@ -32,11 +35,13 @@ class ChatAttachmentSheet : BottomSheetDialogFragment() {
                     0,
                     0,
                     0
-                ); compoundDrawablePadding = (16 * resources.displayMetrics.density).toInt()
+                )
+                compoundDrawablePadding = (16 * resources.displayMetrics.density).toInt()
                 setOnClickListener {
                     parentFragmentManager.setFragmentResult(
                         "chat-attachment",
-                        Bundle().apply { putString("kind", kind) }); dismiss()
+                        Bundle().apply { putString("kind", kind) })
+                        dismiss()
                 }
             })
         }

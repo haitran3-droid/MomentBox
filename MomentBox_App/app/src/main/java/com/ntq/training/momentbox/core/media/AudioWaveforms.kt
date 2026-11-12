@@ -43,7 +43,8 @@ object AudioWaveforms {
             val file = if (uri.scheme == "file") File(checkNotNull(uri.path)) else {
                 require(uri.scheme in setOf("https", "http"))
                 val result =
-                    File.createTempFile("m5-wave-", ".audio", context.cacheDir); temporary = result
+                    File.createTempFile("m5-wave-", ".audio", context.cacheDir)
+                    temporary = result
                 val call = network.newCall(Request.Builder().url(value).build())
                 // Child hủy Call ngay khi parent bị cancel, thay vì đợi blocking read timeout.
                 val watcher = launch(start = CoroutineStart.UNDISPATCHED) {
@@ -58,14 +59,18 @@ object AudioWaveforms {
                         check(response.isSuccessful)
                         checkNotNull(response.body).byteStream().use { input ->
                             result.outputStream().use { output ->
-                                val buffer = ByteArray(8192);
+                                val buffer = ByteArray(8192)
                                 var count = 0L
                                 while (true) {
-                                    currentCoroutineContext().ensureActive();
+                                    currentCoroutineContext().ensureActive()
                                     val read =
-                                        input.read(buffer); if (read < 0) break; count += read; check(
+                                        input.read(buffer)
+                                        if (read < 0) break
+                                        count += read
+                                        check(
                                         count <= 50L * 1024 * 1024
-                                    ); output.write(buffer, 0, read)
+                                    )
+                                    output.write(buffer, 0, read)
                                 }
                             }
                         }
@@ -91,7 +96,7 @@ object AudioWaveforms {
     }
 
     private suspend fun decode(file: File): List<Float> {
-        val extractor = MediaExtractor();
+        val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         try {
             extractor.setDataSource(file.absolutePath)
@@ -99,28 +104,31 @@ object AudioWaveforms {
                 extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)
                     ?.startsWith("audio/") == true
             }
-            extractor.selectTrack(track);
+            extractor.selectTrack(track)
             val format = extractor.getTrackFormat(track)
             val duration =
                 if (format.containsKey(MediaFormat.KEY_DURATION)) format.getLong(MediaFormat.KEY_DURATION) else 0
             val envelope = PcmEnvelope(duration)
             val decoder =
-                MediaCodec.createDecoderByType(checkNotNull(format.getString(MediaFormat.KEY_MIME))); codec =
+                MediaCodec.createDecoderByType(checkNotNull(format.getString(MediaFormat.KEY_MIME)))
+                codec =
                 decoder
-            decoder.configure(format, null, null, 0); decoder.start()
-            var inputDone = false;
-            var outputDone = false;
-            val info = MediaCodec.BufferInfo();
+            decoder.configure(format, null, null, 0)
+            decoder.start()
+            var inputDone = false
+            var outputDone = false
+            val info = MediaCodec.BufferInfo()
             val start = SystemClock.elapsedRealtime()
-            var sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
-            var channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+            var sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            var channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
             var encoding = AudioFormat.ENCODING_PCM_16BIT
             while (!outputDone) {
-                currentCoroutineContext().ensureActive(); check(SystemClock.elapsedRealtime() - start < 20000)
+                currentCoroutineContext().ensureActive()
+                check(SystemClock.elapsedRealtime() - start < 20000)
                 if (!inputDone) {
                     val index = decoder.dequeueInputBuffer(10000)
                     if (index >= 0) {
-                        val buffer = checkNotNull(decoder.getInputBuffer(index));
+                        val buffer = checkNotNull(decoder.getInputBuffer(index))
                         val size = extractor.readSampleData(buffer, 0)
                         if (size < 0) {
                             decoder.queueInputBuffer(
@@ -129,7 +137,8 @@ object AudioWaveforms {
                                 0,
                                 0,
                                 MediaCodec.BUFFER_FLAG_END_OF_STREAM
-                            ); inputDone = true
+                            )
+                            inputDone = true
                         } else {
                             decoder.queueInputBuffer(
                                 index,
@@ -137,22 +146,27 @@ object AudioWaveforms {
                                 size,
                                 extractor.sampleTime,
                                 0
-                            ); extractor.advance()
+                            )
+                            extractor.advance()
                         }
                     }
                 }
                 val index = decoder.dequeueOutputBuffer(info, 10000)
                 if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    val output = decoder.outputFormat; sampleRate =
-                        output.getInteger(MediaFormat.KEY_SAMPLE_RATE); channels =
+                    val output = decoder.outputFormat
+                    sampleRate =
+                        output.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                        channels =
                         output.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
                     if (output.containsKey(MediaFormat.KEY_PCM_ENCODING)) encoding =
                         output.getInteger(MediaFormat.KEY_PCM_ENCODING)
                 } else if (index >= 0) {
                     if (info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
-                        val buffer = checkNotNull(decoder.getOutputBuffer(index)); buffer.position(
+                        val buffer = checkNotNull(decoder.getOutputBuffer(index))
+                        buffer.position(
                             info.offset
-                        ); buffer.limit(info.offset + info.size)
+                        )
+                        buffer.limit(info.offset + info.size)
                         envelope.accept(
                             buffer,
                             info.presentationTimeUs,
@@ -162,7 +176,8 @@ object AudioWaveforms {
                         )
                     }
                     outputDone =
-                        info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0; decoder.releaseOutputBuffer(
+                        info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
+                        decoder.releaseOutputBuffer(
                         index,
                         false
                     )
@@ -170,7 +185,9 @@ object AudioWaveforms {
             }
             return envelope.values()
         } finally {
-            runCatching { codec?.stop() }; codec?.release(); extractor.release()
+            runCatching { codec?.stop() }
+            codec?.release()
+            extractor.release()
         }
     }
 }

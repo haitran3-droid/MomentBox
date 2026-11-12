@@ -123,7 +123,8 @@ class PostPhotoViewerDialog : DialogFragment() {
 
     companion object {
         fun newInstance(images: List<String>, page: Int) = PostPhotoViewerDialog().apply {
-            arguments = Bundle().apply { putStringArrayList("images", ArrayList(images)); putInt("page", page) }
+            arguments = Bundle().apply { putStringArrayList("images", ArrayList(images))
+            putInt("page", page) }
         }
     }
 }

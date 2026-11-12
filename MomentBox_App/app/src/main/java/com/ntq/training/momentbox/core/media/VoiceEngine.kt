@@ -46,7 +46,8 @@ internal class AndroidVoiceEngine : VoiceEngine {
         player.setDataSource(url)
         player.setOnPreparedListener { onPrepared() }
         player.setOnCompletionListener { onCompleted() }
-        player.setOnErrorListener { _, what, extra -> onError("Lỗi phát âm thanh ($what, $extra)"); true }
+        player.setOnErrorListener { _, what, extra -> onError("Lỗi phát âm thanh ($what, $extra)")
+        true }
         player.prepareAsync()
     }
     override fun start() = player.start()

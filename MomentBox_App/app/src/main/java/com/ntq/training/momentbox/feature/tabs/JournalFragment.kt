@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.tabs
 
+import kotlinx.coroutines.flow.combine
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -251,7 +252,7 @@ class JournalFragment : Fragment() {
                 }
 
                 launch {
-                    kotlinx.coroutines.flow.combine(
+                    combine(
                         viewModel.calendarYearMonth,
                         viewModel.selectedCalendarDate
                     ) { month, selected -> month to selected }.collect { (month, selected) ->

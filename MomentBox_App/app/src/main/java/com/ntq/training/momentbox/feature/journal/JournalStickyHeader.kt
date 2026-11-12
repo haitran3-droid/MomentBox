@@ -24,7 +24,8 @@ class JournalStickyHeader(
         val holder =
             cached?.takeIf { it.first == header }?.second ?: entries.createViewHolder(parent, 0)
                 .also {
-                    entries.bindViewHolder(it, index); cached = header to it
+                    entries.bindViewHolder(it, index)
+                    cached = header to it
                 }
         val view = holder.itemView
         view.setBackgroundColor(parent.context.getColor(R.color.background))
@@ -40,6 +41,9 @@ class JournalStickyHeader(
             if (childIndex > index && items.getOrNull(childIndex) is JournalListItem.Header) top =
                 minOf(0f, child.top - view.height.toFloat())
         }
-        canvas.save(); canvas.translate(0f, top); view.draw(canvas); canvas.restore()
+        canvas.save()
+        canvas.translate(0f, top)
+        view.draw(canvas)
+        canvas.restore()
     }
 }

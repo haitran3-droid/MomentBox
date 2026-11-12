@@ -1,4 +1,5 @@
 package com.ntq.training.momentbox.feature.postdetail
+import kotlinx.coroutines.flow.combine
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -333,7 +334,7 @@ class PostDetailActivity : AppCompatActivity() {
                     viewModel.isFollowingAuthor.collectLatest { postHeaderAdapter.setFollowing(it) }
                 }
                 if (!isVersionA) launch {
-                    kotlinx.coroutines.flow.combine(viewModel.isFollowPending, viewModel.isFollowAvailable) { pending, available ->
+                    combine(viewModel.isFollowPending, viewModel.isFollowAvailable) { pending, available ->
                         pending || !available
                     }.collectLatest { postHeaderAdapter.setFollowPending(it) }
                 }

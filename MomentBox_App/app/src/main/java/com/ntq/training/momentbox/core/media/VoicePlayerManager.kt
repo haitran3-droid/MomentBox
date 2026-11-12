@@ -146,7 +146,11 @@ class VoicePlayerManager internal constructor(
 
     fun cycleSpeed(postId: Long): Float {
         if (currentPostId != postId) return 1f
-        currentSpeed = when (currentSpeed) { 1f -> 1.5f; 1.5f -> 2f; else -> 1f }
+        currentSpeed = when (currentSpeed) {
+            1f -> 1.5f
+            1.5f -> 2f
+            else -> 1f
+        }
         // PlaybackParams có thể tự start MediaPlayer; chỉ áp dụng lúc đang phát.
         if (_playbackState.value.isPlaying) runCatching { engine?.setSpeed(currentSpeed) }
         _playbackState.value = _playbackState.value.copy(speed = currentSpeed)

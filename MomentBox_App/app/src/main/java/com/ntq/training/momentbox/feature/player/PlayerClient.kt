@@ -32,10 +32,10 @@ class PlayerClient(context: Context) {
     val connection: StateFlow<String> = connectionState.asStateFlow()
     @Volatile
     private var remote: IPlayerService? = null
-    private var current: ServiceConnection? = null;
+    private var current: ServiceConnection? = null
     private var death: IBinder.DeathRecipient? = null
-    private var started = false;
-    private var retries = 0;
+    private var started = false
+    private var retries = 0
     private var epoch = 0L
     private var activeCallback: IPlayerCallback? = null
     private fun callbackFor(version: Long, api: IPlayerService) = object : IPlayerCallback.Stub() {
@@ -49,7 +49,8 @@ class PlayerClient(context: Context) {
         override fun onPositionChanged(revision: Long, trackId: String?, positionMs: Long) {
             main.post {
                 val value =
-                    mutable.value; if (started && version == epoch && remote === api && revision == value.revision && value.queue.getOrNull(
+                    mutable.value
+                    if (started && version == epoch && remote === api && revision == value.revision && value.queue.getOrNull(
                     value.index
                 )?.id == trackId
             ) mutable.value = value.copy(positionMs = positionMs)
@@ -74,28 +75,38 @@ class PlayerClient(context: Context) {
     }
 
     fun start() {
-        check(Looper.myLooper() == Looper.getMainLooper()); if (started) return; started =
-            true; retries = 0; bind()
+        check(Looper.myLooper() == Looper.getMainLooper())
+        if (started) return
+        started =
+            true
+            retries = 0
+            bind()
     }
 
     private fun bind() {
         if (!started || current != null) return
-        connectionState.value = "connecting";
+        connectionState.value = "connecting"
         val version = ++epoch
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                 if (!started || version != epoch || binder == null) return
-                val api = IPlayerService.Stub.asInterface(binder); remote = api
-                val callback = callbackFor(version, api); activeCallback = callback
+                val api = IPlayerService.Stub.asInterface(binder)
+                remote = api
+                val callback = callbackFor(version, api)
+                activeCallback = callback
                 val recipient =
-                    IBinder.DeathRecipient { main.post { if (remote === api) lost() } }; death =
+                    IBinder.DeathRecipient { main.post { if (remote === api) lost() } }
+                    death =
                     recipient
                 enqueue {
-                    binder.linkToDeath(recipient, 0); api.registerCallback(callback);
+                    binder.linkToDeath(recipient, 0)
+                    api.registerCallback(callback)
                     val snapshot = api.state
                     main.post {
                         if (started && version == epoch && remote === api) {
-                            mutable.value = snapshot; connectionState.value = "bound"; retries = 0
+                            mutable.value = snapshot
+                            connectionState.value = "bound"
+                            retries = 0
                         }
                     }
                 }
@@ -123,27 +134,36 @@ class PlayerClient(context: Context) {
     }
 
     private fun detach() {
-        ++epoch;
-        val old = remote;
-        val recipient = death;
-        val callback = activeCallback; activeCallback = null; remote = null; death = null
+        ++epoch
+        val old = remote
+        val recipient = death
+        val callback = activeCallback
+        activeCallback = null
+        remote = null
+        death = null
         // Unregister có thể còn đang chờ IO: giữ đúng binder cũ, không xóa callback của lần bind mới.
         enqueue {
-            runCatching { if (callback != null) old?.unregisterCallback(callback) }; if (recipient != null) runCatching {
+            runCatching { if (callback != null) old?.unregisterCallback(callback) }
+            if (recipient != null) runCatching {
             old?.asBinder()?.unlinkToDeath(recipient, 0)
         }
         }
-        current?.let { runCatching { context.unbindService(it) } }; current = null
+        current?.let { runCatching { context.unbindService(it) } }
+        current = null
     }
 
     private fun lost() {
-        if (current == null && remote == null) return; detach(); mutable.value = mutable.value.copy(
+        if (current == null && remote == null) return
+        detach()
+        mutable.value = mutable.value.copy(
             playing = false,
             preparing = false,
             error = "PLAYER_SERVICE_LOST"
-        ); connectionState.value = "service_lost"
+        )
+        connectionState.value = "service_lost"
         if (started && retries < 3) {
-            val delay = 1000L shl retries++; main.postDelayed(
+            val delay = 1000L shl retries++
+            main.postDelayed(
                 { if (started && current == null) bind() },
                 delay
             )
@@ -151,24 +171,33 @@ class PlayerClient(context: Context) {
     }
 
     fun stop() {
-        check(Looper.myLooper() == Looper.getMainLooper()); started =
-            false; main.removeCallbacksAndMessages(null); detach(); connectionState.value =
+        check(Looper.myLooper() == Looper.getMainLooper())
+        started =
+            false
+            main.removeCallbacksAndMessages(null)
+            detach()
+            connectionState.value =
             "disconnected"
     }
 
     fun destroy() {
-        stop(); commands.close(); scope.launch { delay(2000); scope.cancel() }
+        stop()
+        commands.close()
+        scope.launch { delay(2000)
+        scope.cancel() }
     }
 
     /** Consumer IO giữ thứ tự setQueue → promote FGS → play. Không phát lại tự động khi rebind. */
     fun submit(command: suspend (IPlayerService) -> Unit) {
-        val expected = remote ?: return; enqueue { if (remote === expected) command(expected) }
+        val expected = remote ?: return
+        enqueue { if (remote === expected) command(expected) }
     }
 
     fun setQueue(values: List<Track>, index: Int, play: Boolean = false) {
-        PlayerProtocol.validate(values, index);
+        PlayerProtocol.validate(values, index)
         val copy = values.map { it.copy(waveform = it.waveform.toList()) }
-        submit { api -> api.setQueue(copy, index); if (play) startPlayback() }
+        submit { api -> api.setQueue(copy, index)
+        if (play) startPlayback() }
     }
 
     fun play() {

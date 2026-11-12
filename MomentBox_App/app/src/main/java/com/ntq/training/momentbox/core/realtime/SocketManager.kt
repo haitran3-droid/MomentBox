@@ -146,8 +146,10 @@ private class SocketIoTransport(origin: String, token: String) : RealtimeSocket 
                     eventName(key.first),
                     wrapper
                 )
-            }; callbacks.clear()
-        }; socket.disconnect()
+            }
+            callbacks.clear()
+        }
+        socket.disconnect()
     }
 }
 
@@ -227,7 +229,8 @@ open class SocketManager(
             }
             awaitClose {
                 synchronized(gate) {
-                    detachChat(subscription); chatSubscriptions.remove(
+                    detachChat(subscription)
+                    chatSubscriptions.remove(
                     subscription
                 )
                 }
@@ -238,7 +241,8 @@ open class SocketManager(
         val transport = subscription.transport
         val listener = subscription.listener
         if (transport != null && listener != null) transport.off(subscription.event, listener)
-        subscription.transport = null; subscription.listener = null
+        subscription.transport = null
+        subscription.listener = null
     }
 
     private fun attachChat(
@@ -251,7 +255,8 @@ open class SocketManager(
     ) {
         val identity = Triple(scopeOwner, sessionGeneration, origin)
         if (subscription.identity != null && subscription.identity != identity) {
-            subscription.close(CancellationException("Chat session changed")); return
+            subscription.close(CancellationException("Chat session changed"))
+            return
         }
         subscription.identity = identity
         detachChat(subscription)
@@ -275,7 +280,8 @@ open class SocketManager(
                 }
             }
         }
-        subscription.transport = transport; subscription.listener = listener
+        subscription.transport = transport
+        subscription.listener = listener
         transport.on(subscription.event, listener)
     }
 
@@ -339,7 +345,8 @@ open class SocketManager(
             }
             val duplicate = synchronized(gate) {
                 if (epoch == lifecycleEpoch && tokenListener == null) {
-                    tokenListener = subscription; false
+                    tokenListener = subscription
+                    false
                 } else true
             }
             if (duplicate) subscription.close()
@@ -378,7 +385,8 @@ open class SocketManager(
                             SocketPhase.DISCONNECTED
                         )
                     ) {
-                        _state.value = SocketState(SocketPhase.CONNECTING); socket?.connect()
+                        _state.value = SocketState(SocketPhase.CONNECTING)
+                        socket?.connect()
                     }
                     return@synchronized
                 }
@@ -395,7 +403,8 @@ open class SocketManager(
                     transport.on(Socket.EVENT_CONNECT) {
                         synchronized(gate) {
                             if (owns(serial)) {
-                                _isConnected.value = true; _state.value =
+                                _isConnected.value = true
+                                _state.value =
                                     SocketState(SocketPhase.CONNECTED)
                             }
                         }
@@ -423,7 +432,9 @@ open class SocketManager(
                                     is JSONObject -> raw.optString(
                                         "message",
                                         ""
-                                    ); is Throwable -> raw.message.orEmpty(); else -> raw?.toString()
+                                    )
+                                    is Throwable -> raw.message.orEmpty()
+                                    else -> raw?.toString()
                                         .orEmpty()
                                 }
                                 _state.value = when (reason) {
@@ -464,7 +475,8 @@ open class SocketManager(
                     transport.on("manager:reconnect_failed") {
                         synchronized(gate) {
                             if (owns(serial)) {
-                                _isConnected.value = false; _state.value = SocketState(
+                                _isConnected.value = false
+                                _state.value = SocketState(
                                     SocketPhase.FAILED,
                                     _state.value.attempt,
                                     reason = "attempts_exhausted"

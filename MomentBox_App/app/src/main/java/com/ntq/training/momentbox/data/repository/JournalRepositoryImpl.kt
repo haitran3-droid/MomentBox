@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.data.repository
 
+import kotlinx.coroutines.currentCoroutineContext
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -276,7 +277,7 @@ class JournalRepositoryImpl(
                     file.outputStream().use { output ->
                         val buffer = ByteArray(8192)
                         while (true) {
-                            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                            currentCoroutineContext().ensureActive()
                             val count = source.read(buffer)
                             if (count < 0) break
                             output.write(buffer, 0, count)

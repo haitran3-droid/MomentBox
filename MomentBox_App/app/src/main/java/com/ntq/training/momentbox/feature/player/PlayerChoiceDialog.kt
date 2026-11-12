@@ -33,12 +33,14 @@ class PlayerChoiceDialog : DialogFragment() {
         return MaterialAlertDialogBuilder(requireContext()).setTitle(if (speed) R.string.m5_player_speed else R.string.m5_player_sleep)
             .setSingleChoiceItems(labels, checked(state)) { _, index ->
                 val client = (requireActivity() as PlayerActivity).client
-                client.submit { if (speed) it.setSpeed(rates[index]) else it.setSleepTimer(timers[index]) }; dismiss()
+                client.submit { if (speed) it.setSpeed(rates[index]) else it.setSleepTimer(timers[index]) }
+                dismiss()
             }.setNegativeButton(R.string.cancel, null).create()
     }
 
     override fun onStart() {
-        super.onStart(); renderJob?.cancel()
+        super.onStart()
+        renderJob?.cancel()
         renderJob = lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 (requireActivity() as PlayerActivity).client.state.collect { state ->
@@ -52,6 +54,8 @@ class PlayerChoiceDialog : DialogFragment() {
     }
 
     override fun onStop() {
-        renderJob?.cancel(); renderJob = null; super.onStop()
+        renderJob?.cancel()
+        renderJob = null
+        super.onStop()
     }
 }

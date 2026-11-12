@@ -205,7 +205,10 @@ class FeedVideoPlayerManager(
 
     fun resume() {
         val postId = currentPostId ?: return
-        if (!isAutoplayAllowed() || !playbackIntents.canAutoplay(postId)) { pause(); return }
+        if (!isAutoplayAllowed() || !playbackIntents.canAutoplay(postId)) {
+            pause()
+            return
+        }
         // Autoplay không được giành âm thanh từ voice hoặc fullscreen.
         if (!isMuted && !audio.acquire(this, { pauseForInterruption() }, mayInterrupt = false)) return
         exoPlayer?.play()

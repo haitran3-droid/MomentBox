@@ -48,7 +48,8 @@ class PlayerLibraryRepository(private val app: MomentBoxApp, private val api: Pl
     /** Journal không phụ thuộc nguồn chat MB; vẫn hoạt động khi app chọn Offline/DummyJSON.
      * Tag/fence dùng generation và backend thật, không đưa credentials vào Track/IPC. */
     private suspend fun identity(): Identity? {
-        val before = app.tokenStore.snapshot(); if (before.accessToken.isNullOrBlank()) return null
+        val before = app.tokenStore.snapshot()
+        if (before.accessToken.isNullOrBlank()) return null
         val user = runCatching {
             Gson().fromJson(
                 app.settingsDataStore.getSavedUserJson(),
@@ -99,14 +100,14 @@ class PlayerLibraryRepository(private val app: MomentBoxApp, private val api: Pl
                     )
                 }
             }
-            val saved = mutableListOf<Track>();
+            val saved = mutableListOf<Track>()
             var remoteError = false
             try {
                 var page = 1
                 while (active.source.substringBefore('|') == SettingsDataStore.SOURCE_MB_SERVER && saved.size < 50) {
-                    val response = api.saved(page, 30, SessionRequest(active.generation));
+                    val response = api.saved(page, 30, SessionRequest(active.generation))
                     val body = response.body()
-                    check(response.isSuccessful && body?.success == true);
+                    check(response.isSuccessful && body?.success == true)
                     val posts = body!!.data.orEmpty()
                     posts.forEach { post ->
                         post.media.orEmpty()
@@ -164,8 +165,9 @@ class PlayerLibraryRepository(private val app: MomentBoxApp, private val api: Pl
         val active = identity()
         check(active != null && active.ownerId + "|" + active.source == scope)
         app.playerPreferences.edit { prefs ->
-            val k = key(scope);
-            val set = prefs[k].orEmpty(); prefs[k] = if (value) set + id else set - id
+            val k = key(scope)
+            val set = prefs[k].orEmpty()
+            prefs[k] = if (value) set + id else set - id
         }
     }
 }

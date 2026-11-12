@@ -27,9 +27,9 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         }
     }
 
-    private val bridge get() = (context as? com.ntq.training.momentbox.MomentBoxApp)?.playerAudioBridge
+    private val bridge get() = (context as? MomentBoxApp)?.playerAudioBridge
     private val recordingOwners = mutableSetOf<Any>()
-    private val recordersIdle = kotlinx.coroutines.flow.MutableStateFlow(true)
+    private val recordersIdle = MutableStateFlow(true)
 
     /** Callback ownership có thể chỉ enqueue stop mic trên IO. Peer phải chờ release thật,
      * không coi callback Unit đã trả về là MediaRecorder đã dừng. */
@@ -74,7 +74,8 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         if (recordingOwners.any { it !== owner }) return false
         if (!ownership.acquire(owner, onInterrupted, true)) return false
         if (recording) {
-            recordingOwners.add(owner); recordersIdle.value = false
+            recordingOwners.add(owner)
+            recordersIdle.value = false
         }
         bridge?.interruptForMain(transientLoss)
         abandonPlatformFocus()
@@ -94,7 +95,8 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         if (ownership.isOwner(owner)) return true
         if (!ownership.acquire(owner, onInterrupted, mayInterrupt)) return false
         if (kind == AudioPlaybackKind.RECORDING) {
-            recordingOwners.add(owner); recordersIdle.value = false
+            recordingOwners.add(owner)
+            recordersIdle.value = false
         }
         bridge?.interruptForMain(kind != AudioPlaybackKind.VIDEO)
         // Mỗi yêu cầu giữ generation riêng để callback focus cũ không dừng player mới.
@@ -130,7 +132,8 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
         if (!granted) {
             // Quick recorder chưa vào PREPARING nên callback finish có thể chưa chạy cleanup.
             // Request bị OS từ chối chưa sở hữu mic: rollback lease ngay, không khóa owner kế tiếp.
-            recordingOwners.remove(owner); recordersIdle.value = recordingOwners.isEmpty()
+            recordingOwners.remove(owner)
+            recordersIdle.value = recordingOwners.isEmpty()
             interrupt()
             return false
         }
@@ -147,7 +150,8 @@ class AndroidPlaybackAudio private constructor(private val context: Application)
     }
 
     override fun release(owner: Any) {
-        recordingOwners.remove(owner); recordersIdle.value = recordingOwners.isEmpty()
+        recordingOwners.remove(owner)
+        recordersIdle.value = recordingOwners.isEmpty()
         if (!ownership.isOwner(owner)) return
         ownership.release(owner)
         abandonPlatformFocus()

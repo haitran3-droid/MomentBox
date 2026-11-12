@@ -45,7 +45,7 @@ class ChatMediaRepository(
 ) {
     private val context = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val jobs = java.util.concurrent.ConcurrentHashMap<String, Job>()
+    private val jobs = ConcurrentHashMap<String, Job>()
     private val _progress = MutableStateFlow<Map<String, ChatMediaProgress>>(emptyMap())
     val progress = _progress.asStateFlow()
     private val sessionObserver = scope.launch {
@@ -65,11 +65,13 @@ class ChatMediaRepository(
     ) {
         require(type in setOf("image", "voice"))
         scope.launch {
-            var file: File? = null;
+            var file: File? = null
             var row: MessageEntity? = null
             // Chỉ handoff file chat-quick mới được xóa nguồn; URI Gallery/S14 luôn giữ nguyên.
             val quick = if (ownedQuick) runCatching {
-                val parsed = Uri.parse(uri); check(parsed.scheme == "file"); File(
+                val parsed = Uri.parse(uri)
+                check(parsed.scheme == "file")
+                File(
                 checkNotNull(
                     parsed.path
                 )
@@ -82,7 +84,8 @@ class ChatMediaRepository(
             }.getOrNull() else null
             try {
                 check(runtime.current() == expected)
-                val folder = folder(expected).apply { mkdirs() }; file = File(
+                val folder = folder(expected).apply { mkdirs() }
+                file = File(
                     folder,
                     UUID.randomUUID().toString() + if (type == "image") ".jpg" else ".m4a"
                 )
@@ -96,18 +99,23 @@ class ChatMediaRepository(
                     }
                 } else context.contentResolver.openInputStream(Uri.parse(uri))!!.use { input ->
                     file.outputStream().use { output ->
-                        val buffer = ByteArray(8192);
+                        val buffer = ByteArray(8192)
                         var total = 0L
                         while (true) {
-                            currentCoroutineContext().ensureActive();
+                            currentCoroutineContext().ensureActive()
                             val count =
-                                input.read(buffer); if (count < 0) break; total += count; check(
+                                input.read(buffer)
+                                if (count < 0) break
+                                total += count
+                                check(
                                 total <= 50L * 1024 * 1024
-                            ); output.write(buffer, 0, count)
+                            )
+                            output.write(buffer, 0, count)
                         }
                     }
                 }
-                check(file.length() in 1..50L * 1024 * 1024); check(runtime.current() == expected)
+                check(file.length() in 1..50L * 1024 * 1024)
+                check(runtime.current() == expected)
                 row = runtime.repository.prepare(
                     expected,
                     room,
@@ -117,11 +125,13 @@ class ChatMediaRepository(
                     ownedPath = file.absolutePath
                 )
                 if (row == null) {
-                    file.delete(); return@launch
+                    file.delete()
+                    return@launch
                 }
                 upload(expected, row)
             } catch (cancelled: CancellationException) {
-                if (row == null) file?.delete(); throw cancelled
+                if (row == null) file?.delete()
+                throw cancelled
             } catch (_: Exception) {
                 if (row == null) file?.delete() else runtime.repository.failed(
                     expected,
@@ -172,7 +182,8 @@ class ChatMediaRepository(
             )
             check(runtime.current() == expected && response.success)
             val result =
-                checkNotNull(response.data); check(result.type == row.type || (row.type == "voice" && result.type == "audio"))
+                checkNotNull(response.data)
+                check(result.type == row.type || (row.type == "voice" && result.type == "audio"))
             val confirmed = runtime.repository.uploaded(expected, row.localId, result.url) ?: return
             _progress.update {
                 it + (row.localId to ChatMediaProgress(
@@ -185,7 +196,8 @@ class ChatMediaRepository(
             runtime.sendPrepared(expected, confirmed)
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) { runtime.repository.failed(expected, row.localId) }
-            _progress.update { it - row.localId }; throw cancelled
+            _progress.update { it - row.localId }
+            throw cancelled
         } catch (_: Exception) {
             runtime.repository.failed(expected, row.localId)
             if (runtime.current() == expected) _progress.update {
@@ -208,7 +220,9 @@ class ChatMediaRepository(
         val work = scope.coroutineContext[Job]!!.children.toList()
         // Observer đầu tiên là collector session sống suốt Application; chỉ hủy các media jobs.
         val operations = work.filter { it !== sessionObserver }
-        operations.forEach { it.cancel() }; operations.joinAll(); _progress.value = emptyMap()
+        operations.forEach { it.cancel() }
+        operations.joinAll()
+        _progress.value = emptyMap()
     }
 
     fun cancel(id: String) {
@@ -216,7 +230,7 @@ class ChatMediaRepository(
     }
 
     private fun folder(expected: ChatSession): File {
-        val key = java.security.MessageDigest.getInstance("SHA-256")
+        val key = MessageDigest.getInstance("SHA-256")
             .digest((expected.ownerId + "|" + expected.source).toByteArray())
             .joinToString("") { "%02x".format(it) }
         return File(File(context.filesDir, "chat-media"), key)

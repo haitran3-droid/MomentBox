@@ -39,11 +39,13 @@ data class FollowingState(
 /** Job tạo phòng sống trong ViewModel qua rotation. Result chỉ chứa room ID, không nhét
  * toàn bộ user/messages vào Bundle; server và repository kiểm membership trước mở phòng. */
 class FollowingViewModel(private val runtime: ChatRuntime) : ViewModel() {
-    val state = MutableStateFlow(FollowingState());
-    private var started = false;
+    val state = MutableStateFlow(FollowingState())
+    private var started = false
     var delivered = false
     fun start(user: Long?) {
-        if (started) return; started = true; if (user != null) create(user) else load()
+        if (started) return
+        started = true
+        if (user != null) create(user) else load()
     }
 
     fun load() {
@@ -51,7 +53,7 @@ class FollowingViewModel(private val runtime: ChatRuntime) : ViewModel() {
             state.value = state.value.copy(busy = true, error = false)
             try {
                 // Entry từ hồ sơ private có thể chưa đi qua Main; activate sau khi auth đã commit cache.
-                runtime.activate();
+                runtime.activate()
                 val session = checkNotNull(runtime.current())
                 val users = runtime.repository.following(session)
                 if (runtime.current() == session) state.value =
@@ -68,7 +70,7 @@ class FollowingViewModel(private val runtime: ChatRuntime) : ViewModel() {
         viewModelScope.launch {
             state.value = state.value.copy(busy = true, error = false)
             try {
-                runtime.activate();
+                runtime.activate()
                 val session = checkNotNull(runtime.current())
                 state.value = state.value.copy(session = session)
                 val room = runtime.repository.create(session, user)
@@ -102,19 +104,22 @@ class NewConversationDialog : DialogFragment() {
         }
 
         override fun onCreateDialog(saved: Bundle?): Dialog {
-            val c = requireContext();
+            val c = requireContext()
             val column = LinearLayout(c).apply {
-                orientation = LinearLayout.VERTICAL; setPadding(
+                orientation = LinearLayout.VERTICAL
+                setPadding(
                 24,
                 12,
                 24,
                 12
             )
             }
-            val progress = ProgressBar(c);
-            val message = TextView(c).apply { setPadding(12, 16, 12, 16) };
+            val progress = ProgressBar(c)
+            val message = TextView(c).apply { setPadding(12, 16, 12, 16) }
             val list = ListView(c)
-            column.addView(progress); column.addView(message); column.addView(list)
+            column.addView(progress)
+            column.addView(message)
+            column.addView(list)
             val dialog =
                 MaterialAlertDialogBuilder(c).setTitle(R.string.m5_chat_new).setView(column)
                     .setNegativeButton(R.string.m5_chat_cancel, null).create()
@@ -126,37 +131,43 @@ class NewConversationDialog : DialogFragment() {
                         runtime.session
                     ) { state, active -> state to active }.collect { (state, active) ->
                         if (state.session != null && state.session != active) {
-                            dismissAllowingStateLoss(); return@collect
+                            dismissAllowingStateLoss()
+                            return@collect
                         }
                         progress.visibility =
-                            if (state.busy) android.view.View.VISIBLE else android.view.View.GONE
+                            if (state.busy) View.VISIBLE else View.GONE
                         list.isEnabled = !state.busy
                         list.adapter = ArrayAdapter(
                             c,
-                            android.R.layout.simple_list_item_1,
+                            AndroidR.layout.simple_list_item_1,
                             state.users.map { it.displayName.orEmpty() })
                         list.setOnItemClickListener { _, _, position, _ -> model.create(state.users[position].id) }
                         message.visibility =
-                            if (state.error || (!state.busy && state.users.isEmpty())) android.view.View.VISIBLE else android.view.View.GONE
+                            if (state.error || (!state.busy && state.users.isEmpty())) View.VISIBLE else View.GONE
                         message.setText(if (state.error) R.string.m5_chat_error else R.string.m5_chat_following_empty)
                         message.setOnClickListener { model.load() }
                         if (state.room != null && !model.delivered) {
-                            model.delivered = true; parentFragmentManager.setFragmentResult(
+                            model.delivered = true
+                            parentFragmentManager.setFragmentResult(
                                 "conversation",
                                 Bundle().apply {
                                     putLong(
                                         "id",
                                         state.room
-                                    ); state.session?.let {
+                                    )
+                                    state.session?.let {
                                     putString(
                                         "owner",
                                         it.ownerId
-                                    ); putString("source", it.source); putLong(
+                                    )
+                                    putString("source", it.source)
+                                    putLong(
                                     "generation",
                                     it.generation
                                 )
                                 }
-                                }); dismiss()
+                                })
+                                dismiss()
                         }
                     }
                 }
@@ -169,7 +180,7 @@ class NewConversationDialog : DialogFragment() {
             /** Fragment Result có thể được giữ qua rotation; chỉ caller cùng phiên mới được nhận. */
             fun matches(
                 result: Bundle,
-                session: com.ntq.training.momentbox.data.repository.ChatSession?
+                session: ChatSession?
             ) = session != null && result.getString("owner") == session.ownerId && result.getString(
                 "source"
             ) == session.source && result.getLong("generation", -1) == session.generation

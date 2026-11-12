@@ -150,8 +150,10 @@ class MoodCalendarView @JvmOverloads constructor(
     /** RecyclerView không lưu hierarchy của từng child; VM là nguồn month/selection bền qua recreate. */
     fun restoreCalendarState(month: YearMonth, selected: LocalDate?) {
         if (displayedYearMonth == month && selectedDate == selected) return
-        displayedYearMonth = month; selectedDate = selected
-        requestLayout(); invalidate()
+        displayedYearMonth = month
+        selectedDate = selected
+        requestLayout()
+        invalidate()
     }
 
     fun getYearMonth(): YearMonth = displayedYearMonth
@@ -294,16 +296,23 @@ class MoodCalendarView @JvmOverloads constructor(
     private fun activateDay(day: Int) {
         val date = displayedYearMonth.atDay(day)
         if (date.isAfter(currentRealDate)) return
-        selectedDate = date; invalidate(); accessibility.invalidateRoot(); performClick()
+        selectedDate = date
+        invalidate()
+        accessibility.invalidateRoot()
+        performClick()
         onDayClickListener?.invoke(date, dayMoodMap.containsKey(day))
     }
     private val accessibility = CanvasAccessibility(this, ::dateNodes,
         { x, y -> dateNodes().firstOrNull { it.bounds.contains(x.toInt(), y.toInt()) }?.id }, ::activateDay)
-    init { ViewCompat.setAccessibilityDelegate(this, accessibility); isFocusable = true }
+    init {
+        ViewCompat.setAccessibilityDelegate(this, accessibility)
+        isFocusable = true
+    }
     override fun dispatchHoverEvent(event: MotionEvent) = accessibility.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
     override fun dispatchKeyEvent(event: KeyEvent) = accessibility.dispatchKeyEvent(event) || super.dispatchKeyEvent(event)
     override fun onFocusChanged(gain: Boolean, direction: Int, rect: Rect?) {
-        super.onFocusChanged(gain, direction, rect); accessibility.onFocusChanged(gain, direction, rect)
+        super.onFocusChanged(gain, direction, rect)
+        accessibility.onFocusChanged(gain, direction, rect)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -313,7 +322,10 @@ class MoodCalendarView @JvmOverloads constructor(
 
         if (event.action == MotionEvent.ACTION_UP) {
             val node = dateNodes().firstOrNull { it.bounds.contains(event.x.toInt(), event.y.toInt()) }
-            if (node?.enabled == true) { activateDay(node.id); return true }
+            if (node?.enabled == true) {
+                activateDay(node.id)
+                return true
+            }
         }
 
         return true

@@ -163,7 +163,7 @@ class DonutChartView @JvmOverloads constructor(
             width - paddingLeft - paddingRight,
             height - paddingTop - paddingBottom
         ) / 2f - strokeWidthDp / 2f - 4.4f * resources.displayMetrics.density
-        val dx = x - cx;
+        val dx = x - cx
         val dy = y - cy
         val distance = sqrt((dx * dx + dy * dy).toDouble()).toFloat()
         if (distance !in (radius - strokeWidthDp * .6f)..(radius + strokeWidthDp * .6f)) return null
@@ -186,7 +186,10 @@ class DonutChartView @JvmOverloads constructor(
         selectedMood = if (selectedMood == mood) null else mood
         centerMainText = if (selectedMood == null) defaultMainText else item.count.toString()
         centerSubText = if (selectedMood == null) defaultSubText else "${item.percentage}%"
-        invalidate(); accessibility.invalidateRoot(); performClick(); onSectorClickListener?.invoke(
+        invalidate()
+        accessibility.invalidateRoot()
+        performClick()
+        onSectorClickListener?.invoke(
             selectedMood
         )
     }
@@ -230,7 +233,8 @@ class DonutChartView @JvmOverloads constructor(
     private val accessibility = CanvasAccessibility(this, ::sectorNodes, ::hitSector, ::selectMood)
 
     init {
-        ViewCompat.setAccessibilityDelegate(this, accessibility); isFocusable =
+        ViewCompat.setAccessibilityDelegate(this, accessibility)
+        isFocusable =
             true
     }
 
@@ -241,7 +245,8 @@ class DonutChartView @JvmOverloads constructor(
         accessibility.dispatchKeyEvent(event) || super.dispatchKeyEvent(event)
 
     override fun onFocusChanged(gain: Boolean, direction: Int, rect: Rect?) {
-        super.onFocusChanged(gain, direction, rect); accessibility.onFocusChanged(
+        super.onFocusChanged(gain, direction, rect)
+        accessibility.onFocusChanged(
             gain,
             direction,
             rect
@@ -249,14 +254,16 @@ class DonutChartView @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        animator?.cancel(); super.onDetachedFromWindow()
+        animator?.cancel()
+        super.onDetachedFromWindow()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_UP) hitSector(
             event.x,
             event.y
-        )?.let { selectMood(it); return true }
+        )?.let { selectMood(it)
+        return true }
         return true
     }
 

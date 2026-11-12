@@ -99,7 +99,7 @@ class ChatRoomFragment : Fragment() {
     }
 
     private var voicePlayer: VoicePlayerManager? = null
-    private var voiceKey: String? = null;
+    private var voiceKey: String? = null
     private var voiceId = 0L
     private fun toggleVoice(message: MessageEntity) {
         val player = voicePlayer ?: return
@@ -111,14 +111,15 @@ class ChatRoomFragment : Fragment() {
                 ).toString()
             } ?: return
             if (voiceKey != message.localId) {
-                voiceKey = message.localId; voiceId++
+                voiceKey = message.localId
+                voiceId++
             }
             player.playVoice(voiceId, url, ((message.durationMs ?: 0) / 1000).toInt())
         }
     }
 
-    private var inputIdle: Job? = null;
-    private var lastTyping = 0L;
+    private var inputIdle: Job? = null
+    private var lastTyping = 0L
     private var latest: RoomState = RoomState()
     private var layout: LinearLayoutManager? = null
     private var followingBottom = true
@@ -127,7 +128,7 @@ class ChatRoomFragment : Fragment() {
 
     override fun onViewCreated(view: View, saved: Bundle?) {
         voicePlayer = VoicePlayerManager(requireContext())
-        val b = binding!!;
+        val b = binding!!
         val adapter = MessageAdapter(
             image = { message ->
                 startActivity(
@@ -148,9 +149,11 @@ class ChatRoomFragment : Fragment() {
             retry = { model.retry(it) })
         val requestedWaveforms = mutableSetOf<String>()
         val manager =
-            LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, true); layout =
+            LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, true)
+            layout =
             manager
-        b.messages.layoutManager = manager; b.messages.adapter = adapter
+        b.messages.layoutManager = manager
+        b.messages.adapter = adapter
         (b.messages.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations =
             false
         b.info.setOnClickListener {
@@ -160,24 +163,32 @@ class ChatRoomFragment : Fragment() {
         }
         b.back.setOnClickListener {
             val parent =
-                parentFragment as? ChatFragment; if (parent != null) parent.closeDetail() else requireActivity().onBackPressedDispatcher.onBackPressed()
+                parentFragment as? ChatFragment
+                if (parent != null) parent.closeDetail() else requireActivity().onBackPressedDispatcher.onBackPressed()
         }
-        b.connection.setOnClickListener { app.socketManager.connect(); model.load(false) }; b.error.setOnClickListener {
+        b.connection.setOnClickListener { app.socketManager.connect()
+        model.load(false) }
+        b.error.setOnClickListener {
             model.load(
                 false
             )
         }
         b.input.filters = arrayOf(InputFilter.LengthFilter(5000))
-        b.input.setText(model.draft); b.input.doAfterTextChanged { text ->
+        b.input.setText(model.draft)
+        b.input.doAfterTextChanged { text ->
             model.draft = text?.toString()
-                .orEmpty(); b.send.setImageResource(if (model.draft.isBlank()) R.drawable.ic_mic else R.drawable.ic_send)
-            val now = SystemClock.elapsedRealtime(); inputIdle?.cancel()
+                .orEmpty()
+                b.send.setImageResource(if (model.draft.isBlank()) R.drawable.ic_mic else R.drawable.ic_send)
+            val now = SystemClock.elapsedRealtime()
+            inputIdle?.cancel()
             if (model.draft.isNotBlank()) {
                 if (now - lastTyping >= 3000) {
-                    app.chatRuntime.typing(model.selected.value, true); lastTyping = now
+                    app.chatRuntime.typing(model.selected.value, true)
+                    lastTyping = now
                 }
                 inputIdle = viewLifecycleOwner.lifecycleScope.launch {
-                    delay(3000); app.chatRuntime.typing(
+                    delay(3000)
+                    app.chatRuntime.typing(
                     model.selected.value,
                     false
                 )
@@ -195,14 +206,16 @@ class ChatRoomFragment : Fragment() {
             "chat-attachment",
             viewLifecycleOwner
         ) { _, result -> attach(result.getString("kind") ?: "gallery") }
-        var downX = 0f;
+        var downX = 0f
         var slideCancelled = false
         b.send.setOnTouchListener { button, event ->
             if (model.draft.isNotBlank()) false else {
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
-                        downX = event.x; slideCancelled =
-                            false; button.parent.requestDisallowInterceptTouchEvent(true)
+                        downX = event.x
+                        slideCancelled =
+                            false
+                            button.parent.requestDisallowInterceptTouchEvent(true)
                         if (ContextCompat.checkSelfPermission(
                                 requireContext(),
                                 Manifest.permission.RECORD_AUDIO
@@ -212,17 +225,21 @@ class ChatRoomFragment : Fragment() {
                     }
 
                     MotionEvent.ACTION_MOVE -> if (event.x < downX - 80 * resources.displayMetrics.density) {
-                        slideCancelled = true; model.stopQuick(true)
+                        slideCancelled = true
+                        model.stopQuick(true)
                     }
 
                     MotionEvent.ACTION_UP -> {
-                        model.stopQuick(slideCancelled); button.parent.requestDisallowInterceptTouchEvent(
+                        model.stopQuick(slideCancelled)
+                        button.parent.requestDisallowInterceptTouchEvent(
                             false
-                        ); button.performClick()
+                        )
+                        button.performClick()
                     }
 
                     MotionEvent.ACTION_CANCEL -> {
-                        model.stopQuick(true); button.parent.requestDisallowInterceptTouchEvent(
+                        model.stopQuick(true)
+                        button.parent.requestDisallowInterceptTouchEvent(
                             false
                         )
                     }
@@ -232,7 +249,9 @@ class ChatRoomFragment : Fragment() {
         }
         b.send.setOnClickListener {
             if (model.draft.isNotBlank()) {
-                model.send(); b.input.setText(""); app.chatRuntime.typing(
+                model.send()
+                b.input.setText("")
+                app.chatRuntime.typing(
                     model.selected.value,
                     false
                 )
@@ -240,12 +259,16 @@ class ChatRoomFragment : Fragment() {
         }
         b.input.setOnEditorActionListener { _, action, _ ->
             if (action == EditorInfo.IME_ACTION_SEND && model.draft.isNotBlank()) {
-                b.send.performClick(); true
+                b.send.performClick()
+                true
             } else false
         }
         b.newMessages.setOnClickListener {
-            followingBottom = true; b.messages.scrollToPosition(0); b.newMessages.isVisible =
-            false; b.messages.post { updateVisible() }
+            followingBottom = true
+            b.messages.scrollToPosition(0)
+            b.newMessages.isVisible =
+            false
+            b.messages.post { updateVisible() }
         }
         b.messages.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(rv: RecyclerView, state: Int) {
@@ -257,28 +280,34 @@ class ChatRoomFragment : Fragment() {
             override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
                 if (rv.scrollState != RecyclerView.SCROLL_STATE_IDLE) followingBottom =
                     manager.findFirstVisibleItemPosition() == 0
-                updateVisible(); if (manager.findLastVisibleItemPosition() >= adapter.itemCount - 5 && adapter.itemCount > 0) model.load()
+                updateVisible()
+                if (manager.findLastVisibleItemPosition() >= adapter.itemCount - 5 && adapter.itemCount > 0) model.load()
             }
         })
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     model.state.collect { state ->
-                        val old = latest; latest = state
+                        val old = latest
+                        latest = state
                         if (old.owner != state.owner || old.room?.id != state.room?.id) {
-                            voicePlayer?.stopVoice(); voiceKey = null; followingBottom = true
+                            voicePlayer?.stopVoice()
+                            voiceKey = null
+                            followingBottom = true
                         }
                         val atBottom = followingBottom
-                        val first = manager.findFirstVisibleItemPosition();
+                        val first = manager.findFirstVisibleItemPosition()
                         val key = adapter.currentList.getOrNull(first)?.key
                         val offset = manager.findViewByPosition(first)
                             ?.let { manager.height - manager.getDecoratedBottom(it) } ?: 0
-                        b.title.text = state.room?.title.orEmpty(); Glide.with(b.avatar)
+                        b.title.text = state.room?.title.orEmpty()
+                        Glide.with(b.avatar)
                         .load(state.room?.avatarUrl)
                         .placeholder(ChatAvatarDrawable(state.room?.title.orEmpty())).circleCrop()
                         .into(b.avatar)
                         val presence = presenceLabel(requireContext(), state)
-                        b.presence.text = presence.second; b.onlineDot.isVisible = presence.first
+                        b.presence.text = presence.second
+                        b.onlineDot.isVisible = presence.first
                         state.messages.filter { it.type == "voice" }.forEach { message ->
                             val url = message.mediaUrl ?: message.ownedPath?.let {
                                 Uri.fromFile(File(it)).toString()
@@ -289,16 +318,19 @@ class ChatRoomFragment : Fragment() {
                                         AudioWaveforms.read(
                                             app,
                                             url
-                                        ); adapter.waveform(messageKey(message), values)
+                                        )
+                                        adapter.waveform(messageKey(message), values)
                                 } catch (cancelled: CancellationException) {
-                                    requestedWaveforms.remove(messageKey(message)); throw cancelled
+                                    requestedWaveforms.remove(messageKey(message))
+                                    throw cancelled
                                 } catch (_: Exception) {
                                     requestedWaveforms.remove(messageKey(message))
                                 }
                             }
                         }
                         adapter.submitList(MessageAdapter.rows(state.messages, state.owner)) {
-                            if (atBottom) b.messages.post { b.messages.scrollToPosition(0); b.messages.post { updateVisible() } } else if (key != null) adapter.currentList.indexOfFirst { it.key == key }
+                            if (atBottom) b.messages.post { b.messages.scrollToPosition(0)
+                            b.messages.post { updateVisible() } } else if (key != null) adapter.currentList.indexOfFirst { it.key == key }
                                 .takeIf { it >= 0 }
                                 ?.let { manager.scrollToPositionWithOffset(it, offset) }
                             if (!atBottom && state.messages.firstOrNull()?.localId != old.messages.firstOrNull()?.localId) b.newMessages.isVisible =
@@ -313,7 +345,8 @@ class ChatRoomFragment : Fragment() {
                         app.socketManager
                     ).collect { (state, label) ->
                         b.connection.isVisible =
-                            state.phase != SocketPhase.CONNECTED; b.connection.text =
+                            state.phase != SocketPhase.CONNECTED
+                            b.connection.text =
                         label
                     }
                 }
@@ -324,9 +357,11 @@ class ChatRoomFragment : Fragment() {
                 }
                 launch {
                     while (isActive) {
-                        delay(30000);
-                        val value = presenceLabel(requireContext(), latest); b.presence.text =
-                            value.second; b.onlineDot.isVisible = value.first
+                        delay(30000)
+                        val value = presenceLabel(requireContext(), latest)
+                        b.presence.text =
+                            value.second
+                            b.onlineDot.isVisible = value.first
                     }
                 }
                 launch { model.error.collect { b.error.isVisible = it } }
@@ -359,7 +394,7 @@ class ChatRoomFragment : Fragment() {
         val atBottom = manager.findFirstVisibleItemPosition() == 0
         app.chatRuntime.visible(model.selected.value, active, panelId, atBottom)
         if (!active || !atBottom) return
-        val rv = binding?.messages ?: return;
+        val rv = binding?.messages ?: return
         val adapter = rv.adapter as? MessageAdapter ?: return
         val first = manager.findFirstVisibleItemPosition().coerceAtLeast(0)
         val last = manager.findLastVisibleItemPosition().coerceAtMost(adapter.itemCount - 1)
@@ -381,15 +416,21 @@ class ChatRoomFragment : Fragment() {
 
     fun select(id: Long) {
         if (id == model.selected.value) {
-            updateVisible(); return
-        }; app.chatRuntime.visible(model.selected.value, false, panelId); app.chatRuntime.typing(
+            updateVisible()
+            return
+        }
+        app.chatRuntime.visible(model.selected.value, false, panelId)
+        app.chatRuntime.typing(
             model.selected.value,
             false
-        ); model.select(id); binding?.input?.setText(model.draft)
+        )
+        model.select(id)
+        binding?.input?.setText(model.draft)
     }
 
     override fun onResume() {
-        super.onResume(); updateVisible()
+        super.onResume()
+        updateVisible()
     }
 
     override fun onPause() {
@@ -397,36 +438,53 @@ class ChatRoomFragment : Fragment() {
             model.selected.value,
             false,
             panelId
-        ); app.chatRuntime.typing(
+        )
+        app.chatRuntime.typing(
             model.selected.value,
             false
-        ); inputIdle?.cancel(); model.stopQuick(true); voicePlayer?.pauseVoice(); super.onPause()
+        )
+        inputIdle?.cancel()
+        model.stopQuick(true)
+        voicePlayer?.pauseVoice()
+        super.onPause()
     }
 
     override fun onDestroyView() {
-        voicePlayer?.release(); voicePlayer = null; voiceKey = null; binding?.messages?.adapter =
-            null; binding = null; layout = null; super.onDestroyView()
+        voicePlayer?.release()
+        voicePlayer = null
+        voiceKey = null
+        binding?.messages?.adapter =
+            null
+            binding = null
+            layout = null
+            super.onDestroyView()
     }
 
     fun currentConversation() = model.selected.value
     fun currentDraft() = model.draft
     fun restoreDraft(value: String) {
-        model.draft = value.take(5000); binding?.input?.setText(model.draft)
+        model.draft = value.take(5000)
+        binding?.input?.setText(model.draft)
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
-        super.onHiddenChanged(hidden); if (hidden) {
-            app.chatRuntime.visible(model.selected.value, false, panelId); app.chatRuntime.typing(
+        super.onHiddenChanged(hidden)
+        if (hidden) {
+            app.chatRuntime.visible(model.selected.value, false, panelId)
+            app.chatRuntime.typing(
                 model.selected.value,
                 false
-            ); model.stopQuick(true); voicePlayer?.pauseVoice()
+            )
+            model.stopQuick(true)
+            voicePlayer?.pauseVoice()
         } else updateVisible()
     }
 
     companion object {
         fun newInstance(id: Long, draft: String? = null) = ChatRoomFragment().apply {
             arguments = Bundle().apply {
-                putLong("conversationId", id); putString(
+                putLong("conversationId", id)
+                putString(
                 "seedDraft",
                 draft?.take(5000)
             )

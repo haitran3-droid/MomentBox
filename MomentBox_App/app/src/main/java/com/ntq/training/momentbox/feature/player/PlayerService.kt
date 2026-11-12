@@ -37,42 +37,42 @@ import java.util.concurrent.TimeUnit
 
 class PlayerService : Service() {
     companion object {
-        const val CHANNEL = "momentbox.playback";
+        const val CHANNEL = "momentbox.playback"
         const val NOTIFICATION = 18001
-        const val PLAY = "player.PLAY";
-        const val PAUSE = "player.PAUSE";
-        const val NEXT = "player.NEXT";
-        const val PREVIOUS = "player.PREVIOUS";
+        const val PLAY = "player.PLAY"
+        const val PAUSE = "player.PAUSE"
+        const val NEXT = "player.NEXT"
+        const val PREVIOUS = "player.PREVIOUS"
         const val CLOSE = "player.CLOSE"
         fun intent(context: Context, action: String) =
             Intent(context, PlayerService::class.java).setAction(action)
     }
 
-    private lateinit var thread: HandlerThread;
+    private lateinit var thread: HandlerThread
     private lateinit var handler: Handler
-    private lateinit var audio: AudioManager;
+    private lateinit var audio: AudioManager
     private lateinit var session: MediaSession
-    private val queue = PlayerQueue();
+    private val queue = PlayerQueue()
     private val focusPolicy = PlayerFocusPolicy()
-    private var player: MediaPlayer? = null;
-    private var prepared = false;
+    private var player: MediaPlayer? = null
+    private var prepared = false
     private var generation = 0L
-    private var speed = 1f;
-    private var duration = 0L;
-    private var error: String? = null;
-    private var focus = "NONE";
+    private var speed = 1f
+    private var duration = 0L
+    private var error: String? = null
+    private var focus = "NONE"
     private var volume = 1f
-    private var focusRequest: AudioFocusRequest? = null;
+    private var focusRequest: AudioFocusRequest? = null
     private var focusGeneration = 0L
     private var legacyFocus: AudioManager.OnAudioFocusChangeListener? = null
-    private var noisyRegistered = false;
+    private var noisyRegistered = false
 
     @Volatile
-    private var closed = false;
+    private var closed = false
     private var route = "unknown"
-    private var sleepAt = 0L;
-    private var sleepDuration = 0L;
-    private var endOfTrack = false;
+    private var sleepAt = 0L
+    private var sleepDuration = 0L
+    private var endOfTrack = false
     private var sleepJob: Runnable? = null
 
     @Volatile
@@ -85,14 +85,15 @@ class PlayerService : Service() {
             handler.post { updatePositionTicker() }
         }
     }
-    private var handoverNonce = 0L;
-    private var pendingHandover = 0L;
+    private var handoverNonce = 0L
+    private var pendingHandover = 0L
     private var handoverTimeout: Runnable? = null
     private val peers = object : RemoteCallbackList<IAudioPeer>() {
         override fun onCallbackDied(peer: IAudioPeer?) {
             handler.post {
                 if (pendingHandover != 0L && registeredCallbackCount == 0) {
-                    cancelHandover(); playEngine()
+                    cancelHandover()
+                    playEngine()
                 }
             }
         }
@@ -100,46 +101,57 @@ class PlayerService : Service() {
     private val binder = object : IPlayerService.Stub() {
         override fun registerAudioPeer(peer: IAudioPeer?) = command {
             if (peer != null) {
-                peers.register(peer); runCatching { peer.onPlaybackChanged(isPlaying() || (player != null && !prepared) || pendingHandover != 0L) }
+                peers.register(peer)
+                runCatching { peer.onPlaybackChanged(isPlaying() || (player != null && !prepared) || pendingHandover != 0L) }
             }
         }
 
         override fun unregisterAudioPeer(peer: IAudioPeer?) = command {
-            if (peer != null) peers.unregister(peer); if (pendingHandover != 0L && peers.registeredCallbackCount == 0) {
-            cancelHandover(); playEngine()
-        }
+            if (peer != null) peers.unregister(peer)
+            if (pendingHandover != 0L && peers.registeredCallbackCount == 0) {
+                cancelHandover()
+                playEngine()
+            }
         }
 
         override fun confirmFocus(nonce: Long) = command {
             if (nonce != 0L && nonce == pendingHandover) {
-                cancelHandover(); playEngine()
+                cancelHandover()
+                playEngine()
             }
         }
 
         override fun interruptForMain(transientLoss: Boolean) = command {
-            cancelHandover(); if (transientLoss) {
-            focusPolicy.change(
+            cancelHandover()
+            if (transientLoss) {
+                focusPolicy.change(
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
                 isPlaying() || (player != null && !prepared)
-            ); pause(false)
-        } else pause(true)
+            )
+                pause(false)
+            } else pause(true)
         }
 
         override fun setQueue(tracks: MutableList<Track>?, startIndex: Int) {
-            enforceOwner();
+            enforceOwner()
             val copy = tracks.orEmpty()
-                .map { it.copy(waveform = it.waveform.toList()) }; PlayerProtocol.validate(
+                .map { it.copy(waveform = it.waveform.toList()) }
+                PlayerProtocol.validate(
                 copy,
                 startIndex
             )
             command {
-                val old = queue.tracks.getOrNull(queue.index);
+                val old = queue.tracks.getOrNull(queue.index)
                 val selected = copy.getOrNull(startIndex)
                 val keep =
                     old?.id == selected?.id && old?.uri == selected?.uri && old?.ownerScope == selected?.ownerScope && player != null
                 queue.replace(copy, startIndex)
                 if (!keep) {
-                    focusPolicy.userPause(); releaseEngine(); abandonFocus(); duration = 0; error =
+                    focusPolicy.userPause()
+                    releaseEngine()
+                    abandonFocus()
+                    duration = 0
+                    error =
                         null
                     // Hẹn phút giữ deadline khi chọn bài cùng thư viện; hết-bài chỉ gắn bài cũ.
                     // Đổi owner hoặc bỏ queue phải hủy timer để không áp dụng sang tài khoản khác.
@@ -155,14 +167,18 @@ class PlayerService : Service() {
         override fun next() = command { advance(false, false) }
         override fun previous() = command { advance(true, false) }
         override fun setSpeed(value: Float) {
-            require(value.isFinite() && value in .75f..2f); command {
-                speed = value; if (prepared && isPlaying()) player?.playbackParams =
-                PlaybackParams().setSpeed(speed); publish()
+            require(value.isFinite() && value in .75f..2f)
+            command {
+                speed = value
+                if (prepared && isPlaying()) player?.playbackParams =
+                PlaybackParams().setSpeed(speed)
+                publish()
             }
         }
 
         override fun setSleepTimer(millis: Long) {
-            require(millis == -1L || millis == 0L || millis in 1..30 * 60 * 1000); command {
+            require(millis == -1L || millis == 0L || millis in 1..30 * 60 * 1000)
+            command {
                 setSleep(
                     millis
                 )
@@ -170,38 +186,49 @@ class PlayerService : Service() {
         }
 
         // Toggle/cycle được tính ngay trên thread sở hữu queue, không dựa snapshot UI đang trễ.
-        override fun toggleShuffle() = command { queue.shuffle = !queue.shuffle; publish() }
+        override fun toggleShuffle() = command { queue.shuffle = !queue.shuffle
+        publish() }
         override fun cycleRepeat() =
-            command { queue.repeatMode = (queue.repeatMode + 1) % 3; publish() }
+            command { queue.repeatMode = (queue.repeatMode + 1) % 3
+            publish() }
 
-        override fun setShuffle(enabled: Boolean) = command { queue.shuffle = enabled; publish() }
+        override fun setShuffle(enabled: Boolean) = command { queue.shuffle = enabled
+        publish() }
         override fun setRepeatMode(mode: Int) {
-            require(mode in 0..2); command { queue.repeatMode = mode; publish() }
+            require(mode in 0..2)
+            command { queue.repeatMode = mode
+            publish() }
         }
 
         override fun setFavorite(trackId: String?, favorite: Boolean) =
-            command { trackId?.let { queue.favorite(it, favorite) }; publish() }
+            command { trackId?.let { queue.favorite(it, favorite) }
+            publish() }
 
         override fun close() = command { shutdown() }
         override fun getState(): PlayerState {
-            enforceOwner();
+            enforceOwner()
             val done = CountDownLatch(1)
             handler.post {
                 if (prepared) snapshot = snapshot.copy(positionMs = runCatching {
                     player?.currentPosition?.toLong() ?: 0
-                }.getOrDefault(0)); done.countDown()
+                }.getOrDefault(0))
+                done.countDown()
             }
-            done.await(1, TimeUnit.SECONDS); return snapshot
+            done.await(1, TimeUnit.SECONDS)
+            return snapshot
         }
 
         override fun registerCallback(callback: IPlayerCallback?) = command {
             if (callback != null) {
-                callbacks.register(callback); runCatching { callback.onStateChanged(snapshot) }; updatePositionTicker()
+                callbacks.register(callback)
+                runCatching { callback.onStateChanged(snapshot) }
+                updatePositionTicker()
             }
         }
 
         override fun unregisterCallback(callback: IPlayerCallback?) =
-            command { if (callback != null) callbacks.unregister(callback); updatePositionTicker() }
+            command { if (callback != null) callbacks.unregister(callback)
+            updatePositionTicker() }
     }
     private val noisy = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, intent: Intent?) {
@@ -219,8 +246,10 @@ class PlayerService : Service() {
     }
 
     override fun onCreate() {
-        super.onCreate(); thread =
-            HandlerThread("momentbox-player-owner").apply { start() }; handler =
+        super.onCreate()
+        thread =
+            HandlerThread("momentbox-player-owner").apply { start() }
+            handler =
             Handler(thread.looper)
         audio = getSystemService(AUDIO_SERVICE) as AudioManager
         if (Build.VERSION.SDK_INT >= 26) (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
@@ -238,32 +267,35 @@ class PlayerService : Service() {
                             this@PlayerService,
                             intent(this@PlayerService, PLAY)
                         )
-                    }.onFailure { error = "FGS_NOT_ALLOWED"; publish() }
-                };
+                    }.onFailure { error = "FGS_NOT_ALLOWED"
+                    publish() }
+                }
                 override fun onPause() {
                     pause(true)
-                };
+                }
                 override fun onSkipToNext() {
                     advance(false, false)
-                };
+                }
                 override fun onSkipToPrevious() {
                     advance(true, false)
-                };
+                }
                 override fun onSeekTo(pos: Long) {
                     seek(pos)
-                };
+                }
                 override fun onStop() {
                     shutdown()
                 }
             }, handler)
         }
         audio.registerAudioDeviceCallback(devices, handler)
-        handler.post { updateRoute(); publish() }
+        handler.post { updateRoute()
+        publish() }
     }
 
     override fun onBind(intent: Intent?): IBinder? = if (closed) null else binder
     override fun onUnbind(intent: Intent?): Boolean {
-        handler.post { updatePositionTicker() }; return true
+        handler.post { updatePositionTicker() }
+        return true
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -278,15 +310,22 @@ class PlayerService : Service() {
             foreground = true
         } catch (_: Exception) {
             handler.post {
-                error = "FGS_NOT_ALLOWED"; publish()
-            }; stopSelf(); return START_NOT_STICKY
+                error = "FGS_NOT_ALLOWED"
+                publish()
+            }
+            stopSelf()
+            return START_NOT_STICKY
         }
         handler.post {
             when (intent?.action) {
-                PLAY -> play(); PAUSE -> pause(true); NEXT -> advance(
+                PLAY -> play()
+                PAUSE -> pause(true)
+                NEXT -> advance(
                 false,
                 false
-            ); PREVIOUS -> advance(true, false); CLOSE -> shutdown()
+            )
+                PREVIOUS -> advance(true, false)
+                CLOSE -> shutdown()
             }
         }
         return START_NOT_STICKY
@@ -297,7 +336,8 @@ class PlayerService : Service() {
     }
 
     private fun command(block: () -> Unit) {
-        enforceOwner(); handler.post {
+        enforceOwner()
+        handler.post {
             if (!closed) try {
                 block()
             } catch (_: Exception) {
@@ -313,12 +353,16 @@ class PlayerService : Service() {
     private fun play() {
         cancelHandover()
         if (queue.index !in queue.tracks.indices) {
-            playEngine(); return
+            playEngine()
+            return
         }
         if (peers.registeredCallbackCount == 0) {
-            playEngine(); return
+            playEngine()
+            return
         }
-        val nonce = ++handoverNonce; pendingHandover = nonce; publish()
+        val nonce = ++handoverNonce
+        pendingHandover = nonce
+        publish()
         val count = peers.beginBroadcast()
         try {
             repeat(count) { i -> runCatching { peers.getBroadcastItem(i).onRequestFocus(nonce) } }
@@ -327,37 +371,59 @@ class PlayerService : Service() {
         }
         handoverTimeout = Runnable {
             if (pendingHandover == nonce) {
-                cancelHandover(); error = "AUDIO_HANDOVER_TIMEOUT"; publish()
+                cancelHandover()
+                error = "AUDIO_HANDOVER_TIMEOUT"
+                publish()
             }
         }.also { handler.postDelayed(it, 1500) }
     }
 
     private fun cancelHandover() {
-        pendingHandover = 0; handoverTimeout?.let { handler.removeCallbacks(it) }; handoverTimeout =
+        pendingHandover = 0
+        handoverTimeout?.let { handler.removeCallbacks(it) }
+        handoverTimeout =
             null
     }
 
     private fun playEngine() {
         if (closed || queue.index !in queue.tracks.indices) {
-            error = "PLAYER_EMPTY_QUEUE"; publish(); return
+            error = "PLAYER_EMPTY_QUEUE"
+            publish()
+            return
         }
         if (!foreground) {
-            error = "PLAYER_NEEDS_FOREGROUND_START"; publish(); return
+            error = "PLAYER_NEEDS_FOREGROUND_START"
+            publish()
+            return
         }
         if (!requestFocus()) {
-            focusPolicy.userPlay(false); error = "AUDIO_FOCUS_DENIED"; publish(); return
+            focusPolicy.userPlay(false)
+            error = "AUDIO_FOCUS_DENIED"
+            publish()
+            return
         }
-        focusPolicy.userPlay(true); volume = 1f; error = null
+        focusPolicy.userPlay(true)
+        volume = 1f
+        error = null
         if (player != null && prepared) {
-            player?.setVolume(1f, 1f); player?.start(); player?.playbackParams =
-                PlaybackParams().setSpeed(speed); registerNoisy(); publish(); return
+            player?.setVolume(1f, 1f)
+            player?.start()
+            player?.playbackParams =
+                PlaybackParams().setSpeed(speed)
+                registerNoisy()
+                publish()
+                return
         }
         if (player != null) {
-            publish(); return
+            publish()
+            return
         }
-        val track = queue.tracks[queue.index];
+        val track = queue.tracks[queue.index]
         val request = ++generation
-        val engine = MediaPlayer(); player = engine; prepared = false; duration = 0
+        val engine = MediaPlayer()
+        player = engine
+        prepared = false
+        duration = 0
         try {
             engine.setAudioAttributes(
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
@@ -371,30 +437,38 @@ class PlayerService : Service() {
             )
             engine.setOnPreparedListener {
                 if (request != generation || player !== engine) return@setOnPreparedListener
-                prepared = true; duration =
+                prepared = true
+                duration =
                 runCatching { engine.duration.toLong() }.getOrDefault(0).coerceAtLeast(0)
                 if (focusPolicy.wantsPlay && focus in setOf("GAIN", "DUCK")) {
-                    engine.start(); engine.playbackParams =
-                        PlaybackParams().setSpeed(speed); engine.setVolume(
+                    engine.start()
+                    engine.playbackParams =
+                        PlaybackParams().setSpeed(speed)
+                        engine.setVolume(
                         volume,
                         volume
-                    ); registerNoisy()
+                    )
+                    registerNoisy()
                 }
                 publish()
             }
             engine.setOnCompletionListener {
                 if (request == generation && player === engine) {
                     if (endOfTrack) {
-                        cancelSleep(); pause(true); seek(0)
+                        cancelSleep()
+                        pause(true)
+                        seek(0)
                     } else advance(false, true)
                 }
             }
             engine.setOnErrorListener { _, _, _ ->
                 if (request == generation && player === engine) fail(
                     "PLAYER_MEDIA_ERROR"
-                ); true
+                )
+                true
             }
-            engine.prepareAsync(); publish()
+            engine.prepareAsync()
+            publish()
         } catch (_: Exception) {
             fail("PLAYER_MEDIA_UNAVAILABLE")
         }
@@ -411,17 +485,22 @@ class PlayerService : Service() {
 
     private fun seek(position: Long) {
         if (prepared) {
-            player?.seekTo(position.coerceIn(0, duration).toInt()); publish()
+            player?.seekTo(position.coerceIn(0, duration).toInt())
+            publish()
         }
     }
 
     private fun advance(previous: Boolean, automatic: Boolean) {
         val next = if (previous) queue.previous() else queue.next(automatic)
         if (next == null) {
-            pause(true); seek(0); return
+            pause(true)
+            seek(0)
+            return
         }
         val intent = focusPolicy.wantsPlay
-        releaseEngine(); duration = 0; error = null
+        releaseEngine()
+        duration = 0
+        error = null
         // Hẹn phút giữ deadline khi đổi bài; hết-bài gắn bài hiện tại nên hủy khi user đổi bài.
         if (endOfTrack) cancelSleep()
         if (intent) play() else publish()
@@ -429,32 +508,42 @@ class PlayerService : Service() {
 
     private fun requestFocus(): Boolean {
         if (focus == "GAIN") return true
-        abandonFocus();
+        abandonFocus()
         val expected = ++focusGeneration
         val listener = AudioManager.OnAudioFocusChangeListener { value ->
             handler.post {
                 if (expected == focusGeneration && !closed) {
                     focus = when (value) {
-                        AudioManager.AUDIOFOCUS_GAIN -> "GAIN"; AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> "TRANSIENT"; AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> "DUCK"; else -> "LOSS"
+                        AudioManager.AUDIOFOCUS_GAIN -> "GAIN"
+                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> "TRANSIENT"
+                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> "DUCK"
+                        else -> "LOSS"
                     }
                     when (focusPolicy.change(value, isPlaying() || (!prepared && player != null))) {
                         FocusEffect.PLAY -> {
-                            volume = 1f; if (prepared) {
-                                player?.setVolume(1f, 1f); player?.start(); player?.playbackParams =
-                                    PlaybackParams().setSpeed(speed); registerNoisy()
+                            volume = 1f
+                            if (prepared) {
+                                player?.setVolume(1f, 1f)
+                                player?.start()
+                                player?.playbackParams =
+                                    PlaybackParams().setSpeed(speed)
+                                    registerNoisy()
                             }
                         }
 
                         FocusEffect.PAUSE -> {
-                            pause(false); if (value == AudioManager.AUDIOFOCUS_LOSS) abandonFocus()
+                            pause(false)
+                            if (value == AudioManager.AUDIOFOCUS_LOSS) abandonFocus()
                         }
 
                         FocusEffect.DUCK -> {
-                            volume = .2f; player?.setVolume(volume, volume)
+                            volume = .2f
+                            player?.setVolume(volume, volume)
                         }
 
                         FocusEffect.RESTORE -> {
-                            volume = 1f; player?.setVolume(1f, 1f)
+                            volume = 1f
+                            player?.setVolume(1f, 1f)
                         }
 
                         FocusEffect.NONE -> Unit
@@ -470,7 +559,8 @@ class PlayerService : Service() {
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
                 ).setWillPauseWhenDucked(false).setOnAudioFocusChangeListener(listener, handler)
                 .build()
-            focusRequest = request; audio.requestAudioFocus(request)
+            focusRequest = request
+            audio.requestAudioFocus(request)
         } else {
             @Suppress("DEPRECATION") audio.requestAudioFocus(
                 listener,
@@ -487,7 +577,9 @@ class PlayerService : Service() {
         if (Build.VERSION.SDK_INT >= 26) focusRequest?.let { audio.abandonAudioFocusRequest(it) } else {
             @Suppress("DEPRECATION") legacyFocus?.let { audio.abandonAudioFocus(it) }
         }
-        focusRequest = null; legacyFocus = null; focus = "NONE"
+        focusRequest = null
+        legacyFocus = null
+        focus = "NONE"
     }
 
     private fun registerNoisy() {
@@ -497,40 +589,59 @@ class PlayerService : Service() {
                 noisy,
                 IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
                 ContextCompat.RECEIVER_NOT_EXPORTED
-            ); noisyRegistered = true
+            )
+            noisyRegistered = true
         }
     }
 
     private fun unregisterNoisy() {
         if (noisyRegistered) {
-            unregisterReceiver(noisy); noisyRegistered = false
+            unregisterReceiver(noisy)
+            noisyRegistered = false
         }
     }
 
     private fun releaseEngine() {
-        cancelHandover(); ++generation;
-        val old = player; player = null; prepared =
-            false; runCatching { old?.release() }; unregisterNoisy()
+        cancelHandover()
+        ++generation
+        val old = player
+        player = null
+        prepared =
+            false
+            runCatching { old?.release() }
+            unregisterNoisy()
     }
 
     private fun fail(code: String) {
-        focusPolicy.userPause(); releaseEngine(); abandonFocus(); error = code; publish()
+        focusPolicy.userPause()
+        releaseEngine()
+        abandonFocus()
+        error = code
+        publish()
     }
 
     private fun setSleep(millis: Long) {
         cancelSleep()
         if (millis == -1L) endOfTrack = true else if (millis > 0) {
-            sleepDuration = millis; sleepAt = System.currentTimeMillis() + millis
+            sleepDuration = millis
+            sleepAt = System.currentTimeMillis() + millis
             sleepJob = Runnable {
-                sleepAt = 0; sleepDuration = 0; sleepJob = null; pause(true)
+                sleepAt = 0
+                sleepDuration = 0
+                sleepJob = null
+                pause(true)
             }.also { handler.postDelayed(it, millis) }
         }
         publish()
     }
 
     private fun cancelSleep() {
-        sleepJob?.let { handler.removeCallbacks(it) }; sleepJob = null; sleepAt = 0; sleepDuration =
-            0; endOfTrack = false
+        sleepJob?.let { handler.removeCallbacks(it) }
+        sleepJob = null
+        sleepAt = 0
+        sleepDuration =
+            0
+            endOfTrack = false
     }
 
     private fun updateRoute() {
@@ -544,7 +655,9 @@ class PlayerService : Service() {
             )
         }?.type
         route = when (type) {
-            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLE_SPEAKER -> "bluetooth"; AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_USB_HEADSET -> "headphones"; else -> "speaker"
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLE_SPEAKER -> "bluetooth"
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_USB_HEADSET -> "headphones"
+            else -> "speaker"
         }
         publish()
     }
@@ -621,7 +734,8 @@ class PlayerService : Service() {
             val value = runCatching { player!!.currentPosition.toLong() }.getOrDefault(0)
             snapshot = snapshot.copy(positionMs = value)
             val id = queue.tracks.getOrNull(queue.index)?.id ?: return
-            val count = callbacks.beginBroadcast(); try {
+            val count = callbacks.beginBroadcast()
+            try {
                 repeat(count) { i ->
                     runCatching {
                         callbacks.getBroadcastItem(i)
@@ -636,7 +750,8 @@ class PlayerService : Service() {
     }
 
     private fun updatePositionTicker() {
-        handler.removeCallbacks(positionTick); if (!closed && callbacks.registeredCallbackCount > 0 && isPlaying()) handler.postDelayed(
+        handler.removeCallbacks(positionTick)
+        if (!closed && callbacks.registeredCallbackCount > 0 && isPlaying()) handler.postDelayed(
             positionTick,
             500
         )
@@ -710,20 +825,34 @@ class PlayerService : Service() {
 
     private fun shutdown() {
         if (closed) return
-        focusPolicy.userPause(); cancelSleep(); releaseEngine(); abandonFocus()
-        queue.replace(emptyList(), -1); error = "PLAYER_CLOSED"; publish()
-        val count = peers.beginBroadcast(); try {
+        focusPolicy.userPause()
+        cancelSleep()
+        releaseEngine()
+        abandonFocus()
+        queue.replace(emptyList(), -1)
+        error = "PLAYER_CLOSED"
+        publish()
+        val count = peers.beginBroadcast()
+        try {
             repeat(count) { i -> runCatching { peers.getBroadcastItem(i).onClosed() } }
         } finally {
             peers.finishBroadcast()
         }
-        peers.kill(); closed = true
-        handler.removeCallbacks(positionTick); callbacks.kill(); session.isActive = false
-        stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf()
+        peers.kill()
+        closed = true
+        handler.removeCallbacks(positionTick)
+        callbacks.kill()
+        session.isActive = false
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        foreground = false
+        stopSelf()
     }
 
     override fun onDestroy() {
-        handler.post { if (!closed) shutdown(); audio.unregisterAudioDeviceCallback(devices); session.release(); thread.quitSafely() }
+        handler.post { if (!closed) shutdown()
+        audio.unregisterAudioDeviceCallback(devices)
+        session.release()
+        thread.quitSafely() }
         super.onDestroy()
     }
 }

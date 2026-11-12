@@ -67,8 +67,8 @@ class WaveformView @JvmOverloads constructor(
         if (count == null || amps.isEmpty()) amplitudes = amps.toList() else {
             val maximum = amps.maxOrNull()?.coerceAtLeast(.001f) ?: 1f
             amplitudes = List(count) { i ->
-                val x = i.toFloat() * (amps.size - 1) / (count - 1);
-                val lower = x.toInt();
+                val x = i.toFloat() * (amps.size - 1) / (count - 1)
+                val lower = x.toInt()
                 val upper = (lower + 1).coerceAtMost(amps.lastIndex)
                 ((amps[lower] + (amps[upper] - amps[lower]) * (x - lower)) / maximum).coerceIn(
                     0f,
@@ -81,8 +81,11 @@ class WaveformView @JvmOverloads constructor(
 
     fun configureBars(count: Int, gapDp: Float, heightFraction: Float) {
         require(count in 2..120 && gapDp in 0f..5f && heightFraction in 0f..1f)
-        displayCount = count; barGap = gapDp * density; displayHeight =
-            heightFraction; barMinHeight = 3 * density
+        displayCount = count
+        barGap = gapDp * density
+        displayHeight =
+            heightFraction
+            barMinHeight = 3 * density
     }
 
     fun generateDefaultAmplitudes(seed: Int = 3) {

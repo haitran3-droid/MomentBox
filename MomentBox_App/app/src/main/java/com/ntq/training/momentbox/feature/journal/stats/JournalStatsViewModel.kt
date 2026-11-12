@@ -105,7 +105,8 @@ class JournalStatsViewModel(
         loadJob?.cancel()
         val currentRev = ++requestRevision
         currentAnchorDate = anchor
-        savedState["anchor"] = anchor.toString(); savedState["period"] = period.name
+        savedState["anchor"] = anchor.toString()
+        savedState["period"] = period.name
         _uiState.update {
             it.copy(
                 isLoading = true, period = period, anchorDate = anchor, error = false,

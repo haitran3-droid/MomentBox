@@ -18,16 +18,17 @@ class ChatInfoDialog : DialogFragment() {
             .setNeutralButton(R.string.m5_chat_mute, null).create()
 
     override fun onStart() {
-        super.onStart();
+        super.onStart()
         val dialog = dialog as AlertDialog
         lifecycleScope.launch {
-            val app = requireActivity().application as MomentBoxApp;
+            val app = requireActivity().application as MomentBoxApp
             val session = app.chatRuntime.current() ?: return@launch
             val room = app.database.chatDao()
                 .conversation(session.ownerId, session.source, requireArguments().getLong("room"))
                 ?: return@launch
             if (app.chatRuntime.current() != session) {
-                dismiss(); return@launch
+                dismiss()
+                return@launch
             }
             dialog.setMessage(members(RoomState(room = room)).joinToString("\n") { it.displayName.orEmpty() })
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).apply {
@@ -38,7 +39,8 @@ class ChatInfoDialog : DialogFragment() {
                             session,
                             room.id,
                             !room.muted
-                        ); dismiss()
+                        )
+                        dismiss()
                     }
                 }
             }

@@ -54,13 +54,16 @@ class ChatRoomViewModel(
                 "voice",
                 audio.durationMs,
                 ownedQuick = true
-            ); true
+            )
+            true
         }
     }
 
     fun startQuick() {
-        val session = runtime.session.value ?: return; if (state.value.room == null) return
-        quickTarget = session to selected.value; quick.start()
+        val session = runtime.session.value ?: return
+        if (state.value.room == null) return
+        quickTarget = session to selected.value
+        quick.start()
     }
 
     fun stopQuick(cancel: Boolean) {
@@ -72,9 +75,12 @@ class ChatRoomViewModel(
     fun beginAttachment(): Boolean {
         val session = runtime.session.value ?: return false
         if (state.value.room == null || saved.get<Boolean>("attachmentPending") == true) return false
-        saved["attachmentPending"] = true; saved["attachmentRoom"] =
-            selected.value; saved["attachmentOwner"] = session.ownerId
-        saved["attachmentSource"] = session.source; saved["attachmentGeneration"] =
+        saved["attachmentPending"] = true
+        saved["attachmentRoom"] =
+            selected.value
+            saved["attachmentOwner"] = session.ownerId
+        saved["attachmentSource"] = session.source
+        saved["attachmentGeneration"] =
             session.generation
         return true
     }
@@ -82,8 +88,8 @@ class ChatRoomViewModel(
     fun attachment(uri: String?, type: String, duration: Long? = null) {
         if (saved.get<Boolean>("attachmentPending") != true) return
         val room = saved.get<Long>("attachmentRoom") ?: -1
-        val owner = saved.get<String>("attachmentOwner");
-        val source = saved.get<String>("attachmentSource");
+        val owner = saved.get<String>("attachmentOwner")
+        val source = saved.get<String>("attachmentSource")
         val generation = saved.get<Long>("attachmentGeneration")
         saved["attachmentPending"] = false
         if (uri != null && room > 0 && owner != null && source != null && generation != null) application.chatMediaRepository.send(
@@ -96,15 +102,16 @@ class ChatRoomViewModel(
     }
 
     override fun onCleared() {
-        quick.close(); super.onCleared()
+        quick.close()
+        super.onCleared()
     }
 
     val selected = saved.getStateFlow("conversationId", -1L)
     private val limit = MutableStateFlow(60)
-    val error = MutableStateFlow(false);
+    val error = MutableStateFlow(false)
     val busy = MutableStateFlow(false)
-    private var cursor: Long? = null;
-    private var hasMore = true;
+    private var cursor: Long? = null
+    private var hasMore = true
     private var pager: Job? = null
     val state = combine(runtime.session, selected, limit) { session, room, count ->
         Triple(
@@ -140,7 +147,10 @@ class ChatRoomViewModel(
     init {
         viewModelScope.launch {
             combine(runtime.session, selected) { a, b -> a to b }.collectLatest { (session, room) ->
-                pager?.cancel(); cursor = null; hasMore = true; limit.value = 60
+                pager?.cancel()
+                cursor = null
+                hasMore = true
+                limit.value = 60
                 if (session != null && room > 0) {
                     if (dao.conversation(
                             session.ownerId,
@@ -156,7 +166,9 @@ class ChatRoomViewModel(
 
     fun select(room: Long) {
         if (room > 0 && room != selected.value) {
-            quick.finish(true); quickTarget = null; saved["conversationId"] = room
+            quick.finish(true)
+            quickTarget = null
+            saved["conversationId"] = room
         }
     }
 
@@ -170,12 +182,15 @@ class ChatRoomViewModel(
         if (pager?.isActive == true || (older && !hasMore)) return
         val room = selected.value
         pager = viewModelScope.launch {
-            busy.value = true; error.value = false
+            busy.value = true
+            error.value = false
             try {
                 val expected = checkNotNull(runtime.current())
                 val page = runtime.repository.page(expected, room, if (older) cursor else null)
                 if (selected.value == room) {
-                    cursor = page.first; hasMore = page.second; if (older) limit.value += 30
+                    cursor = page.first
+                    hasMore = page.second
+                    if (older) limit.value += 30
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -188,10 +203,13 @@ class ChatRoomViewModel(
     }
 
     fun send() {
-        val text = draft.trim(); if (text.isEmpty()) return; runtime.send(
+        val text = draft.trim()
+        if (text.isEmpty()) return
+        runtime.send(
             selected.value,
             text
-        ); draft = ""
+        )
+        draft = ""
     }
 
     fun retry(id: String) {

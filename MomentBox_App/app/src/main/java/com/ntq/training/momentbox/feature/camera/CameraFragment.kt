@@ -1,5 +1,7 @@
 package com.ntq.training.momentbox.feature.camera
 
+import kotlin.math.abs
+import kotlin.math.ceil
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -337,7 +339,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
             column.layoutParams.width =
                 maxOf(
                     dp(66),
-                    kotlin.math.ceil(label.paint.measureText(label.text.toString())).toInt() + dp(8),
+                    ceil(label.paint.measureText(label.text.toString())).toInt() + dp(8),
                 )
             label.layoutParams =
                 LinearLayout.LayoutParams(
@@ -439,9 +441,9 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     if (
                         !multiple &&
                             (exposureDrag ||
-                                (kotlin.math.abs(event.y - downY) > dp(12) &&
-                                    kotlin.math.abs(event.y - downY) >
-                                        kotlin.math.abs(event.x - downX)))
+                                (abs(event.y - downY) > dp(12) &&
+                                    abs(event.y - downY) >
+                                        abs(event.x - downX)))
                     ) {
                         camera?.let { c ->
                             val e = c.cameraInfo.exposureState
@@ -476,8 +478,8 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     } else if (
                         !multiple &&
                             !swipeCameraMode(event.x - downX, event.y - downY) &&
-                            kotlin.math.abs(event.x - downX) < dp(15) &&
-                            kotlin.math.abs(event.y - downY) < dp(15)
+                            abs(event.x - downX) < dp(15) &&
+                            abs(event.y - downY) < dp(15)
                     ) {
                         val point =
                             b.cameraPreview.meteringPointFactory.createPoint(event.x, event.y)
@@ -552,8 +554,8 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                         if (
                             !multiple &&
                                 !swipeCameraMode(dx, dy) &&
-                                kotlin.math.abs(dx) < dp(15) &&
-                                kotlin.math.abs(dy) < dp(15)
+                                abs(dx) < dp(15) &&
+                                abs(dy) < dp(15)
                         )
                             view.performClick()
                     }
@@ -568,8 +570,8 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
     }
 
     private fun swipeCameraMode(dx: Float, dy: Float): Boolean {
-        val horizontal = kotlin.math.abs(dx)
-        if (horizontal < dp(32) || horizontal <= kotlin.math.abs(dy) * 1.5f) return false
+        val horizontal = abs(dx)
+        if (horizontal < dp(32) || horizontal <= abs(dy) * 1.5f) return false
         changeMode(dx > 0)
         return true
     }
@@ -761,7 +763,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                             for (i in 0 until b.cameraZoom.childCount) {
                                 val label = b.cameraZoom.getChildAt(i) as TextView
                                 val selected =
-                                    kotlin.math.abs((label.tag as Float) - state.zoomRatio) < .05f
+                                    abs((label.tag as Float) - state.zoomRatio) < .05f
                                 label.isSelected = selected
                                 label.setTextColor(
                                     if (selected) 0xFFFFD54F.toInt()

@@ -17,15 +17,18 @@ import kotlinx.coroutines.launch
 
 class ChatImageActivity : AppCompatActivity() {
     override fun onCreate(saved: Bundle?) {
-        super.onCreate(saved);
+        super.onCreate(saved)
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         val image = ImageView(this).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
-        }; root.addView(image, FrameLayout.LayoutParams(-1, -1))
+        }
+        root.addView(image, FrameLayout.LayoutParams(-1, -1))
         root.addView(
             ImageButton(this).apply {
-                setImageResource(R.drawable.ic_arrow_back); contentDescription =
-                getString(R.string.m5_chat_back); setOnClickListener { finish() }
+                setImageResource(R.drawable.ic_arrow_back)
+                contentDescription =
+                getString(R.string.m5_chat_back)
+                setOnClickListener { finish() }
             },
             FrameLayout.LayoutParams(
                 (48 * resources.displayMetrics.density).toInt(),
@@ -35,13 +38,15 @@ class ChatImageActivity : AppCompatActivity() {
         )
         setContentView(root)
         lifecycleScope.launch {
-            val app = application as MomentBoxApp; app.chatRuntime.activate();
+            val app = application as MomentBoxApp
+            app.chatRuntime.activate()
             val expected = app.chatRuntime.current()
             val id = intent.getStringExtra("localId")
             val message = if (expected != null && id != null) app.database.chatDao()
                 .findLocal(expected.ownerId, expected.source, id) else null
             if (message == null || message.type != "image" || app.chatRuntime.current() != expected) {
-                finish(); return@launch
+                finish()
+                return@launch
             }
             Glide.with(image).load(
                 message.mediaUrl ?: message.ownedPath?.let {

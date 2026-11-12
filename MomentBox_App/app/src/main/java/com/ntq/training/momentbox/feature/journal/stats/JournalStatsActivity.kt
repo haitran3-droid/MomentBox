@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.journal.stats
 
+import kotlin.math.abs
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -79,9 +80,9 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
                     vy: Float
                 ): Boolean {
                     val dx = e2.x - (e1?.x ?: e2.x)
-                    if (kotlin.math.abs(dx) > 80 * resources.displayMetrics.density && kotlin.math.abs(
+                    if (abs(dx) > 80 * resources.displayMetrics.density && abs(
                             vx
-                        ) > kotlin.math.abs(vy)
+                        ) > abs(vy)
                     ) {
                         if (dx < 0) viewModel.navigateNextPeriod() else viewModel.navigatePreviousPeriod()
                         return true
@@ -136,7 +137,9 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
                     binding.btnNextPeriod.isEnabled = state.canNavigateNext
                     binding.tgPeriod.check(
                         when (state.period) {
-                            StatsPeriod.WEEK -> R.id.btnPeriodWeek; StatsPeriod.MONTH -> R.id.btnPeriodMonth; StatsPeriod.YEAR -> R.id.btnPeriodYear
+                            StatsPeriod.WEEK -> R.id.btnPeriodWeek
+                            StatsPeriod.MONTH -> R.id.btnPeriodMonth
+                            StatsPeriod.YEAR -> R.id.btnPeriodYear
                         }
                     )
                     if (state.error) {
@@ -263,7 +266,9 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
             setTextColor(
                 getColor(
                     when {
-                        selected -> R.color.on_primary_container; more -> R.color.text_secondary; else -> R.color.text_primary
+                        selected -> R.color.on_primary_container
+                        more -> R.color.text_secondary
+                        else -> R.color.text_primary
                     }
                 )
             )

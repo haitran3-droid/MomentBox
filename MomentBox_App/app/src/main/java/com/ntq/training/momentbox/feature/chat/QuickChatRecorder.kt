@@ -39,14 +39,14 @@ class QuickChatRecorder(context: Context, private val result: (RecordedAudio) ->
     private val context = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
-    private val _state = MutableStateFlow(QuickRecordState());
+    private val _state = MutableStateFlow(QuickRecordState())
     val state = _state.asStateFlow()
-    private var recorder: MediaRecorder? = null;
-    private var file: File? = null;
+    private var recorder: MediaRecorder? = null
+    private var file: File? = null
     private var startAt = 0L
     @Volatile
     private var cancelRequested = false
-    private var ticker: Job? = null;
+    private var ticker: Job? = null
     private var closed = false
     private val amplitude = mutableListOf<Int>()
     private val audio = AndroidPlaybackAudio.get(context)
@@ -61,7 +61,8 @@ class QuickChatRecorder(context: Context, private val result: (RecordedAudio) ->
                 Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            _state.value = QuickRecordState(QuickRecordPhase.ERROR); return
+            _state.value = QuickRecordState(QuickRecordPhase.ERROR)
+            return
         }
         if (!audio.acquire(
                 this,
@@ -69,32 +70,45 @@ class QuickChatRecorder(context: Context, private val result: (RecordedAudio) ->
                 kind = AudioPlaybackKind.RECORDING
             )
         ) {
-            _state.value = QuickRecordState(QuickRecordPhase.ERROR); return
+            _state.value = QuickRecordState(QuickRecordPhase.ERROR)
+            return
         }
-        cancelRequested = false; _state.value = QuickRecordState(QuickRecordPhase.PREPARING)
+        cancelRequested = false
+        _state.value = QuickRecordState(QuickRecordPhase.PREPARING)
         scope.launch {
             mutex.withLock {
                 try {
-                    val folder = File(context.filesDir, "chat-quick").apply { mkdirs() }; file =
-                        File(folder, UUID.randomUUID().toString() + ".m4a"); amplitude.clear()
+                    val folder = File(context.filesDir, "chat-quick").apply { mkdirs() }
+                    file =
+                        File(folder, UUID.randomUUID().toString() + ".m4a")
+                        amplitude.clear()
                     @Suppress("DEPRECATION") val engine =
                         if (Build.VERSION.SDK_INT >= 31) MediaRecorder(context) else MediaRecorder()
                     recorder = engine
-                    engine.setAudioSource(MediaRecorder.AudioSource.MIC); engine.setOutputFormat(
+                    engine.setAudioSource(MediaRecorder.AudioSource.MIC)
+                    engine.setOutputFormat(
                         MediaRecorder.OutputFormat.MPEG_4
                     )
-                    engine.setAudioEncoder(MediaRecorder.AudioEncoder.AAC); engine.setAudioSamplingRate(
+                    engine.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                    engine.setAudioSamplingRate(
                         44100
-                    ); engine.setAudioEncodingBitRate(128000)
-                    engine.setOutputFile(file!!.absolutePath); engine.setOnErrorListener { _, _, _ ->
+                    )
+                    engine.setAudioEncodingBitRate(128000)
+                    engine.setOutputFile(file!!.absolutePath)
+                    engine.setOnErrorListener { _, _, _ ->
                         finish(
                             true
                         )
-                    }; engine.prepare()
-                    if (cancelRequested || closed) {
-                        cleanup(); if (!closed) _state.value = QuickRecordState(); return@withLock
                     }
-                    engine.start(); startAt = SystemClock.elapsedRealtime(); _state.value =
+                    engine.prepare()
+                    if (cancelRequested || closed) {
+                        cleanup()
+                        if (!closed) _state.value = QuickRecordState()
+                        return@withLock
+                    }
+                    engine.start()
+                    startAt = SystemClock.elapsedRealtime()
+                    _state.value =
                         QuickRecordState(QuickRecordPhase.RECORDING)
                     ticker = scope.launch {
                         while (isActive) {
@@ -111,7 +125,8 @@ class QuickChatRecorder(context: Context, private val result: (RecordedAudio) ->
                         }
                     }
                 } catch (_: Exception) {
-                    cleanup(); _state.value = QuickRecordState(QuickRecordPhase.ERROR)
+                    cleanup()
+                    _state.value = QuickRecordState(QuickRecordPhase.ERROR)
                 }
             }
         }
@@ -127,15 +142,19 @@ class QuickChatRecorder(context: Context, private val result: (RecordedAudio) ->
                     phase = QuickRecordPhase.STOPPING,
                     cancelled = cancelRequested
                 )
-                ticker?.cancel(); ticker = null
+                ticker?.cancel()
+                ticker = null
                 val output = file
                 try {
-                    engine.stop(); engine.release(); recorder = null
+                    engine.stop()
+                    engine.release()
+                    recorder = null
                     val cancelled = cancelRequested || closed
                     if (!cancelled && output != null && output.length() > 0) {
                         val metadata = MediaMetadataRetriever()
                         val duration = try {
-                            metadata.setDataSource(output.absolutePath); metadata.extractMetadata(
+                            metadata.setDataSource(output.absolutePath)
+                            metadata.extractMetadata(
                                 MediaMetadataRetriever.METADATA_KEY_DURATION
                             )?.toLongOrNull() ?: 0L
                         } finally {
@@ -165,20 +184,27 @@ class QuickChatRecorder(context: Context, private val result: (RecordedAudio) ->
                     }
                 } catch (_: Exception) { /* Nhả quá sớm có thể chưa có frame AAC; không phát result thành công. */
                 } finally {
-                    cleanup(); if (!closed) _state.value = QuickRecordState()
+                    cleanup()
+                    if (!closed) _state.value = QuickRecordState()
                 }
             }
         }
     }
 
     private suspend fun cleanup() {
-        ticker?.cancel(); ticker = null; runCatching { recorder?.release() }; recorder = null
-        file?.delete(); file = null
+        ticker?.cancel()
+        ticker = null
+        runCatching { recorder?.release() }
+        recorder = null
+        file?.delete()
+        file = null
         withContext(Dispatchers.Main) { audio.release(this@QuickChatRecorder) }
     }
 
     fun close() {
-        closed = true; cancelRequested = true
-        scope.launch { mutex.withLock { cleanup() }; scope.cancel() }
+        closed = true
+        cancelRequested = true
+        scope.launch { mutex.withLock { cleanup() }
+        scope.cancel() }
     }
 }

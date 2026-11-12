@@ -227,7 +227,8 @@ class ChatRepository(
             try {
                 database.withTransaction {
                     if (sessionProvider() != expected) throw StaleSession()
-                    block(); coroutineContext.ensureActive()
+                    block()
+                    coroutineContext.ensureActive()
                     if (sessionProvider() != expected) throw StaleSession()
                 }
             } catch (_: StaleSession) {
@@ -238,7 +239,8 @@ class ChatRepository(
     suspend fun following(expected: ChatSession): List<ChatMemberDto> {
         check(sessionProvider() == expected)
         val response =
-            api.following(SessionRequest(expected.generation)); check(
+            api.following(SessionRequest(expected.generation))
+            check(
             sessionProvider() == expected && response.success
         )
         return checkNotNull(response.data).filter { it.id.toString() != expected.ownerId }
@@ -296,7 +298,8 @@ class ChatRepository(
     ): MessageEntity? {
         var result: MessageEntity? = null
         guarded(expected) {
-            val dao = database.chatDao(); check(
+            val dao = database.chatDao()
+            check(
             dao.conversation(
                 expected.ownerId,
                 expected.source,
@@ -343,7 +346,8 @@ class ChatRepository(
 
     suspend fun failed(expected: ChatSession, localId: String) {
         guarded(expected) {
-            val dao = database.chatDao(); dao.findLocal(expected.ownerId, expected.source, localId)
+            val dao = database.chatDao()
+            dao.findLocal(expected.ownerId, expected.source, localId)
             ?.takeIf { it.status == "SENDING" }
             ?.let { dao.upsertMessage(it.copy(status = "FAILED")) }
         }
@@ -351,7 +355,8 @@ class ChatRepository(
 
     suspend fun read(expected: ChatSession, conversation: Long, through: Long) {
         guarded(expected) {
-            val dao = database.chatDao(); dao.markIncomingSeen(
+            val dao = database.chatDao()
+            dao.markIncomingSeen(
             expected.ownerId,
             expected.source,
             conversation,
@@ -378,11 +383,13 @@ class ChatRepository(
     suspend fun uploaded(expected: ChatSession, id: String, url: String): MessageEntity? {
         var result: MessageEntity? = null
         guarded(expected) {
-            val dao = database.chatDao();
+            val dao = database.chatDao()
             val previous = checkNotNull(dao.findLocal(expected.ownerId, expected.source, id))
             require(previous.type in setOf("image", "voice") && previous.serverId == null)
             val row =
-                previous.copy(mediaUrl = url, status = "SENDING"); dao.upsertMessage(row); result =
+                previous.copy(mediaUrl = url, status = "SENDING")
+                dao.upsertMessage(row)
+                result =
             row
         }
         return result.takeIf { sessionProvider() == expected }
@@ -390,7 +397,8 @@ class ChatRepository(
 
     suspend fun mute(expected: ChatSession, conversation: Long, muted: Boolean) {
         guarded(expected) {
-            val dao = database.chatDao(); dao.conversation(
+            val dao = database.chatDao()
+            dao.conversation(
             expected.ownerId,
             expected.source,
             conversation
@@ -407,7 +415,8 @@ class ChatRepository(
             .newestServerId(expected.ownerId, expected.source, conversation)
         var before: Long? = null
         while (true) {
-            coroutineContext.ensureActive(); check(sessionProvider() == expected)
+            coroutineContext.ensureActive()
+            check(sessionProvider() == expected)
             val response = api.messages(
                 conversation,
                 before,
@@ -418,7 +427,8 @@ class ChatRepository(
             val messages = response.data
             guarded(expected) {
                 messages.forEach { message ->
-                    require(message.conversationId == conversation); mergeMessage(
+                    require(message.conversationId == conversation)
+                    mergeMessage(
                     expected,
                     message,
                     null,
@@ -429,7 +439,8 @@ class ChatRepository(
             }
             if (messages.isEmpty() || response.meta?.hasMore != true || (stop != null && messages.any { it.id <= stop })) break
             val next = checkNotNull(response.meta.nextBefore)
-            check(next > 0 && (before == null || next < before)) { "CHAT_INVALID_CURSOR" }; before =
+            check(next > 0 && (before == null || next < before)) { "CHAT_INVALID_CURSOR" }
+            before =
                 next
         }
     }

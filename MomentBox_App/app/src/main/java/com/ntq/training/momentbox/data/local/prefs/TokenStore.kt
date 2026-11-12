@@ -103,7 +103,8 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
             snapshotListeners.add(listener)
             runCatching { listener(state) }
         }
-        return AutoCloseable { synchronized(snapshotListeners) { snapshotListeners.remove(listener); Unit } }
+        return AutoCloseable { synchronized(snapshotListeners) { snapshotListeners.remove(listener)
+        Unit } }
     }
 
     private fun publishSnapshot(next: TokenSnapshot) = synchronized(snapshotListeners) {

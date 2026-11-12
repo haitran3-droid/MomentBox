@@ -248,7 +248,8 @@ class LineChartView @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        animator?.cancel(); super.onDetachedFromWindow()
+        animator?.cancel()
+        super.onDetachedFromWindow()
     }
 
     private fun getMoodColor(mood: Int): Int {

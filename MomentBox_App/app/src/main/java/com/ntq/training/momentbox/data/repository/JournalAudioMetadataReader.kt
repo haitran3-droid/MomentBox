@@ -15,13 +15,20 @@ internal object JournalAudioMetadataReader {
         require(duration > 0) { "Unsupported or empty audio" }
         val peaks = mutableListOf<Int>()
         RandomAccessFile(path, "r").use { file ->
-            fun tag(): String { val bytes = ByteArray(4); file.readFully(bytes); return String(bytes, Charsets.US_ASCII) }
+            fun tag(): String {
+                val bytes = ByteArray(4)
+                file.readFully(bytes)
+                return String(bytes, Charsets.US_ASCII)
+            }
             fun intLE() = Integer.reverseBytes(file.readInt()).toLong() and 0xffffffffL
             if (file.length() < 12 || tag() != "RIFF") return@use
-            intLE(); if (tag() != "WAVE") return@use
+            intLE()
+            if (tag() != "WAVE") return@use
             var pcm16 = false
             while (file.filePointer + 8 <= file.length()) {
-                val id = tag(); val size = intLE(); val start = file.filePointer
+                val id = tag()
+                val size = intLE()
+                val start = file.filePointer
                 if (start + size > file.length()) break
                 if (id == "fmt " && size >= 16) {
                     val format = JavaShort.reverseBytes(file.readShort()).toInt()
@@ -36,7 +43,10 @@ internal object JournalAudioMetadataReader {
                         val end = samples * (bucket + 1) / 40
                         var sample = samples * bucket / 40
                         file.seek(start + sample * 2)
-                        while (sample < end) { max = maxOf(max, abs(JavaShort.reverseBytes(file.readShort()).toInt())); sample++ }
+                        while (sample < end) {
+                            max = maxOf(max, abs(JavaShort.reverseBytes(file.readShort()).toInt()))
+                            sample++
+                        }
                         peaks += (max * 100 / 32768).coerceIn(0, 100)
                     }
                     break

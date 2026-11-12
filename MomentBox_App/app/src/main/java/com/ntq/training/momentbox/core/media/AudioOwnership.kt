@@ -34,7 +34,8 @@ class AudioOwnership {
     fun isOwner(owner: Any): Boolean = this.owner == owner
     fun release(owner: Any) {
         if (isOwner(owner)) {
-            this.owner = null; callback = null
+            this.owner = null
+            callback = null
         }
     }
 
@@ -58,6 +59,7 @@ class VideoPlaybackIntents {
     fun canAutoplay(postId: Long): Boolean = postId !in paused
     fun pausedPostIds(): LongArray = paused.toLongArray()
     fun restorePausedPostIds(ids: LongArray) {
-        paused.clear(); paused.addAll(ids.toList())
+        paused.clear()
+        paused.addAll(ids.toList())
     }
 }

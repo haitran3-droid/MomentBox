@@ -15,7 +15,7 @@ data class PlayerLibraryState(
 )
 
 class PlayerViewModel(private val repository: PlayerLibraryRepository) : ViewModel() {
-    private val mutable = MutableStateFlow(PlayerLibraryState());
+    private val mutable = MutableStateFlow(PlayerLibraryState())
     val state = mutable.asStateFlow()
     private var loading: Job? = null
     private var preferredTrackId: String? = null
@@ -25,20 +25,25 @@ class PlayerViewModel(private val repository: PlayerLibraryRepository) : ViewMod
     }
 
     fun reload(preferred: String? = preferredTrackId) {
-        preferredTrackId = preferred; loading?.cancel(); loading = viewModelScope.launch {
-            mutable.value = mutable.value.copy(loading = true); try {
-            val library = repository.load(preferred); mutable.value =
+        preferredTrackId = preferred
+        loading?.cancel()
+        loading = viewModelScope.launch {
+            mutable.value = mutable.value.copy(loading = true)
+            try {
+                val library = repository.load(preferred)
+                mutable.value =
                 PlayerLibraryState(false, library, library.remoteError)
-        } catch (c: CancellationException) {
-            throw c
-        } catch (_: Exception) {
-            mutable.value = PlayerLibraryState(false, null, true)
-        }
+            } catch (c: CancellationException) {
+                throw c
+            } catch (_: Exception) {
+                mutable.value = PlayerLibraryState(false, null, true)
+            }
         }
     }
 
     suspend fun favorite(track: Track, value: Boolean) {
-        repository.favorite(track.ownerScope, track.id, value); mutable.value = mutable.value.let {
+        repository.favorite(track.ownerScope, track.id, value)
+        mutable.value = mutable.value.let {
             it.copy(library = it.library?.let { library ->
                 library.copy(tracks = library.tracks.map {
                     if (it.id == track.id) it.copy(favorite = value) else it

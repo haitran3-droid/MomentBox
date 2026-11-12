@@ -223,7 +223,8 @@ class CreateActivity : AppCompatActivity() {
                 setResult(
                     RESULT_OK,
                     Intent().putExtra("media", Gson().toJson(model.items.value))
-                ); finish()
+                )
+                finish()
             } else nextPhoto()
         }
         supportFragmentManager.setFragmentResultListener("create_cropped", this) { _, result ->

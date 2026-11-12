@@ -84,8 +84,11 @@ class JournalViewModel(
     val selectedCalendarDate = _selectedCalendarDate.asStateFlow()
     val filterStateFlow = journalRepository.observeFilter().onEach { filter ->
         if (filter != previousFilter) {
-            previousFilter = filter; canLoadMore = true; _pageCount.value = 1
-            targetDateJob?.cancel(); _scrollTarget.value = null
+            previousFilter = filter
+            canLoadMore = true
+            _pageCount.value = 1
+            targetDateJob?.cancel()
+            _scrollTarget.value = null
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, JournalFilterState())
 
@@ -132,7 +135,8 @@ class JournalViewModel(
         var anchor = dates.maxOrNull()
         var count = 0
         while (anchor != null && anchor in dates) {
-            count++; anchor = anchor.minusDays(1)
+            count++
+            anchor = anchor.minusDays(1)
         }
         count
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
@@ -161,7 +165,8 @@ class JournalViewModel(
     }
 
     fun onCalendarDateSelected(date: LocalDate) {
-        _selectedCalendarDate.value = date; savedState["selected_date"] = date.toString()
+        _selectedCalendarDate.value = date
+        savedState["selected_date"] = date.toString()
     }
 
     fun togglePin(id: Long) {
@@ -200,7 +205,8 @@ class JournalViewModel(
                         .toLocalDate() == date
                 }
                 if (target != null) {
-                    _scrollTarget.value = target.data.entry.id; break
+                    _scrollTarget.value = target.data.entry.id
+                    break
                 }
                 if (!canLoadMore) break
                 loadNextPage()

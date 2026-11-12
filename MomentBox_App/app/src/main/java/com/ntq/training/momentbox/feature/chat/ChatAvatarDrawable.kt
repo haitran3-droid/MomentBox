@@ -15,11 +15,15 @@ class ChatAvatarDrawable(name: String) : Drawable() {
             .uppercase(Locale.getDefault())
 
     override fun draw(canvas: Canvas) {
-        val size = minOf(bounds.width(), bounds.height()).toFloat(); paint.color =
+        val size = minOf(bounds.width(), bounds.height()).toFloat()
+        paint.color =
             0xFFECE9FF.toInt()
         canvas.drawCircle(bounds.exactCenterX(), bounds.exactCenterY(), size / 2, paint)
-        paint.color = 0xFF5B4BDB.toInt(); paint.textSize = size * .34f; paint.textAlign =
-            Paint.Align.CENTER; paint.typeface =
+        paint.color = 0xFF5B4BDB.toInt()
+        paint.textSize = size * .34f
+        paint.textAlign =
+            Paint.Align.CENTER
+            paint.typeface =
             Typeface.create("sans-serif-medium", Typeface.NORMAL)
         canvas.drawText(
             letters,

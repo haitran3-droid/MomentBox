@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.crop
 
+import kotlin.math.abs
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.Drawable
@@ -31,7 +32,7 @@ class CropFragment : Fragment(R.layout.fragment_crop) {
     private var selectedRatio = 0
 
     private fun degreesText(value: Int) =
-        if (value < 0) "−${kotlin.math.abs(value)}°" else "$value°"
+        if (value < 0) "−${abs(value)}°" else "$value°"
 
     private fun ratioIcon(
         context: Context,

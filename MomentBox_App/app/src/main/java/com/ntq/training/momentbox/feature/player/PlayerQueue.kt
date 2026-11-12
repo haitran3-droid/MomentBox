@@ -5,17 +5,21 @@ import java.util.ArrayDeque
 import kotlin.random.Random
 
 class PlayerQueue {
-    var tracks: List<Track> = emptyList(); private set
-    var index: Int = -1; private set
+    var tracks: List<Track> = emptyList()
+    private set
+    var index: Int = -1
+    private set
     var repeatMode: Int = 0
         set(value) {
-            require(value in 0..2); field = value
+            require(value in 0..2)
+            field = value
         }
     var shuffle: Boolean = false
     private val history = ArrayDeque<String>()
     fun replace(values: List<Track>, start: Int) {
         PlayerProtocol.validate(values, start)
-        tracks = values.map { it.copy(waveform = it.waveform.toList()) }; index =
+        tracks = values.map { it.copy(waveform = it.waveform.toList()) }
+        index =
             if (values.isEmpty()) -1 else start
         history.clear()
     }
@@ -28,7 +32,8 @@ class PlayerQueue {
         if (automatic && repeatMode == 2) return index
         if (automatic && !shuffle && index == tracks.lastIndex && repeatMode == 0) return null
         if (tracks.size == 1) return if (!automatic || repeatMode != 0) index else null
-        history.addLast(tracks[index].id); if (history.size > 100) history.removeFirst()
+        history.addLast(tracks[index].id)
+        if (history.size > 100) history.removeFirst()
         index =
             if (shuffle) (tracks.indices.filter { it != index })[choose(tracks.size - 1).coerceIn(
                 0,

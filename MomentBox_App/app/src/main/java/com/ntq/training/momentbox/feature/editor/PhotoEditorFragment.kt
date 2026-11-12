@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.editor
 
+import kotlin.math.ceil
 import android.Manifest
 import android.content.ClipData
 import android.content.pm.PackageManager
@@ -134,7 +135,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                     minimumWidth =
                         maxOf(
                             (64 * dp).toInt(),
-                            kotlin.math.ceil(paint.measureText(text.toString())).toInt() +
+                            ceil(paint.measureText(text.toString())).toInt() +
                                 (12 * dp).toInt(),
                         )
                     // Trong HorizontalScrollView cần chiều rộng nội dung thật, weight có thể làm

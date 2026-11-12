@@ -33,8 +33,8 @@ sealed interface ChatRow {
 
     data class Message(val value: MessageEntity, val owner: String, val grouped: Boolean) :
         ChatRow {
-        override val key = messageKey(value)
-    }
+            override val key = messageKey(value)
+        }
 
     data class Date(val day: LocalDate) : ChatRow {
         override val key = "date:$day"
@@ -59,7 +59,9 @@ class MessageAdapter(
         emptyMap()
     private var waveforms: Map<String, List<Float>> = emptyMap()
     fun playback(key: String?, value: VoicePlaybackState) {
-        val previous = voiceKey; voiceKey = key; playback = value
+        val previous = voiceKey
+        voiceKey = key
+        playback = value
         currentList.forEachIndexed { i, row ->
             if (row is ChatRow.Message && row.value.localId in setOf(
                     previous,
@@ -71,7 +73,8 @@ class MessageAdapter(
 
     fun uploads(values: Map<String, ChatMediaProgress>) {
         val affected =
-            (uploads.keys + values.keys).filter { uploads[it] != values[it] }.toSet(); uploads =
+            (uploads.keys + values.keys).filter { uploads[it] != values[it] }.toSet()
+            uploads =
             values
         currentList.forEachIndexed { i, row ->
             if (row is ChatRow.Message && row.value.localId in affected) notifyItemChanged(
@@ -82,7 +85,8 @@ class MessageAdapter(
     }
 
     fun waveform(key: String, values: List<Float>) {
-        waveforms = waveforms + (key to values); currentList.indexOfFirst { it.key == key }
+        waveforms = waveforms + (key to values)
+        currentList.indexOfFirst { it.key == key }
             .takeIf { it >= 0 }?.let { notifyItemChanged(it, "waveform") }
     }
 
@@ -101,7 +105,8 @@ class MessageAdapter(
         )
         val d = p.resources.displayMetrics.density
         val frame = FrameLayout(p.context).apply {
-            layoutParams = RecyclerView.LayoutParams(-1, -2); setPadding(
+            layoutParams = RecyclerView.LayoutParams(-1, -2)
+            setPadding(
             0,
             (4 * d).toInt(),
             0,
@@ -109,42 +114,51 @@ class MessageAdapter(
         )
         }
         val text = TextView(p.context).apply {
-            gravity = Gravity.CENTER; textSize = 11.5f; typeface =
+            gravity = Gravity.CENTER
+            textSize = 11.5f
+            typeface =
             ResourcesCompat.getFont(context, R.font.be_vietnam_pro_medium)
             setTextColor(
                 ContextCompat.getColor(
                     context,
                     R.color.text_tertiary
                 )
-            ); setPadding((10 * d).toInt(), (3 * d).toInt(), (10 * d).toInt(), (3 * d).toInt())
+            )
+            setPadding((10 * d).toInt(), (3 * d).toInt(), (10 * d).toInt(), (3 * d).toInt())
             background = GradientDrawable().apply {
                 setColor(
                     ContextCompat.getColor(
                         context,
                         R.color.surface_variant
                     )
-                ); cornerRadius = 10 * d
+                )
+                cornerRadius = 10 * d
             }
         }
         frame.addView(
             text,
             FrameLayout.LayoutParams(-2, -2, Gravity.CENTER)
-        ); return DateHolder(frame, text)
+        )
+        return DateHolder(frame, text)
     }
 
     override fun onBindViewHolder(h: RecyclerView.ViewHolder, p: Int) {
         val item = getItem(p)
         if (h is DateHolder && item is ChatRow.Date) {
-            val c = h.text.context; h.text.text = when (item.day) {
-                LocalDate.now() -> c.getString(R.string.m5_chat_today); LocalDate.now()
-                    .minusDays(1) -> c.getString(R.string.m5_chat_yesterday); else -> item.day.format(
+            val c = h.text.context
+            h.text.text = when (item.day) {
+                LocalDate.now() -> c.getString(R.string.m5_chat_today)
+                LocalDate.now()
+                    .minusDays(1) -> c.getString(R.string.m5_chat_yesterday)
+                    else -> item.day.format(
                     DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.getDefault())
                 )
-            }; return
+            }
+            return
         }
         if (h !is MessageHolder || item !is ChatRow.Message) return
-        val message = item.value;
-        val own = message.senderId.toString() == item.owner;
+        val message = item.value
+        val own = message.senderId.toString() == item.owner
         val c = h.b.root.context
         with(h.b) {
             row.gravity = if (own) Gravity.END else Gravity.START
@@ -153,17 +167,21 @@ class MessageAdapter(
                 ?: (c.resources.displayMetrics.widthPixels - if (c.resources.configuration.smallestScreenWidthDp >= 600) (280 * c.resources.displayMetrics.density).toInt() else 0)) * .78f).toInt()
             val clock = Instant.ofEpochMilli(message.createdAt).atZone(ZoneId.systemDefault())
                 .format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
-            body.bind(message.content, clock, message.status, own); body.isVisible =
+            body.bind(message.content, clock, message.status, own)
+            body.isVisible =
             message.type == "text"
-            time.isVisible = false; time.text = clock
+            time.isVisible = false
+            time.text = clock
             time.setTextColor(
                 if (own) 0xB3FFFFFF.toInt() else ContextCompat.getColor(
                     c,
                     R.color.text_tertiary
                 )
             )
-            imageFrame.isVisible = message.type == "image"; image.isVisible =
-            imageFrame.isVisible; voice.isVisible = message.type == "voice"
+            imageFrame.isVisible = message.type == "image"
+            image.isVisible =
+            imageFrame.isVisible
+            voice.isVisible = message.type == "voice"
             imageTime.text = clock
             val dp = c.resources.displayMetrics.density
             bubble.setPadding(
@@ -183,7 +201,8 @@ class MessageAdapter(
             } else Glide.with(image).clear(image)
             val playing = voiceKey == message.localId && playback.isPlaying
             voiceIcon.background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL; setColor(
+                shape = GradientDrawable.OVAL
+                setColor(
                 if (own) Color.WHITE else ContextCompat.getColor(
                     c,
                     R.color.primary
@@ -215,19 +234,21 @@ class MessageAdapter(
             )
             waveform.seek = { this@MessageAdapter.seek(message, it) }
             voiceError.isVisible =
-                voiceKey == message.localId && playback.errorMessage != null; voiceError.setOnClickListener {
+                voiceKey == message.localId && playback.errorMessage != null
+                voiceError.setOnClickListener {
             this@MessageAdapter.voice(
                 message
             )
         }
             val upload = uploads[message.localId]
-            uploadProgress.isVisible = upload?.uploading == true; uploadCancel.isVisible =
+            uploadProgress.isVisible = upload?.uploading == true
+            uploadCancel.isVisible =
             uploadProgress.isVisible
             uploadProgress.progress =
                 if (upload == null || upload.total == 0L) 0 else (upload.bytes * 100 / upload.total).toInt()
             uploadCancel.setOnClickListener { cancel(message.localId) }
-            val d = c.resources.displayMetrics.density;
-            val large = 18 * d;
+            val d = c.resources.displayMetrics.density
+            val large = 18 * d
             val small = 6 * d
             (bubble.background.mutate() as? GradientDrawable)?.cornerRadii =
                 if (own)
@@ -251,8 +272,10 @@ class MessageAdapter(
                     small,
                     small
                 )
-            failedIcon.isVisible = message.status == "FAILED"; failure.isVisible =
-            failedIcon.isVisible; failure.setOnClickListener { retry(message.localId) }
+            failedIcon.isVisible = message.status == "FAILED"
+            failure.isVisible =
+            failedIcon.isVisible
+            failure.setOnClickListener { retry(message.localId) }
             bubble.alpha = if (message.status == "FAILED") .75f else 1f
         }
     }
@@ -260,7 +283,7 @@ class MessageAdapter(
     companion object {
         fun rows(messages: List<MessageEntity>, owner: String): List<ChatRow> = buildList {
             messages.forEachIndexed { i, m ->
-                val older = messages.getOrNull(i + 1);
+                val older = messages.getOrNull(i + 1)
                 val day =
                     Instant.ofEpochMilli(m.createdAt).atZone(ZoneId.systemDefault()).toLocalDate()
                 val olderDay = older?.let {

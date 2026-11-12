@@ -1,5 +1,15 @@
 package com.ntq.training.momentbox.feature.tabs
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import android.widget.TextView
+import androidx.core.app.NotificationManagerCompat
+import com.google.android.material.R as MaterialR
+import com.google.android.material.snackbar.Snackbar
+import com.ntq.training.momentbox.core.notification.NotificationPermissionDialog
+import com.ntq.training.momentbox.data.repository.ChatSession
+import kotlinx.coroutines.Job
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.app.Activity
 import android.content.res.ColorStateList
@@ -86,7 +96,8 @@ class ChatFragment : Fragment() {
             false
         )
         b.onlineUsers.adapter = online
-        b.search.setText(model.search.value); b.search.doAfterTextChanged {
+        b.search.setText(model.search.value)
+        b.search.doAfterTextChanged {
             model.search(
                 it?.toString().orEmpty()
             )
@@ -140,8 +151,11 @@ class ChatFragment : Fragment() {
                                 state.typing[row.conversation.id].orEmpty().isNotEmpty(),
                                 state.owner
                             )
-                        }); online.submitList(state.users.filter { it.online }); b.onlineUsers.isVisible =
-                        state.users.any { it.online }; b.empty.isVisible = state.rows.isEmpty()
+                        })
+                        online.submitList(state.users.filter { it.online })
+                        b.onlineUsers.isVisible =
+                        state.users.any { it.online }
+                        b.empty.isVisible = state.rows.isEmpty()
                     }
                 }
                 launch {
@@ -160,7 +174,8 @@ class ChatFragment : Fragment() {
                         )
                         b.connection.background = GradientDrawable().apply {
                             cornerRadius =
-                                12 * resources.displayMetrics.density; setColor(if (connected) 0xFFDCFCE7.toInt() else 0xFFFFF4E0.toInt())
+                                12 * resources.displayMetrics.density
+                                setColor(if (connected) 0xFFDCFCE7.toInt() else 0xFFFFF4E0.toInt())
                         }
                     }
                 }
@@ -178,61 +193,64 @@ class ChatFragment : Fragment() {
         model.refresh()
     }
 
-    private var notificationNotice: com.google.android.material.snackbar.Snackbar? = null
-    private var permissionJob: kotlinx.coroutines.Job? = null
+    private var notificationNotice: Snackbar? = null
+    private var permissionJob: Job? = null
     private val notifications =
-        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted -> if (!granted) notificationDisabled() }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (!granted) notificationDisabled() }
 
     private fun notificationDisabled() {
         val root = view ?: return
         if (notificationNotice?.isShownOrQueued == true) return
         // Đây là đường cấp lại quyền duy nhất trước S22: giữ action khi còn ở Chat,
         // không để timer của Snackbar làm mất lối vào Settings lúc người dùng đang đọc.
-        notificationNotice = com.google.android.material.snackbar.Snackbar.make(
+        notificationNotice = Snackbar.make(
             root,
             R.string.m5_notification_disabled,
-            com.google.android.material.snackbar.Snackbar.LENGTH_INDEFINITE
+            Snackbar.LENGTH_INDEFINITE
         )
             .setAnchorView(requireActivity().findViewById<View>(R.id.bottomNav))
             .setAction(R.string.m5_notification_settings) {
                 // API24–25 chưa có trang notification riêng; trang chi tiết app vẫn cho cấp lại quyền.
                 val target =
-                    if (android.os.Build.VERSION.SDK_INT >= 26) android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    if (Build.VERSION.SDK_INT >= 26) Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                         .putExtra(
-                            android.provider.Settings.EXTRA_APP_PACKAGE,
+                            Settings.EXTRA_APP_PACKAGE,
                             requireContext().packageName
                         )
-                    else android.content.Intent(
-                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        android.net.Uri.parse("package:" + requireContext().packageName)
+                    else Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + requireContext().packageName)
                     )
                 startActivity(target)
             }.also {
-                it.view.findViewById<android.widget.TextView>(com.google.android.material.R.id.snackbar_text).maxLines =
-                    4; it.show()
+                it.view.findViewById<TextView>(MaterialR.id.snackbar_text).maxLines =
+                    4
+                    it.show()
             }
     }
 
     private fun offerNotifications() {
         if (!isResumed || isHidden || arguments?.getBoolean("listOnly") == true || permissionJob?.isActive == true) return
-        if (androidx.core.app.NotificationManagerCompat.from(requireContext())
+        if (NotificationManagerCompat.from(requireContext())
                 .areNotificationsEnabled()
         ) {
-            notificationNotice?.dismiss(); notificationNotice = null; return
+            notificationNotice?.dismiss()
+            notificationNotice = null
+            return
         }
         permissionJob = viewLifecycleOwner.lifecycleScope.launch {
             val first = !app.settingsDataStore.notificationPrompted()
             if (!isResumed || isHidden || childFragmentManager.isStateSaved) return@launch
-            if (android.os.Build.VERSION.SDK_INT >= 33 && first) {
-                if (childFragmentManager.findFragmentByTag(com.ntq.training.momentbox.core.notification.NotificationPermissionDialog.TAG) == null) {
+            if (Build.VERSION.SDK_INT >= 33 && first) {
+                if (childFragmentManager.findFragmentByTag(NotificationPermissionDialog.TAG) == null) {
                     app.settingsDataStore.setNotificationPrompted(true)
-                    if (isResumed && !isHidden && !childFragmentManager.isStateSaved) com.ntq.training.momentbox.core.notification.NotificationPermissionDialog()
+                    if (isResumed && !isHidden && !childFragmentManager.isStateSaved) NotificationPermissionDialog()
                         .show(
                             childFragmentManager,
-                            com.ntq.training.momentbox.core.notification.NotificationPermissionDialog.TAG
+                            NotificationPermissionDialog.TAG
                         )
                 }
-            } else if (childFragmentManager.findFragmentByTag(com.ntq.training.momentbox.core.notification.NotificationPermissionDialog.TAG) == null) notificationDisabled()
+            } else if (childFragmentManager.findFragmentByTag(NotificationPermissionDialog.TAG) == null) notificationDisabled()
         }
     }
 
@@ -241,19 +259,21 @@ class ChatFragment : Fragment() {
     private var phoneDetailPending = false
     private val chatLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == android.app.Activity.RESULT_OK) {
-                val data = result.data;
+            if (result.resultCode == Activity.RESULT_OK) {
+                val data = result.data
                 val session = app.chatRuntime.session.value
                 if (session != null && data?.getStringExtra("owner") == session.ownerId && data.getStringExtra(
                         "source"
                     ) == session.source && data.getLongExtra("generation", -1) == session.generation
                 ) {
-                    val id = data.getLongExtra("conversationId", -1); if (id > 0) {
+                    val id = data.getLongExtra("conversationId", -1)
+                    if (id > 0) {
                         model.select(id)
                         (childFragmentManager.findFragmentByTag("tablet-room") as? ChatRoomFragment)?.let {
                             it.select(
                                 id
-                            ); it.restoreDraft(data.getStringExtra("draft").orEmpty())
+                            )
+                            it.restoreDraft(data.getStringExtra("draft").orEmpty())
                         }
                     }
                 }
@@ -262,7 +282,7 @@ class ChatFragment : Fragment() {
 
     private fun open(
         id: Long,
-        expected: com.ntq.training.momentbox.data.repository.ChatSession? = app.chatRuntime.session.value
+        expected: ChatSession? = app.chatRuntime.session.value
     ) {
         if (expected == null || app.chatRuntime.session.value != expected || id <= 0) return
         model.select(id)
@@ -282,7 +302,8 @@ class ChatFragment : Fragment() {
         if (childFragmentManager.isStateSaved || binding == null) return
         val previous = childFragmentManager.findFragmentByTag("tablet-room") as? ChatRoomFragment
         if (previous != null) {
-            previous.select(id); childFragmentManager.beginTransaction().show(previous)
+            previous.select(id)
+            childFragmentManager.beginTransaction().show(previous)
                 .setMaxLifecycle(previous, Lifecycle.State.RESUMED).commit()
         } else childFragmentManager.beginTransaction()
             .replace(binding!!.chatDetail.id, ChatRoomFragment.newInstance(id), "tablet-room")
@@ -290,7 +311,8 @@ class ChatFragment : Fragment() {
     }
 
     fun closeDetail() {
-        model.clearSelection(); detailBack?.isEnabled = false
+        model.clearSelection()
+        detailBack?.isEnabled = false
         (childFragmentManager.findFragmentByTag("tablet-room") as? ChatRoomFragment)?.let {
             childFragmentManager.beginTransaction().hide(it)
                 .setMaxLifecycle(it, Lifecycle.State.STARTED).commit()
@@ -308,33 +330,46 @@ class ChatFragment : Fragment() {
     }
 
     override fun onResume() {
-        super.onResume(); maybePhoneDetail(); view?.post { offerNotifications() }
+        super.onResume()
+        maybePhoneDetail()
+        view?.post { offerNotifications() }
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
         if (hidden) {
-            notificationNotice?.dismiss(); notificationNotice = null
+            notificationNotice?.dismiss()
+            notificationNotice = null
         }
         detailBack?.isEnabled =
             !hidden && wide && model.selected.value > 0 && arguments?.getBoolean("listOnly") != true
         if (!hidden) {
-            maybePhoneDetail(); view?.post { offerNotifications() }
+            maybePhoneDetail()
+            view?.post { offerNotifications() }
         }
     }
 
     override fun onSaveInstanceState(out: Bundle) {
-        super.onSaveInstanceState(out); out.putBoolean(
+        super.onSaveInstanceState(out)
+        out.putBoolean(
             "hadDetail",
             wide && model.selected.value > 0 && arguments?.getBoolean("listOnly") != true
         )
     }
 
     override fun onDestroyView() {
-        notificationNotice?.dismiss(); notificationNotice =
-            null; permissionJob?.cancel(); permissionJob =
-            null; binding?.listPanel?.conversations?.adapter =
-            null; binding?.listPanel?.onlineUsers?.adapter = null; detailBack = null; binding =
-            null; super.onDestroyView()
+        notificationNotice?.dismiss()
+        notificationNotice =
+            null
+            permissionJob?.cancel()
+            permissionJob =
+            null
+            binding?.listPanel?.conversations?.adapter =
+            null
+            binding?.listPanel?.onlineUsers?.adapter = null
+            detailBack = null
+            binding =
+            null
+            super.onDestroyView()
     }
 }

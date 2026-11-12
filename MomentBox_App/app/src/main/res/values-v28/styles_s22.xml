@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <!-- API28+ chỉ định weight để framework không ép font semibold/medium về NORMAL400. API24–27 dùng file tĩnh qua AppCompat. -->
+    <style
+        name="S22Section"
+        parent="S22SectionBase">
+        <item name="android:textFontWeight">700</item>
+    </style>
+
+    <style
+        name="S22Semibold"
+        parent="S22SemiboldBase">
+        <item name="android:textFontWeight">600</item>
+    </style>
+
+    <style
+        name="S22Medium"
+        parent="S22MediumBase">
+        <item name="android:textFontWeight">500</item>
+    </style>
+
+    <style
+        name="S22Button"
+        parent="S22ButtonBase">
+        <item name="android:textFontWeight">600</item>
+    </style>
+</resources>

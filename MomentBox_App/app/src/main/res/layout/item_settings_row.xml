@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='utf-8'?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:minHeight="52dp"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingTop="4dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="4dp">
+
+    <FrameLayout
+        android:id="@+id/iconBox"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/bg_s22_icon">
+
+        <ImageView
+            android:id="@+id/icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            app:tint="@color/primary" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/title"
+            style="@style/S22Medium"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/be_vietnam_pro_medium"
+            android:includeFontPadding="false"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            app:fontFamily="@font/be_vietnam_pro_medium" />
+
+        <TextView
+            android:id="@+id/subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:fontFamily="@font/be_vietnam_pro"
+            android:includeFontPadding="false"
+            android:textColor="@color/text_tertiary"
+            android:textSize="12sp"
+            android:visibility="gone"
+            app:fontFamily="@font/be_vietnam_pro" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:fontFamily="@font/be_vietnam_pro"
+        android:includeFontPadding="false"
+        android:maxWidth="112dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        android:visibility="gone"
+        app:fontFamily="@font/be_vietnam_pro" />
+
+    <ImageView
+        android:id="@+id/chevron"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginStart="12dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_s22_chevron_right"
+        app:tint="@color/text_tertiary" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/toggle"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:contentDescription="@string/s22_reminder"
+        android:minWidth="48dp"
+        android:thumb="@drawable/bg_m4_switch_thumb"
+        android:visibility="gone"
+        app:splitTrack="false"
+        app:switchMinWidth="44dp"
+        app:thumbIcon="@null"
+        app:thumbTint="@null"
+        app:track="@drawable/bg_m4_switch_track"
+        app:trackDecoration="@null"
+        app:trackTint="@null" />
+</LinearLayout>

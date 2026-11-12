@@ -1,14 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-    Giao diện Hộp thoại Chọn Ngôn ngữ (Language Selection Dialog S22b):
-    - Background bg_dialog: Bo góc 26dp; ScrollView giữ nút hành động truy cập được khi màn hình thấp/font lớn.
-    - itemLanguageVi / itemLanguageEn / itemLanguageJa: 3 mục chọn với hiệu ứng viền đổi màu động.
-    - ivRadioVi / ivRadioEn / ivRadioJa: Radio indicator hiển thị chấm tròn khi được chọn.
-    - btnCancelLanguage: Nút "Hủy" đóng hộp thoại mà không lưu.
-    - btnApplyLanguage: Nút "Áp dụng" kích hoạt đổi ngôn ngữ toàn ứng dụng.
--->
+<?xml version='1.0' encoding='utf-8'?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/bg_dialog"
@@ -22,7 +14,6 @@
         android:paddingTop="22dp"
         android:paddingEnd="20dp"
         android:paddingBottom="14dp">
-
         <!-- Header: Icon & Title -->
         <LinearLayout
             android:layout_width="wrap_content"
@@ -32,7 +23,6 @@
             android:clipToPadding="false"
             android:gravity="center_horizontal"
             android:orientation="vertical">
-
             <!-- Icon container 44x44dp, radius 14dp, bg primary_container -->
             <FrameLayout
                 android:layout_width="44dp"
@@ -54,18 +44,17 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:fontFamily="@font/be_vietnam_pro_bold"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp"
-                android:paddingTop="2dp"
-                android:paddingBottom="2dp"
                 android:includeFontPadding="false"
+                android:paddingStart="6dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="6dp"
+                android:paddingBottom="2dp"
                 android:text="@string/language_dialog_title"
                 android:textColor="@color/text_primary"
                 android:textSize="19sp"
                 app:fontFamily="@font/be_vietnam_pro_bold"
                 app:lineHeight="24.7sp" />
         </LinearLayout>
-
         <!-- Language Options List -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -74,7 +63,6 @@
             android:clipChildren="false"
             android:clipToPadding="false"
             android:orientation="vertical">
-
             <!-- Vietnamese Item -->
             <LinearLayout
                 android:id="@+id/itemLanguageVi"
@@ -119,7 +107,6 @@
                     android:contentDescription="@null"
                     android:src="@drawable/bg_radio_selected" />
             </LinearLayout>
-
             <!-- English Item -->
             <LinearLayout
                 android:id="@+id/itemLanguageEn"
@@ -165,7 +152,6 @@
                     android:contentDescription="@null"
                     android:src="@drawable/bg_radio_unselected" />
             </LinearLayout>
-
             <!-- Japanese Item -->
             <LinearLayout
                 android:id="@+id/itemLanguageJa"
@@ -212,7 +198,6 @@
                     android:src="@drawable/bg_radio_unselected" />
             </LinearLayout>
         </LinearLayout>
-
         <!-- Information Note -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -245,7 +230,6 @@
                 app:fontFamily="@font/be_vietnam_pro"
                 app:lineHeight="18.125sp" />
         </LinearLayout>
-
         <!-- Action Buttons: Cancel / Apply -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -255,7 +239,6 @@
             android:clipToPadding="false"
             android:gravity="end"
             android:orientation="horizontal">
-
             <!-- Cancel Button -->
             <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/btnCancelLanguage"
@@ -272,7 +255,6 @@
                 android:textSize="13sp"
                 app:fontFamily="@font/be_vietnam_pro_semibold"
                 app:lineHeight="16.9sp" />
-
             <!-- Apply Button -->
             <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/btnApplyLanguage"
@@ -286,11 +268,10 @@
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp"
                 android:text="@string/apply"
-                android:textColor="@color/white"
+                android:textColor="@color/on_primary"
                 android:textSize="13sp"
                 app:fontFamily="@font/be_vietnam_pro_semibold"
                 app:lineHeight="16.9sp" />
         </LinearLayout>
-
     </LinearLayout>
 </ScrollView>

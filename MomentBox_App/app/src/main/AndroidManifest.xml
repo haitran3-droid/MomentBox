@@ -25,6 +25,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- S20: quyền đặc biệt do người dùng cấp; thiếu quyền vẫn dùng lịch inexact.
+         Không dùng USE_EXACT_ALARM tự cấp hoặc hạ target để né Settings. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- Quyền truy cập mạng internet để gọi REST API (DummyJSON / MB Server) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Quyền kiểm tra trạng thái kết nối mạng (Wi-Fi, 4G/5G, có kết nối internet hay không) -->
@@ -42,7 +47,35 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MomentBox">
+        <!-- SystemUI dùng PendingIntent explicit; receiver không nhận broadcast từ app khác. -->
+        <receiver
+            android:name=".core.notification.ChatActionReceiver"
+            android:exported="false" />
 
+        <activity
+            android:name=".feature.settings.SettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".feature.settings.PermissionsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".feature.profile.ProfileActivity"
+            android:exported="false" />
+        <activity
+            android:name=".feature.profile.ProfileLinkActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="user"
+                    android:scheme="momentbox" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".feature.chat.ChatImageActivity"
             android:exported="false" />
@@ -158,6 +191,38 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/create_media_paths" />
         </provider>
+
+        <service
+            android:name=".feature.reminder.ReminderRingingService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <receiver
+            android:name=".feature.reminder.ReminderAlarmReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".feature.reminder.ReminderActionReceiver"
+            android:exported="false" />
+        <!-- Task riêng cho màn nhắc; không export và không giữ card trong Recents. -->
+        <activity
+            android:name=".feature.reminder.ReminderActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:taskAffinity="${applicationId}.reminder"
+            android:theme="@style/Theme.MomentBox.Reminder" />
+        <!-- Action hệ thống được OS bảo vệ. Không thêm custom/unprotected action vào receiver exported. -->
+        <receiver
+            android:name=".feature.reminder.ReminderRescheduleReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

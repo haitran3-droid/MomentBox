@@ -2,11 +2,13 @@ package com.ntq.training.momentbox.data.local.prefs
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.ntq.training.momentbox.core.network.AuthInterceptor
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -15,6 +17,13 @@ import kotlinx.coroutines.sync.withLock
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "momentbox_settings")
 
+/**
+ * [TokenSnapshot] - Ảnh chụp nhanh (Snapshot) bất biến chứa toàn bộ trạng thái phiên tại một thời điểm:
+ * @property generation Số thế hệ phiên (tăng mỗi khi đăng nhập mới hoặc đăng xuất)
+ * @property accessToken Token truy cập ngắn hạn (gửi kèm header Authorization)
+ * @property refreshToken Token làm mới dài hạn (dùng để xin cấp lại accessToken khi bị 401)
+ * @property rememberMe Cờ ghi nhớ đăng nhập (quyết định token có được lưu xuống đĩa hay không)
+ */
 data class TokenSnapshot(
     val generation: Long,
     val accessToken: String?,
@@ -22,17 +31,26 @@ data class TokenSnapshot(
     val rememberMe: Boolean
 )
 
+/** Dữ liệu token thực sự được lưu trữ bền vững (Persisted) xuống đĩa */
 data class PersistedTokens(
     val accessToken: String?,
     val refreshToken: String?,
-    val rememberMe: Boolean
+    val rememberMe: Boolean,
+    val generation: Long = 0
 )
 
+/**
+ * Giao diện trừu tượng hóa ranh giới lưu đĩa (Disk Boundary).
+ * Cho phép Unit Test thay thế bằng bộ nhớ giả lập mà không phụ thuộc vào Android Context hay DataStore thật.
+ */
 interface TokenPersistence {
     suspend fun read(): PersistedTokens
     suspend fun write(tokens: PersistedTokens)
 }
 
+/**
+ * Giao diện quản lý lưu trữ Token cho toàn bộ ứng dụng.
+ */
 interface TokenStorage {
     /** Quan sát snapshot mới; callback không được chặn hoặc gọi ngược thao tác lấy mutex token. */
     fun addSnapshotListener(listener: (TokenSnapshot) -> Unit): AutoCloseable = AutoCloseable { }
@@ -83,6 +101,25 @@ interface TokenStorage {
     }
 }
 
+/**
+ * [TokenStore] - Triển khai chính của [TokenStorage] kết hợp Bộ nhớ đệm RAM và Lưu đĩa Jetpack DataStore.
+ *
+ * **Các cơ chế kỹ thuật cốt lõi (Intern cần hiểu sâu):**
+ * 1. **RAM Cache vs Disk Persistence:**
+ *    - `@Volatile private var state`: Lưu snapshot ngay trong RAM để [AuthInterceptor]
+ *      đọc token đồng bộ cực nhanh (Microsecond) mà không phải chờ I/O đĩa bất đồng bộ ở mỗi request.
+ *    - Khi khởi động app, dữ liệu được tải từ DataStore lên RAM một lần duy nhất qua [loadLocked].
+ * 2. **Cơ chế "Ghi nhớ đăng nhập" (Remember Me):**
+ *    - Nếu `rememberMe == true`: Cặp token được ghi xuống Jetpack DataStore trên đĩa. Khi tắt app hoặc
+ *      bị hệ điều hành kill process (Process Death), mở lại app vẫn giữ được phiên đăng nhập.
+ *    - Nếu `rememberMe == false`: Token CHỈ nằm trong RAM. Trên đĩa ghi `null`. Khi process bị tạo lại,
+ *      app sẽ bắt người dùng đăng nhập lại từ đầu.
+ * 3. **Phạm vi Mutex và tính toàn vẹn (Atomic Operations):**
+ *    - Toàn bộ thao tác kiểm tra generation, ghi đĩa DataStore và cập nhật RAM đều nằm trọn trong CÙNG MỘT
+ *      vùng khóa [mutex.withLock].
+ *    - Nếu tách kiểm tra generation ở một bước và ghi đĩa ở bước sau mà không giữ Mutex, Thread khác có thể
+ *      nhảy vào giữa và làm sai lệch trạng thái phiên (Race Condition).
+ */
 class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
     constructor(context: Context) : this(DataStoreTokenPersistence(context))
 
@@ -127,6 +164,10 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
         val KEY_ACCESS_TOKEN = stringPreferencesKey("access_token")
         val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
         val KEY_REMEMBER_ME = booleanPreferencesKey("remember_me")
+
+        // S19: PendingIntent có thể sống lâu hơn main process. Epoch phải bền vững;
+        // thiếu key ở bản cũ được đọc là0, không xóa token hoặc buộc reset DataStore.
+        val KEY_SESSION_GENERATION = longPreferencesKey("session_generation")
     }
 
     /** Tải dữ liệu từ đĩa lên RAM nếu chưa tải (chỉ gọi bên trong khối có khóa mutex) */
@@ -135,6 +176,7 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
             val disk = persistence.read()
             publishSnapshot(
                 state.copy(
+                    generation = maxOf(state.generation, disk.generation),
                     accessToken = disk.accessToken,
                     refreshToken = disk.refreshToken,
                     rememberMe = disk.rememberMe
@@ -153,7 +195,8 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
             PersistedTokens(
                 next.accessToken.takeIf { next.rememberMe },
                 next.refreshToken.takeIf { next.rememberMe },
-                next.rememberMe
+                next.rememberMe,
+                next.generation
             )
         )
         publishSnapshot(next)
@@ -170,6 +213,7 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
         refreshToken: String,
         rememberMe: Boolean
     ) = mutex.withLock {
+        loadLocked()
         // Tăng generation để đánh dấu phiên đăng nhập hoàn toàn mới
         writeLocked(TokenSnapshot(state.generation + 1, accessToken, refreshToken, rememberMe))
     }
@@ -180,6 +224,7 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
         refreshToken: String,
         rememberMe: Boolean
     ): Boolean = mutex.withLock {
+        loadLocked()
         if (state.generation != expectedGeneration) return@withLock false
         writeLocked(TokenSnapshot(state.generation + 1, accessToken, refreshToken, rememberMe))
         true
@@ -210,6 +255,7 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
      * Đăng xuất / Xóa phiên: Tăng generation và xóa sạch token trong cả RAM và Đĩa
      */
     override suspend fun clear() = mutex.withLock {
+        loadLocked()
         writeLocked(
             state.copy(
                 generation = state.generation + 1,
@@ -221,6 +267,7 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
 
     override suspend fun clearIfGenerationMatches(expectedGeneration: Long): Boolean =
         mutex.withLock {
+            loadLocked()
             if (state.generation != expectedGeneration) return@withLock false
             writeLocked(
                 state.copy(
@@ -235,6 +282,7 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
     override fun getSessionGeneration(): Long = state.generation
     override fun incrementSessionGeneration(): Long = runBlocking {
         mutex.withLock {
+            loadLocked()
             publishSnapshot(state.copy(generation = state.generation + 1))
             state.generation
         }
@@ -255,13 +303,15 @@ private class DataStoreTokenPersistence(private val context: Context) : TokenPer
         return PersistedTokens(
             prefs[TokenStore.KEY_ACCESS_TOKEN].takeIf { rememberMe },
             prefs[TokenStore.KEY_REFRESH_TOKEN].takeIf { rememberMe },
-            rememberMe
+            rememberMe,
+            prefs[TokenStore.KEY_SESSION_GENERATION] ?: 0L
         )
     }
 
     override suspend fun write(tokens: PersistedTokens) {
         context.dataStore.edit { prefs ->
             prefs[TokenStore.KEY_REMEMBER_ME] = tokens.rememberMe
+            prefs[TokenStore.KEY_SESSION_GENERATION] = tokens.generation
             if (tokens.accessToken != null) prefs[TokenStore.KEY_ACCESS_TOKEN] = tokens.accessToken
             else prefs.remove(TokenStore.KEY_ACCESS_TOKEN)
             if (tokens.refreshToken != null) prefs[TokenStore.KEY_REFRESH_TOKEN] =

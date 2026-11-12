@@ -1,6 +1,5 @@
 package com.ntq.training.momentbox.core.realtime
 
-import kotlin.math.sin
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -18,8 +17,11 @@ import com.ntq.training.momentbox.data.repository.ChatSession
 import com.ntq.training.momentbox.domain.model.User
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.sin
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.supervisorScope
@@ -55,7 +58,10 @@ class ChatRuntime(
     private var visiblePanel: String? = null
     private var readingRoom: Long? = null
     val visibleConversation: Long? get() = synchronized(gate) { visibleRoom.takeIf { foreground } }
+    private val _visibleConversation = MutableStateFlow<Long?>(null)
+    val visibleConversationFlow = _visibleConversation.asStateFlow()
     private val typingJobs = mutableMapOf<Pair<Long, Long>, Job>()
+    private val operations = ConcurrentHashMap.newKeySet<Job>()
 
     init {
         tokens.addSnapshotListener { value ->
@@ -211,11 +217,11 @@ class ChatRuntime(
                     if (p.optBoolean("isTyping")) typingJobs[key] = scope.launch {
                         delay(5000)
                         synchronized(gate) {
-                        if (_session.value == expected) {
-                            setTyping(room, user, false)
-                            typingJobs.remove(key)
+                            if (_session.value == expected) {
+                                setTyping(room, user, false)
+                                typingJobs.remove(key)
+                            }
                         }
-                    }
                     }
                 }
             }
@@ -244,6 +250,7 @@ class ChatRuntime(
                 visiblePanel = null
                 readingRoom = null
             }
+            _visibleConversation.value = visibleRoom.takeIf { foreground }
         }
     }
 
@@ -274,9 +281,10 @@ class ChatRuntime(
 
     fun send(room: Long, text: String, retry: String? = null) {
         val expected = _session.value ?: return
-        scope.launch {
+        launchSession(expected) {
             try {
-                val row = repository.prepare(expected, room, text, retry = retry) ?: return@launch
+                val row =
+                    repository.prepare(expected, room, text, retry = retry) ?: return@launchSession
                 if (row.type != "text" && row.mediaUrl == null) retryMedia?.invoke(expected, row)
                 else transmit(expected, row)
             } catch (cancelled: CancellationException) {
@@ -292,7 +300,7 @@ class ChatRuntime(
         expected: ChatSession,
         row: MessageEntity
     ) {
-        scope.launch {
+        launchSession(expected) {
             try {
                 transmit(expected, row)
             } catch (cancelled: CancellationException) {
@@ -310,7 +318,7 @@ class ChatRuntime(
         if (current() != expected) return
         val finished = AtomicBoolean(false)
         val callback: (JSONObject?) -> Unit = { response ->
-            if (finished.compareAndSet(false, true)) scope.launch {
+            if (finished.compareAndSet(false, true)) launchSession(expected) {
                 try {
                     val message = response?.optJSONObject("message")
                     if (response?.optBoolean("ok") == true && message != null) {
@@ -379,12 +387,35 @@ class ChatRuntime(
             if (users.isEmpty()) _typing.value - room else _typing.value + (room to users)
     }
 
+    private fun launchSession(expected: ChatSession, block: suspend CoroutineScope.() -> Unit) {
+        val task = scope.launch(start = CoroutineStart.LAZY) { if (current() == expected) block() }
+        synchronized(gate) {
+            if (_session.value != expected) {
+                task.cancel()
+                return
+            }
+            operations.add(task)
+            task.invokeOnCompletion { operations.remove(task) }
+            task.start()
+        }
+    }
+
+    suspend fun cancelForLogout() {
+        val work = synchronized(gate) { invalidateLocked()
+        operations.toList() }
+        work.joinAll()
+    }
+
     private fun invalidateLocked() {
+        operations.forEach { it.cancel() }
+        backgroundTimer?.cancel()
+        backgroundTimer = null
+        _visibleConversation.value = null
         _session.value = null
         visibleRoom = null
-        visiblePanel = null
-        readingRoom =
+        visiblePanel =
             null
+            readingRoom = null
             workers?.cancel()
             workers = null
         typingJobs.values.forEach { it.cancel() }
@@ -397,6 +428,8 @@ class ChatRuntime(
     override fun onStart(owner: LifecycleOwner) {
         synchronized(gate) {
             foreground = true
+            _visibleConversation.value =
+            visibleRoom
             backgroundTimer?.cancel()
             backgroundTimer = null
             if (_session.value != null) socket.connect()
@@ -406,10 +439,11 @@ class ChatRuntime(
     override fun onStop(owner: LifecycleOwner) {
         synchronized(gate) {
             foreground = false
-            visibleRoom = null
-            visiblePanel = null
-            readingRoom =
+            _visibleConversation.value = null
+            visibleRoom =
             null
+            visiblePanel = null
+            readingRoom = null
             backgroundTimer?.cancel()
             backgroundTimer =
                 scope.launch { delay(300_000)

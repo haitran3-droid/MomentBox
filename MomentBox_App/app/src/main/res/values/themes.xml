@@ -1,26 +1,12 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!--
-        Theme.MomentBox - Theme giao diện cơ sở của toàn bộ ứng dụng (dựa trên Material 3).
 
-        [Dành cho Android Intern]:
-        - Kế thừa từ `Theme.Material3.Light.NoActionBar`: Loại bỏ Action Bar cũ để tự quản lý Toolbar/TopAppBar.
-        - Thiết lập bảng màu chuẩn Material 3:
-          * `colorPrimary`: tím #5B4BDB; `colorSecondary`: cam san hô #FF7A59.
-          * `colorPrimaryContainer`, `colorOnPrimaryContainer`: Dùng cho các container nổi bật nhẹ nhàng.
-          * `android:windowBackground`: Màu nền #F6F6FA qua resource background.
-          * `android:textColorPrimary`, `android:textColorSecondary`: Phân cấp văn bản chính/phụ.
-        - Typography: Font mặc định Be Vietnam Pro; hệ thống có thể dùng fallback cho glyph ngoài font.
-        - Edge-to-Edge:
-          * `android:statusBarColor` và `android:navigationBarColor` được đặt thành transparent
-            kết hợp với `enableEdgeToEdge()` trong BaseActivity để giao diện tràn viền ra sau các thanh hệ thống.
-    -->
-    <style name="Theme.MomentBox" parent="Base.Theme.MomentBox" />
-
-    <style name="Base.Theme.MomentBox" parent="Theme.Material3.Light.NoActionBar">
+    <style name="Theme.MomentBox" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
-        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
         <item name="colorPrimaryContainer">@color/primary_container</item>
         <item name="colorOnPrimaryContainer">@color/on_primary_container</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
         <item name="colorSecondary">@color/secondary</item>
         <item name="colorOnSecondary">@color/white</item>
         <item name="android:windowBackground">@color/background</item>
@@ -32,20 +18,8 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
-    <!--
-        Theme.MomentBox.Splash - Theme khởi động (SplashScreen API) cho Android < 12.
-
-        [Dành cho Android Intern]:
-        - Kế thừa từ `Theme.SplashScreen` (thư viện androidx.core:core-splashscreen).
-        - `windowSplashScreenBackground`: Nền tím từ resource primary cho launch surface.
-        - `windowSplashScreenAnimatedIcon`: Icon hiển thị ở giữa màn hình chờ nạp tiến trình.
-        - `postSplashScreenTheme`: Tự động chuyển về Theme.MomentBox sau khi Splash API hoàn tất.
-        - Lưu ý kiến trúc: Đây là "OS Launch Surface". Sau khi OS chuyển quyền điều khiển cho SplashActivity,
-          SplashActivity hiển thị SplashBackdropLayout theo lựa chọn dùng custom Splash của người dùng.
-          Thiết kế tham chiếu nằm trong mockups và mockup-src của repo; độ khớp cần kiểm tra bằng ảnh thật.
-    -->
     <style name="Theme.MomentBox.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/primary</item>
+        <item name="windowSplashScreenBackground">@color/splash_brand</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.MomentBox</item>
     </style>

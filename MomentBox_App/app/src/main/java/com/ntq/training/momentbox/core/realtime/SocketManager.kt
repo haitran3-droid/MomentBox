@@ -1,5 +1,8 @@
 package com.ntq.training.momentbox.core.realtime
 
+import io.socket.client.Manager
+import io.socket.thread.EventThread
+import java.util.concurrent.atomic.AtomicReference
 import com.ntq.training.momentbox.BuildConfig
 import com.ntq.training.momentbox.data.local.db.NotificationDao
 import com.ntq.training.momentbox.data.local.db.NotificationEntity
@@ -60,11 +63,16 @@ interface RealtimeSocket {
         callback: (JSONObject?) -> Unit
     ): AutoCloseable = AutoCloseable {}
 
+    /** Chỉ đặt cấu hình chờ. Kết nối đang mở giữ nguyên cho tới lần reconnect. */
+    fun configure(value: SocketTuning) {}
+    fun tuning(): SocketTuning = SocketTuning()
+    fun connectionId(): String? = null
     fun connect()
     fun disconnect()
 }
 
-private class SocketIoTransport(origin: String, token: String) : RealtimeSocket {
+private class SocketIoTransport(origin: String, token: String, initial: SocketTuning) :
+    RealtimeSocket {
     companion object {
         private val network =
             OkHttpClient.Builder().readTimeout(60, TimeUnit.SECONDS)
@@ -72,22 +80,53 @@ private class SocketIoTransport(origin: String, token: String) : RealtimeSocket 
         private val closingAware = CloseAwareWebSocketFactory(network)
     }
 
+    private val pending = AtomicReference(initial)
+    private val effective = AtomicReference(initial)
     private val socket = IO.socket(origin, IO.Options().apply {
         path = "/socket.io"
+        forceNew = true
         callFactory = network
         webSocketFactory = closingAware
         auth = mapOf("token" to token)
-        reconnection = true
-        reconnectionAttempts = 5
-        reconnectionDelay = 1000
-        reconnectionDelayMax = 5000
-        timeout = 20000
+        reconnection = initial.attempts > 0
+        reconnectionAttempts = initial.attempts
+        reconnectionDelay = initial.delayMinMs
+        reconnectionDelayMax = initial.delayMaxMs
+        randomizationFactor = initial.randomization
+        timeout = initial.timeoutMs
     })
 
     init {
-        socket.io().randomizationFactor(0.0)
-    } // Backoff xác định để deadline UI khớp timer transport.
+        // Manager constructor thay 0 bằng mặc định, nên gọi setter thật để jitter=0/attempts=0 có nghĩa đúng.
+        // Cả callback và reconnect timer cùng EventThread: apply trước khi Manager xếp timer mới.
+        socket.on(Socket.EVENT_DISCONNECT) { applyPending() }
+        socket.io().on(Manager.EVENT_RECONNECT_ATTEMPT) { applyPending() }
+    }
 
+    private fun applyPending() {
+        val v = pending.get()
+        val manager = socket.io()
+        manager.timeout(v.timeoutMs).reconnectionAttempts(v.attempts).reconnection(v.attempts > 0)
+            .reconnectionDelay(v.delayMinMs).reconnectionDelayMax(v.delayMaxMs)
+            .randomizationFactor(v.randomization)
+        // Snapshot đọc ngược từ SDK, không báo giá trị vừa lưu là giá trị của kết nối đang chạy.
+        effective.set(
+            SocketTuning(
+                manager.timeout(),
+                manager.reconnectionAttempts(),
+                manager.reconnectionDelay(),
+                manager.reconnectionDelayMax(),
+                manager.randomizationFactor()
+            )
+        )
+    }
+
+    override fun configure(value: SocketTuning) {
+        pending.set(value)
+    }
+
+    override fun tuning(): SocketTuning = effective.get()
+    override fun connectionId(): String? = socket.id()
     private fun emitter(event: String): Emitter =
         if (event.startsWith("manager:")) socket.io() else socket
 
@@ -136,7 +175,8 @@ private class SocketIoTransport(origin: String, token: String) : RealtimeSocket 
     }
 
     override fun connect() {
-        socket.connect()
+        EventThread.exec { applyPending()
+        socket.connect() }
     }
 
     override fun disconnect() {
@@ -165,19 +205,19 @@ open class SocketManager(
     private val baseUrlProvider: () -> String = { BuildConfig.BASE_URL },
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
     private val notificationScopeProvider: suspend () -> NotificationScope? = { null },
-    private val socketFactory: (String, String) -> RealtimeSocket = { origin, token ->
-        SocketIoTransport(
-            origin,
-            token
-        )
-    }
+    private val socketFactory: ((String, String) -> RealtimeSocket)? = null
 ) {
     private val _state = MutableStateFlow(SocketState())
     val state = _state.asStateFlow()
+    private val _connectionId = MutableStateFlow<String?>(null)
+    val connectionIdFlow = _connectionId.asStateFlow()
+    private val _appliedTuning = MutableStateFlow<SocketTuning?>(null)
+    val appliedTuningFlow = _appliedTuning.asStateFlow()
     private val gate = Any()
     private var socket: RealtimeSocket? = null
     private var tokenListener: AutoCloseable? = null
     private var sourceListener: Job? = null
+    private var tuningListener: Job? = null
     private var unreadJob: Job? = null
     private var connectionSerial = 0L
     private var connectRequest = 0L
@@ -363,12 +403,21 @@ open class SocketManager(
                     }
                 }
             }
+            if (BuildConfig.DEBUG && tuningListener == null) tuningListener = scope.launch {
+                settingsStorage.socketTuningFlow.collect { value ->
+                    synchronized(gate) {
+                        if (epoch == lifecycleEpoch) socket?.configure(value)
+                    }
+                }
+            }
             ++connectRequest
         }
         scope.launch {
             val snapshot = tokenStore.snapshot()
             val source = settingsStorage.getDataSource()
             val scopeOwner = notificationScopeProvider()
+            val tuning =
+                if (BuildConfig.DEBUG) settingsStorage.getSocketTuning() else SocketTuning()
             synchronized(gate) {
                 if (request != connectRequest || snapshot.generation != tokenStore.getSessionGeneration()) return@synchronized
                 if (expectedGeneration != null && snapshot.generation != expectedGeneration) return@synchronized
@@ -398,7 +447,13 @@ open class SocketManager(
                 connectedOrigin = resolveSocketOrigin()
                 _state.value = SocketState(SocketPhase.CONNECTING)
                 try {
-                    val transport = socketFactory(resolveSocketOrigin(), token)
+                    val transport =
+                        socketFactory?.invoke(resolveSocketOrigin(), token) ?: SocketIoTransport(
+                            resolveSocketOrigin(),
+                            token,
+                            tuning
+                        )
+                    transport.configure(tuning)
                     socket = transport
                     transport.on(Socket.EVENT_CONNECT) {
                         synchronized(gate) {
@@ -406,6 +461,10 @@ open class SocketManager(
                                 _isConnected.value = true
                                 _state.value =
                                     SocketState(SocketPhase.CONNECTED)
+                                _connectionId.value =
+                                    transport.connectionId()
+                                    _appliedTuning.value =
+                                    transport.tuning()
                             }
                         }
                     }
@@ -413,6 +472,9 @@ open class SocketManager(
                         synchronized(gate) {
                             if (owns(serial)) {
                                 _isConnected.value = false
+                                _connectionId.value =
+                                    null
+                                    _appliedTuning.value = null
                                 val reason = args.firstOrNull()?.toString()
                                 _state.value = if (reason in setOf(
                                         "io client disconnect",
@@ -468,7 +530,7 @@ open class SocketManager(
                         synchronized(gate) {
                             if (owns(serial)) {
                                 val next = _state.value.attempt + 1
-                                if (next <= 5) _state.value = waiting(next, "transport")
+                                _state.value = waiting(next, "transport")
                             }
                         }
                     }
@@ -588,12 +650,20 @@ open class SocketManager(
         }
     }
 
-    /** Manager phát attempt sau khoảng chờ, error sau khi đã đặt timer kế tiếp.
-     * Jitter=0 ở transport nên cùng delay 1/2/4/5/5 giây, UI không bịa countdown ngẫu nhiên. */
-    private fun waiting(attempt: Int, reason: String?) = SocketState(
-        SocketPhase.WAITING, attempt,
-        System.currentTimeMillis() + minOf(5000L, 1000L shl (attempt - 1).coerceIn(0, 3)), reason
-    )
+    /** SDK không công bố mẫu jitter đã chọn cho timer. Chỉ cho countdown khi jitter=0;
+     * trường hợp ngẫu nhiên hiển thị attempt, tránh hứa sai thời điểm với người dùng. */
+    private fun waiting(attempt: Int, reason: String?): SocketState {
+        val tuning = socket?.tuning() ?: SocketTuning()
+        if (attempt > tuning.attempts) return SocketState(
+            SocketPhase.FAILED,
+            attempt - 1,
+            reason = "attempts_exhausted"
+        )
+        val delay =
+            minOf(tuning.delayMaxMs, tuning.delayMinMs * (1L shl (attempt - 1).coerceIn(0, 10)))
+        val deadline = if (tuning.randomization == 0.0) System.currentTimeMillis() + delay else null
+        return SocketState(SocketPhase.WAITING, attempt, deadline, reason)
+    }
 
     private fun owns(serial: Long): Boolean = serial == connectionSerial && owner != null &&
             generation == tokenStore.getSessionGeneration() && connectedOrigin == resolveSocketOrigin()
@@ -607,6 +677,8 @@ open class SocketManager(
         connectedToken = null
         connectedOrigin = null
         _state.value = SocketState()
+        _connectionId.value = null
+        _appliedTuning.value = null
         owner = null
         unreadJob?.cancel()
         unreadJob = null
@@ -630,6 +702,8 @@ open class SocketManager(
             invalidateLocked()
             sourceListener?.cancel()
             sourceListener = null
+            tuningListener?.cancel()
+            tuningListener = null
             tokenListener.also { tokenListener = null }
         }
         // Không giữ khóa socket khi hủy listener, tránh đảo thứ tự khóa với TokenStore.

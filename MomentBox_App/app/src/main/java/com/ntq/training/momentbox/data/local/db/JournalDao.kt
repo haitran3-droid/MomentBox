@@ -169,6 +169,9 @@ interface JournalDao {
         to: Long
     ): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM journal_entries WHERE deleted_at IS NULL AND created_at >= :start AND created_at < :endExclusive")
+    suspend fun countNonDeletedInRange(start: Long, endExclusive: Long): Int
+
     /**
      * Lấy danh sách cảm xúc theo ngày trong khoảng thời gian xác định (theo 'local time')
      * phục vụ vẽ các ô ngày có màu trên moodcalendarview
@@ -235,6 +238,10 @@ interface JournalDao {
     @Transaction
     @Query("SELECT * FROM journal_entries WHERE deleted_at IS NULL AND audio_count > 0 ORDER BY created_at DESC, id DESC LIMIT :limit")
     suspend fun audioLibrary(limit: Int): List<JournalEntryWithDetails>
+
+    @Transaction
+    @Query("SELECT e.* FROM journal_entries e INNER JOIN journal_attachments a ON a.entry_id = e.id WHERE e.deleted_at IS NULL AND a.type = 'audio' AND a.id = :attachmentId LIMIT 1")
+    suspend fun audioEntryByAttachment(attachmentId: Long): JournalEntryWithDetails?
 
     // === THAO TÁC GHIM & XÓA MỀM / HOÀN TÁC (PIN, SOFT DELETE & UNDO) ===
 
@@ -373,4 +380,10 @@ interface JournalDao {
             readDayCounts(query, moods, moodsEmpty, hasPhoto, hasAudio, from, to)
         )
     }
+
+    @Query("SELECT DISTINCT local_path FROM journal_attachments")
+    suspend fun attachmentPathsForLogout(): List<String>
+
+    @Query("DELETE FROM journal_entries")
+    suspend fun deleteAllForLogout(): Int
 }

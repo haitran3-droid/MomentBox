@@ -1,0 +1,3 @@
+<resources>
+    <string name="m5_socket_waiting_unknown">再接続を待機中（%1$d 回目）…</string>
+</resources>

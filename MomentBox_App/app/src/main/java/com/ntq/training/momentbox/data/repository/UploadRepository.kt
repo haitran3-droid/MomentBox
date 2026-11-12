@@ -79,7 +79,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private val mutable = MutableStateFlow(UploadState())
 
     val state = mutable.asStateFlow()
-    @Volatile private var job: Job? = null
+    @Volatile
+    private var job: Job? = null
     private var snapshot: ComposeDraft? = null
 
     private var generation = 0L
@@ -136,8 +137,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
             // Đọc đĩa có suspend: một lượt khôi phục cũ không được ghi đè chủ/backend mới.
             if (
                 epoch != recoveryEpoch ||
-                    app.settingsDataStore.getDataSource() != backend ||
-                    app.authRepository.getSavedUser()?.id != user?.id
+                app.settingsDataStore.getDataSource() != backend ||
+                app.authRepository.getSavedUser()?.id != user?.id
             )
                 return
             app.tokenStore.runIfGenerationMatches(expectedGeneration) {
@@ -170,12 +171,12 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private suspend fun boundaryMatches() =
         withContext(NonCancellable) {
             app.tokenStore.getSessionGeneration() == generation &&
-                app.settingsDataStore.getDataSource() == source
+                    app.settingsDataStore.getDataSource() == source
         }
 
     private suspend fun sameOwner(post: Post) =
         app.authRepository.getSavedUser()?.id == post.author.id &&
-            app.settingsDataStore.getDataSource() == source
+                app.settingsDataStore.getDataSource() == source
 
     override fun close() {
         subscription.close()
@@ -205,8 +206,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     source = app.settingsDataStore.getDataSource()
                     check(
                         source ==
-                            SettingsDataStore
-                                .SOURCE_MB_SERVER
+                                SettingsDataStore
+                                    .SOURCE_MB_SERVER
                     ) {
                         "Posting requires MomentBox server"
                     }
@@ -223,8 +224,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                                         try {
                                             setDataSource(original.absolutePath)
                                             extractMetadata(
-                                                    MediaMetadataRetriever.METADATA_KEY_DURATION
-                                                )
+                                                MediaMetadataRetriever.METADATA_KEY_DURATION
+                                            )
                                                 ?.toLongOrNull() ?: 0
                                         } finally {
                                             release()
@@ -257,8 +258,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     val progressJob = launch {
                         for (update in updates) if (
                             uploadJob.isActive &&
-                                state.value.phase in
-                                    listOf(UploadPhase.UPLOADING, UploadPhase.AWAITING_SERVER)
+                            state.value.phase in
+                            listOf(UploadPhase.UPLOADING, UploadPhase.AWAITING_SERVER)
                         ) {
                             mutable.value = update
                             notifyProgress()
@@ -298,12 +299,12 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     val voicePart = voice?.let { part(all.lastIndex, "voice") }
                     val fields =
                         mapOf(
-                                "caption" to input.caption,
-                                "privacy" to input.privacy,
-                                "allowComments" to input.allowComments.toString(),
-                                "location" to input.location,
-                                "voiceDurationMs" to (input.voice?.durationMs ?: 0).toString(),
-                            )
+                            "caption" to input.caption,
+                            "privacy" to input.privacy,
+                            "allowComments" to input.allowComments.toString(),
+                            "location" to input.location,
+                            "voiceDurationMs" to (input.voice?.durationMs ?: 0).toString(),
+                        )
                             .mapValues { it.value.toRequestBody("text/plain".toMediaType()) }
                     mutable.value =
                         UploadState(
@@ -343,7 +344,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     }
                     check(
                         app.tokenStore.getSessionGeneration() == generation &&
-                            app.settingsDataStore.getDataSource() == source
+                                app.settingsDataStore.getDataSource() == source
                     )
                     mutable.value =
                         UploadState(
@@ -392,6 +393,21 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                             .cancel(15001)
                 }
             }
+    }
+
+    suspend fun cancelForLogout() {
+        recoveryEpoch++
+        loadingReceipt?.cancelAndJoin()
+        loadingReceipt = null
+        job?.cancelAndJoin()
+        job = null
+        mutable.value = UploadState()
+        snapshot = null
+        withContext(Dispatchers.Main.immediate) {
+            (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(
+                15001
+            )
+        }
     }
 
     fun cancel(expectedId: String? = null) {
@@ -515,8 +531,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private fun notifyProgress() {
         if (
             Build.VERSION.SDK_INT >= 33 &&
-                app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
-                    PackageManager.PERMISSION_GRANTED
+            app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
         )
             return
         val now = SystemClock.elapsedRealtime()
@@ -560,8 +576,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private fun notifySuccess(id: Long) {
         if (
             Build.VERSION.SDK_INT >= 33 &&
-                app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
-                    PackageManager.PERMISSION_GRANTED
+            app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
         )
             return
         val manager = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -570,9 +586,9 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                 app,
                 id.hashCode(),
                 Intent(
-                        app,
-                        PostDetailActivity::class.java,
-                    )
+                    app,
+                    PostDetailActivity::class.java,
+                )
                     .setAction(Intent.ACTION_VIEW)
                     .setData(Uri.parse("momentbox://post/$id")),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

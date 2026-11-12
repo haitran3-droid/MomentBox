@@ -248,27 +248,39 @@ class CreateActivity : AppCompatActivity() {
 
     private fun nextPhoto() {
         val item = model.nextPhoto()
-        if (item != null) {
-            openCrop(item)
-        } else if (model.imagesOnly) {
-            setResult(RESULT_OK, Intent().putExtra("media", Gson().toJson(model.items.value)))
+        if (item != null) supportFragmentManager.beginTransaction().replace(
+            R.id.create_host,
+            CropFragment().apply {
+                arguments = Bundle().apply {
+                    putString("uri", item.uri)
+                    putString(
+                    "id",
+                    item.id
+                )
+                putBoolean("squareOnly", intent.getStringExtra("purpose") == "avatar")
+                }
+            }).addToBackStack("crop").commit()
+        else if (model.imagesOnly) {
+            setResult(
+                RESULT_OK,
+                Intent().putExtra("media", Gson().toJson(model.items.value))
+            )
             finish()
-        } else if (
-            (0 until supportFragmentManager.backStackEntryCount).any {
-                supportFragmentManager.getBackStackEntryAt(it).name == "add-media"
-            }
-        ) {
+        } else if ((0 until supportFragmentManager.backStackEntryCount).any {
+                supportFragmentManager.getBackStackEntryAt(
+                    it
+                ).name == "add-media"
+            }) {
             model.completeAdd()
             supportFragmentManager.popBackStack(
                 "add-media",
-                FragmentManager.POP_BACK_STACK_INCLUSIVE,
+                FragmentManager.POP_BACK_STACK_INCLUSIVE
             )
-        } else
-            supportFragmentManager
-                .beginTransaction()
-                .replace(R.id.create_host, ComposeFragment(), "compose")
-                .addToBackStack("compose")
-                .commit()
+        } else supportFragmentManager.beginTransaction().replace(
+            R.id.create_host,
+            ComposeFragment(),
+            "compose"
+        ).addToBackStack("compose").commit()
     }
 
     private fun openCrop(item: SelectedMedia) {

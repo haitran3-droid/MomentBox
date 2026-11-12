@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.data.repository
 
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.currentCoroutineContext
 import android.content.Context
 import android.net.Uri
@@ -41,27 +42,83 @@ class JournalRepositoryImpl(
     private val journalDataStore: JournalDataStore,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : JournalRepository, Closeable {
+    private val pendingStagedFiles = ConcurrentHashMap.newKeySet<String>()
+    @Volatile
+    private var writesEnabled = true
+    private fun checkWriter() {
+        if (!writesEnabled) throw CancellationException("JOURNAL_SESSION_ENDED")
+    }
+
+    override fun resumeAfterLogin() {
+        writesEnabled = true
+    }
+
+    override suspend fun prepareForLogout() =
+        withContext(dispatcher) { deletionMutex.withLock { writesEnabled = false } }
+
+    override suspend fun finishLogout(keepJournal: Boolean) = withContext(dispatcher) {
+        deletionMutex.withLock {
+            check(!writesEnabled) { "Logout must seal journal writers first" }
+            if (!keepJournal) {
+                // Giữ metadata tới khi file cleanup thành công để lỗi I/O còn retry được.
+                // Canonical roots chặn Gallery/cache/post/avatar và mọi file ngoài nhật ký.
+                val draft = journalDataStore.getDraft()
+                val paths = (journalDao.attachmentPathsForLogout() + draft?.attachments.orEmpty()
+                    .map { it.localPath } + draft?.cleanupPaths.orEmpty() + pendingStagedFiles).toSet()
+                paths.forEach(::safelyDeleteAppOwnedFile)
+                journalDataStore.clearDraft()
+                journalDao.deleteAllForLogout()
+                pendingStagedFiles.clear()
+            }
+        }
+    }
+
     private val deletionMutex = Mutex()
-    private val cleanupScope = CoroutineScope(SupervisorJob() + dispatcher)
+    private val cleanupScope =
+        CoroutineScope(SupervisorJob() + dispatcher)
     private val deletionScheduler = JournalDeletionScheduler(this, cleanupScope)
-    override fun close() { cleanupScope.coroutineContext[Job]?.cancel() }
+    override fun close() {
+        cleanupScope.coroutineContext[Job]?.cancel()
+    }
+
     override val handlesDeletionDeadlines = true
     override fun observePendingDeletes() = journalDao.observePendingDeletes()
 
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override fun observeAtomicPages(query: String?, filter: JournalFilterState, pages: Int): Flow<JournalPageSnapshot> =
-        journalDao.observeJournalChanges(SimpleSQLiteQuery("SELECT 1")).mapLatest {
-            withContext(dispatcher) {
-                journalDao.readPageSnapshot(escapeSqlLikePattern(query), filter.selectedMoods, filter.selectedMoods.isEmpty(), filter.hasPhoto,
-                    filter.hasAudio, filter.fromDateEpochMs ?: 0L, filter.toDateEpochMs ?: Long.MAX_VALUE, filter.sort, pages)
+    override fun observeAtomicPages(
+        query: String?,
+        filter: JournalFilterState,
+        pages: Int
+    ): Flow<JournalPageSnapshot> =
+        journalDao.observeJournalChanges(SimpleSQLiteQuery("SELECT 1"))
+            .mapLatest {
+                withContext(dispatcher) {
+                    journalDao.readPageSnapshot(
+                        escapeSqlLikePattern(query),
+                        filter.selectedMoods,
+                        filter.selectedMoods.isEmpty(),
+                        filter.hasPhoto,
+                        filter.hasAudio,
+                        filter.fromDateEpochMs ?: 0L,
+                        filter.toDateEpochMs ?: Long.MAX_VALUE,
+                        filter.sort,
+                        pages
+                    )
+                }
             }
-        }
 
     override fun observeWrittenDays() = journalDao.observeWrittenDays()
-    override fun observeDayCounts(query: String?, filter: JournalFilterState) = journalDao.observeDayCounts(
-        escapeSqlLikePattern(query), filter.selectedMoods, filter.selectedMoods.isEmpty(), filter.hasPhoto,
-        filter.hasAudio, filter.fromDateEpochMs ?: 0L, filter.toDateEpochMs ?: Long.MAX_VALUE)
+    override fun observeDayCounts(query: String?, filter: JournalFilterState) =
+        journalDao.observeDayCounts(
+            escapeSqlLikePattern(query),
+            filter.selectedMoods,
+            filter.selectedMoods.isEmpty(),
+            filter.hasPhoto,
+            filter.hasAudio,
+            filter.fromDateEpochMs ?: 0L,
+            filter.toDateEpochMs ?: Long.MAX_VALUE
+        )
 
     override fun observeEntries(
         query: String?,
@@ -120,9 +177,10 @@ class JournalRepositoryImpl(
         return journalDao.distinctTags()
     }
 
-    override suspend fun getEntryById(id: Long): JournalEntryWithDetails? = withContext(dispatcher) {
-        journalDao.getEntryById(id)
-    }
+    override suspend fun getEntryById(id: Long): JournalEntryWithDetails? =
+        withContext(dispatcher) {
+            journalDao.getEntryById(id)
+        }
 
     override suspend fun saveEntry(
         entry: JournalEntryEntity,
@@ -131,18 +189,32 @@ class JournalRepositoryImpl(
         stagedFilesToKeep: List<String>,
         oldFilesToDeleteAfterCommit: List<String>
     ): Result<Long> = withContext(dispatcher) {
-        try {
-            val savedId = journalDao.save(entry, attachments, tags)
-            // Lưu SQLite thành công -> Xóa an toàn các file cũ đã bị người dùng gỡ bỏ
-            try { deleteUnreferencedFiles(oldFilesToDeleteAfterCommit) }
-            catch (e: Exception) {
+        deletionMutex.withLock {
+            checkWriter()
+            try {
+                val savedId = journalDao.save(entry, attachments, tags)
+                pendingStagedFiles.removeAll(attachments.map { it.localPath }.toSet())
+                // Lưu SQLite thành công -> Xóa an toàn các file cũ đã bị người dùng gỡ bỏ
+                try {
+                    deleteUnreferencedFiles(oldFilesToDeleteAfterCommit)
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w(
+                        "JournalRepository",
+                        "Committed entry; attachment cleanup will retry after draft clear",
+                        e
+                    )
+                }
+                Result.success(savedId)
+            } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                Log.w("JournalRepository", "Committed entry; attachment cleanup will retry after draft clear", e)
+                // [Intern]: Khi lưu DB thất bại, TUYỆT ĐỐI KHÔNG xóa stagedFilesToKeep!
+                // Giải thích: Bản nháp và màn hình Editor vẫn giữ danh sách tệp đính kèm này.
+                // Nếu ta xóa tệp trên đĩa, khi người dùng bấm "Lưu" lại (Retry) thì Room sẽ lưu đường dẫn
+                // trỏ vào một tệp không còn tồn tại trên bộ nhớ. Việc xóa file mồ côi (orphan) chỉ được
+                // thực hiện khi người dùng chủ động Bỏ bản nháp (Discard) hoặc qua tiến trình dọn dẹp riêng.
+                Result.failure(e)
             }
-            Result.success(savedId)
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            Result.failure(e)
         }
     }
 
@@ -167,7 +239,12 @@ class JournalRepositoryImpl(
     override suspend fun undoDelete(id: Long): Result<Unit> = withContext(dispatcher) {
         deletionMutex.withLock {
             try {
-                check(journalDao.undoDeleteBeforeDeadline(id, System.currentTimeMillis() - JournalDeletionScheduler.UNDO_MS) > 0) {
+                check(
+                    journalDao.undoDeleteBeforeDeadline(
+                        id,
+                        System.currentTimeMillis() - JournalDeletionScheduler.UNDO_MS
+                    ) > 0
+                ) {
                     "Undo deadline expired"
                 }
                 Result.success(Unit)
@@ -181,12 +258,18 @@ class JournalRepositoryImpl(
     override suspend fun hardDelete(id: Long): Result<Unit> = withContext(dispatcher) {
         deletionMutex.withLock {
             try {
-                val row = journalDao.getEntryByIdIncludingDeleted(id) ?: return@withLock Result.success(Unit)
+                val row =
+                    journalDao.getEntryByIdIncludingDeleted(id) ?: return@withLock Result.success(
+                        Unit
+                    )
                 val deletedAt = row.entry.deletedAt ?: return@withLock Result.success(Unit)
-                if (System.currentTimeMillis() < deletedAt + JournalDeletionScheduler.UNDO_MS) return@withLock Result.success(Unit)
+                if (System.currentTimeMillis() < deletedAt + JournalDeletionScheduler.UNDO_MS) return@withLock Result.success(
+                    Unit
+                )
                 // Cùng khóa với Undo: job cũ không thể xóa bài vừa được phục hồi.
                 // Giữ metadata tới khi dọn file xong để lỗi I/O còn có thể retry.
-                val draftPaths = journalDataStore.getDraft()?.attachments.orEmpty().map { it.localPath }.toSet()
+                val draftPaths =
+                    journalDataStore.getDraft()?.attachments.orEmpty().map { it.localPath }.toSet()
                 row.attachments.forEach { att ->
                     if (att.localPath !in draftPaths && journalDao.countAttachmentReferences(att.localPath) <= 1) {
                         safelyDeleteAppOwnedFile(att.localPath)
@@ -201,27 +284,29 @@ class JournalRepositoryImpl(
         }
     }
 
-    override suspend fun purgeExpiredDeleted(thresholdEpochMs: Long): Result<Int> = withContext(dispatcher) {
-        try {
-            var count = 0
-            for (entry in journalDao.getExpiredDeletedEntries(thresholdEpochMs)) {
-                hardDelete(entry.id).getOrThrow()
-                count++
+    override suspend fun purgeExpiredDeleted(thresholdEpochMs: Long): Result<Int> =
+        withContext(dispatcher) {
+            try {
+                var count = 0
+                for (entry in journalDao.getExpiredDeletedEntries(thresholdEpochMs)) {
+                    hardDelete(entry.id).getOrThrow()
+                    count++
+                }
+                Result.success(count)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Result.failure(e)
             }
-            Result.success(count)
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            Result.failure(e)
         }
-    }
 
-    override suspend fun getEntriesForStats(from: Long?, to: Long?): List<JournalEntryWithDetails> = withContext(dispatcher) {
-        if (from != null && to != null) {
-            journalDao.getEntriesForPeriod(from, to)
-        } else {
-            journalDao.getAllEntries()
+    override suspend fun getEntriesForStats(from: Long?, to: Long?): List<JournalEntryWithDetails> =
+        withContext(dispatcher) {
+            if (from != null && to != null) {
+                journalDao.getEntriesForPeriod(from, to)
+            } else {
+                journalDao.getAllEntries()
+            }
         }
-    }
 
     override fun observeDraft(): Flow<JournalDraft?> = journalDataStore.draftFlow
 
@@ -230,11 +315,19 @@ class JournalRepositoryImpl(
     }
 
     override suspend fun saveDraft(draft: JournalDraft) = withContext(dispatcher) {
-        journalDataStore.saveDraft(draft)
+        deletionMutex.withLock {
+            checkWriter()
+            journalDataStore.saveDraft(draft)
+            pendingStagedFiles.removeAll(
+            draft.attachments.map { it.localPath }.toSet()
+        )
+        Unit
+        }
     }
 
     override suspend fun clearDraft() = withContext(dispatcher) {
-        journalDataStore.clearDraft()
+        deletionMutex.withLock { checkWriter()
+        journalDataStore.clearDraft() }
     }
 
     override fun observeFilter(): Flow<JournalFilterState> = journalDataStore.filterFlow
@@ -252,43 +345,76 @@ class JournalRepositoryImpl(
     }
 
     override suspend fun deleteUnreferencedFiles(paths: List<String>) = withContext(dispatcher) {
-        val draftPaths = journalDataStore.getDraft()?.attachments.orEmpty().map { it.localPath }.toSet()
+        val draftPaths =
+            journalDataStore.getDraft()?.attachments.orEmpty().map { it.localPath }.toSet()
         for (path in paths.distinct()) {
-            if (path !in draftPaths && journalDao.countAttachmentReferences(path) == 0) safelyDeleteAppOwnedFile(path)
+            if (path !in draftPaths && journalDao.countAttachmentReferences(path) == 0) {
+                safelyDeleteAppOwnedFile(path)
+                pendingStagedFiles.remove(path)
+            }
         }
     }
 
-    override suspend fun readAudioMetadata(path: String) = withContext(dispatcher) { JournalAudioMetadataReader.read(path) }
+    override suspend fun readAudioMetadata(path: String) =
+        withContext(dispatcher) { JournalAudioMetadataReader.read(path) }
 
-    override suspend fun stageAttachmentFile(sourcePathOrUri: String, isAudio: Boolean): Result<String> {
+    override suspend fun stageAttachmentFile(
+        sourcePathOrUri: String,
+        isAudio: Boolean
+    ): Result<String> {
         var target: File? = null
         try {
             return withContext(dispatcher) {
-                val directory = File(context.filesDir, if (isAudio) "recordings" else "journal").also { check(it.exists() || it.mkdirs()) }
-                val uri = Uri.parse(sourcePathOrUri)
-                val extension = if (uri.scheme == "content") {
-                    context.contentResolver.getType(uri)?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }?.let { ".$it" }
-                } else getExtension(sourcePathOrUri)
-                val file = File(directory, "journal_${UUID.randomUUID()}${extension ?: if (isAudio) ".audio" else ".jpg"}")
-                target = file
-                val input = if (uri.scheme in listOf("content", "file", "android.resource")) context.contentResolver.openInputStream(uri)
-                else File(sourcePathOrUri).inputStream()
-                requireNotNull(input) { "Cannot open attachment" }.use { source ->
-                    file.outputStream().use { output ->
-                        val buffer = ByteArray(8192)
-                        while (true) {
-                            currentCoroutineContext().ensureActive()
-                            val count = source.read(buffer)
-                            if (count < 0) break
-                            output.write(buffer, 0, count)
+                deletionMutex.withLock {
+                    // Cùng khóa với prepare/delete: copy đến muộn không tạo file sau logout.
+                    checkWriter()
+                    val directory = File(
+                        context.filesDir,
+                        if (isAudio) "recordings" else "journal"
+                    ).also { check(it.exists() || it.mkdirs()) }
+                    val uri = Uri.parse(sourcePathOrUri)
+                    val extension = if (uri.scheme == "content") {
+                        context.contentResolver.getType(uri)?.let {
+                            MimeTypeMap.getSingleton().getExtensionFromMimeType(it)
+                        }?.let { ".$it" }
+                    } else getExtension(sourcePathOrUri)
+                    val file = File(
+                        directory,
+                        "journal_${UUID.randomUUID()}${extension ?: if (isAudio) ".audio" else ".jpg"}"
+                    )
+                    target = file
+                    val input = if (uri.scheme in listOf(
+                            "content",
+                            "file",
+                            "android.resource"
+                        )
+                    ) context.contentResolver.openInputStream(uri)
+                    else File(sourcePathOrUri).inputStream()
+                    requireNotNull(input) { "Cannot open attachment" }.use { source ->
+                        file.outputStream().use { output ->
+                            val buffer = ByteArray(8192)
+                            while (true) {
+                                currentCoroutineContext().ensureActive()
+                                val count = source.read(buffer)
+                                if (count < 0) break
+                                output.write(buffer, 0, count)
+                            }
                         }
                     }
+                    pendingStagedFiles.add(file.absolutePath)
+                    Result.success(file.absolutePath)
                 }
-                Result.success(file.absolutePath)
             }
         } catch (e: Exception) {
             // Bắt ở ngoài withContext để cả cancellation lúc dispatch kết quả về Main cũng dọn được file.
-            withContext(NonCancellable + dispatcher) { target?.delete() }
+            withContext(NonCancellable + dispatcher) {
+                target?.let {
+                    it.delete()
+                    pendingStagedFiles.remove(
+                    it.absolutePath
+                )
+                }
+            }
             if (e is CancellationException) throw e
             return Result.failure(e)
         }
@@ -300,7 +426,10 @@ class JournalRepositoryImpl(
     private fun safelyDeleteAppOwnedFile(path: String?) {
         if (path.isNullOrBlank()) return
         val file = File(path).canonicalFile
-        val roots = listOf(File(context.filesDir, "journal").canonicalFile, File(context.filesDir, "recordings").canonicalFile)
+        val roots = listOf(
+            File(context.filesDir, "journal").canonicalFile,
+            File(context.filesDir, "recordings").canonicalFile
+        )
         if (roots.none { file.path.startsWith(it.path + File.separator) }) return
         if (file.exists() && !file.delete()) throw IOException("Cannot delete owned attachment")
     }

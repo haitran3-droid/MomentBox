@@ -43,4 +43,17 @@
     <string name="m5_chat_days">Hoạt động %1$s ngày trước</string>
     <string name="m5_chat_mute">Tắt thông báo</string>
     <string name="m5_chat_unmute">Bật thông báo</string>
+    <string name="m5_channel_chat">Tin nhắn</string>
+    <string name="m5_channel_reminder">Nhắc viết nhật ký</string>
+    <string name="m5_notification_you">Bạn</string>
+    <string name="m5_notification_reply">Trả lời…</string>
+    <string name="m5_notification_reply_failed">Không gửi được</string>
+    <string name="m5_notification_summary">%1$d tin nhắn chưa đọc</string>
+    <string name="m5_notification_seen">Đã đọc</string>
+    <string name="m5_notification_permission_title">Thông báo tin nhắn</string>
+    <string name="m5_notification_permission_reason">Bật thông báo để nhận tin nhắn mới khi bạn không mở Chat. Bạn vẫn có thể đọc và gửi tin khi không cấp quyền.</string>
+    <string name="m5_notification_enable">Bật thông báo</string>
+    <string name="m5_notification_later">Để sau</string>
+    <string name="m5_notification_disabled">Thông báo đang tắt. Bạn vẫn có thể đọc và gửi tin trong Chat.</string>
+    <string name="m5_notification_settings">Cài đặt</string>
 </resources>

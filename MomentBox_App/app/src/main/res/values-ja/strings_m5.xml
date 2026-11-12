@@ -43,4 +43,17 @@
     <string name="m5_chat_days">%1$s日前にオンライン</string>
     <string name="m5_chat_mute">通知をミュート</string>
     <string name="m5_chat_unmute">通知のミュートを解除</string>
+    <string name="m5_channel_chat">メッセージ</string>
+    <string name="m5_channel_reminder">日記のリマインダー</string>
+    <string name="m5_notification_you">自分</string>
+    <string name="m5_notification_reply">返信…</string>
+    <string name="m5_notification_reply_failed">送信できませんでした</string>
+    <string name="m5_notification_summary">未読メッセージ %1$d 件</string>
+    <string name="m5_notification_seen">既読にする</string>
+    <string name="m5_notification_permission_title">メッセージ通知</string>
+    <string name="m5_notification_permission_reason">チャットを閉じている間も新着メッセージを受け取るには通知を有効にしてください。許可しなくてもメッセージの閲覧と送信はできます。</string>
+    <string name="m5_notification_enable">通知を有効にする</string>
+    <string name="m5_notification_later">後で</string>
+    <string name="m5_notification_disabled">通知はオフです。チャットでメッセージの閲覧と送信はできます。</string>
+    <string name="m5_notification_settings">設定</string>
 </resources>

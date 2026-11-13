@@ -22,11 +22,11 @@ import com.ntq.training.momentbox.data.repository.ChatMediaProgress
 import com.ntq.training.momentbox.databinding.ItemChatMessageBinding
 import com.ntq.training.momentbox.R
 import java.io.File
-import java.time.format.DateTimeFormatter
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Locale
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 sealed interface ChatRow {
     val key: String
@@ -151,7 +151,8 @@ class MessageAdapter(
                 LocalDate.now()
                     .minusDays(1) -> c.getString(R.string.m5_chat_yesterday)
                     else -> item.day.format(
-                    DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.getDefault())
+                    DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+                        .withLocale(c.resources.configuration.locales[0])
                 )
             }
             return
@@ -165,8 +166,7 @@ class MessageAdapter(
             bubble.setBackgroundResource(if (own) R.drawable.bg_chat_bubble_out else R.drawable.bg_chat_bubble_in)
             body.maximumWidth = ((root.width.takeIf { it > 0 }
                 ?: (c.resources.displayMetrics.widthPixels - if (c.resources.configuration.smallestScreenWidthDp >= 600) (280 * c.resources.displayMetrics.density).toInt() else 0)) * .78f).toInt()
-            val clock = Instant.ofEpochMilli(message.createdAt).atZone(ZoneId.systemDefault())
-                .format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
+            val clock = chatClock(message.createdAt, c)
             body.bind(message.content, clock, message.status, own)
             body.isVisible =
             message.type == "text"
@@ -219,7 +219,8 @@ class MessageAdapter(
             voicePlay.setOnClickListener { this@MessageAdapter.voice(message) }
             voiceDuration.text = duration(
                 if (voiceKey == message.localId && playback.currentPositionMs > 0) playback.currentPositionMs.toLong() else message.durationMs
-                    ?: 0
+                    ?: 0,
+                c.resources.configuration.locales[0]
             )
             voiceDuration.setTextColor(
                 if (own) Color.WHITE else ContextCompat.getColor(

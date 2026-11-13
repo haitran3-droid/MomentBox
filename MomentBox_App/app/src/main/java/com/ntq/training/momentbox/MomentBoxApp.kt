@@ -23,6 +23,7 @@ import android.os.Process
 import com.ntq.training.momentbox.core.coroutines.DefaultDispatcherProvider
 import com.ntq.training.momentbox.core.coroutines.DispatcherProvider
 import com.ntq.training.momentbox.core.network.NetworkModule
+import com.ntq.training.momentbox.core.network.NetworkLogInterceptor
 import com.ntq.training.momentbox.core.realtime.ChatRuntime
 import com.ntq.training.momentbox.core.realtime.NotificationScope
 import com.ntq.training.momentbox.core.realtime.SocketManager
@@ -157,6 +158,15 @@ class MomentBoxApp : Application() {
 
         // 1. Khởi tạo tầng lưu trữ cục bộ (Local Storage) và Threading
         tokenStore = TokenStore(this)
+        if (BuildConfig.DEBUG) {
+            var logGeneration = tokenStore.getSessionGeneration()
+            tokenStore.addSnapshotListener { snapshot ->
+                if (logGeneration != snapshot.generation) {
+                    logGeneration = snapshot.generation
+                    NetworkLogInterceptor.clearLogs()
+                }
+            }
+        }
         settingsDataStore = SettingsDataStore(this)
         ApplicationTheme.observe(settingsDataStore)
         journalDataStore = JournalDataStore(this)

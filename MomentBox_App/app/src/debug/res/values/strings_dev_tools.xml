@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="s23_back">Quay lại</string>
+    <string name="s23_source">Nguồn dữ liệu</string>
+    <string name="s23_switch_source_notice">Đổi nguồn sẽ đăng xuất phiên hiện tại. Nhật ký trên máy được giữ lại.</string>
+    <string name="s23_network">Network log</string>
+    <string name="s23_simulate_401">Giả lập 401 và tải lại hồ sơ</string>
+    <string name="s23_delay">Độ trễ giả lập</string>
+    <string name="s23_show_logs">Xem request</string>
+    <string name="s23_clear_logs">Xoá log</string>
+    <string name="s23_log_count">Độ trễ %1$d ms · %2$d request</string>
+    <string name="s23_no_requests">Chưa có request.</string>
+    <string name="s23_refresh_completed">Đã tải lại hồ sơ. Mở Network log để xem luồng refresh.</string>
+    <string name="s23_socket_options">Tuỳ chọn kết nối socket</string>
+    <string name="s23_disconnect">Ngắt kết nối</string>
+    <string name="s23_connect">Kết nối lại</string>
+    <string name="s23_outage">Giả lập mất kết nối 10 giây</string>
+    <string name="s23_saved">Đã lưu</string>
+    <string name="s23_active">Đang áp dụng</string>
+    <string name="s23_attempts">Số lần thử lại</string>
+    <string name="s23_randomization">Hệ số ngẫu nhiên (0–1)</string>
+    <string name="s23_memory">Bộ nhớ</string>
+    <string name="s23_refresh_memory">Đo lại bộ nhớ</string>
+    <string name="s23_pref_keys">Khoá DataStore</string>
+    <string name="s23_memory_status">Glide disk %1$s\nGlide RAM %2$s / %3$s\nHeap ứng dụng %4$s</string>
+    <string name="s23_invalid_value">Kiểm tra giá trị đã nhập.</string>
+    <string name="s23_action_failed">Không thực hiện được. Kiểm tra nguồn dữ liệu, phiên đăng nhập và kết nối.</string>
+    <string name="s23_leak_instructions">Chọn một tình huống để LeakCanary phân tích Activity sau khi đóng. Tham chiếu được dọn sau 60 giây.</string>
+    <string name="s23_leak_static">Giữ Activity trong companion object</string>
+    <string name="s23_leak_listener">Giữ listener trong singleton</string>
+    <string name="s23_leak_handler">Giữ Activity bằng Handler</string>
+    <string name="s23_leak_clear">Dọn tham chiếu của Leak lab</string>
+</resources>

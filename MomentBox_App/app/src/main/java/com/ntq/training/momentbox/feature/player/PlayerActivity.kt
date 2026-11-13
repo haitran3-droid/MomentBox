@@ -26,9 +26,11 @@ import com.ntq.training.momentbox.core.media.AudioWaveforms
 import com.ntq.training.momentbox.databinding.ActivityPlayerBinding
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
-import java.time.format.DateTimeFormatter
+import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.Job
@@ -207,10 +209,8 @@ class PlayerActivity : AppCompatActivity() {
             getString(if (it.source == "journal") R.string.m5_player_recording else R.string.m5_player_saved_voice) + " · " + Instant.ofEpochMilli(
                 it.dateEpochMs
             ).atZone(ZoneId.systemDefault()).format(
-                DateTimeFormatter.ofPattern(
-                    "dd/MM/yyyy",
-                    resources.configuration.locales[0]
-                )
+                DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+                    .withLocale(resources.configuration.locales[0])
             )
         }.orEmpty()
         binding.playerCoverBadge.setText(if (track?.source == "saved") R.string.m5_player_saved_voice else R.string.m5_player_recording)
@@ -238,8 +238,10 @@ class PlayerActivity : AppCompatActivity() {
         b.playerShuffle.isSelected = state.shuffle
         b.playerRepeat.isSelected =
             state.repeatMode != 0
-        b.playerSpeed.text =
-            String.format(Locale.ROOT, "%sx", state.speed.toString().removeSuffix(".0"))
+        val speed = NumberFormat.getNumberInstance(resources.configuration.locales[0]).apply {
+            maximumFractionDigits = 2
+        }.format(state.speed)
+        b.playerSpeed.text = "$speed×"
         b.playerSleep.text = when {
             state.sleepEndTrack -> getString(R.string.m5_player_timer_end)
             state.sleepAtEpochMs > 0 -> getString(

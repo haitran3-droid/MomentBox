@@ -1,5 +1,9 @@
 package com.ntq.training.momentbox.feature.player
 
+import android.media.AudioManager
+
+enum class FocusEffect { PLAY, RESTORE, PAUSE, DUCK, NONE }
+
 class PlayerFocusPolicy {
     var wantsPlay = false
     private set
@@ -16,20 +20,21 @@ class PlayerFocusPolicy {
     }
 
     fun change(change: Int, playing: Boolean): FocusEffect = when (change) {
-        1 -> {
+        AudioManager.AUDIOFOCUS_GAIN -> {
             val resume = resumeAfterTransient && wantsPlay
-            resumeAfterTransient =
-                false
-                if (resume) FocusEffect.PLAY else FocusEffect.RESTORE
+            resumeAfterTransient = false
+            if (resume) FocusEffect.PLAY else FocusEffect.RESTORE
         }
 
-        -2 -> {
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
             resumeAfterTransient = resumeAfterTransient || (wantsPlay && playing)
             FocusEffect.PAUSE
         }
 
-        -3 -> if (playing && wantsPlay) FocusEffect.DUCK else FocusEffect.NONE
-        -1 -> {
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK ->
+            if (playing && wantsPlay) FocusEffect.DUCK else FocusEffect.NONE
+
+        AudioManager.AUDIOFOCUS_LOSS -> {
             wantsPlay = false
             resumeAfterTransient = false
             FocusEffect.PAUSE

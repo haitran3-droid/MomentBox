@@ -206,7 +206,10 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private fun render(state: ProfileUiState) {
         val b = binding ?: return
         val requests = images ?: return
-        b.profileRoot.isInvisible = state.scope == null
+        // MainActivity controls the fragment root through hide/show. Only hide the profile content
+        // while loading the account so a background update cannot cover the active tab.
+        b.profileAppBar.isInvisible = state.scope == null
+        b.profilePager.isInvisible = state.scope == null
         b.profileLoading.isVisible = state.headerLoading && state.user == null
         b.profileHeaderError.isVisible = state.headerError != null
         if (tabs != state.tabs) {

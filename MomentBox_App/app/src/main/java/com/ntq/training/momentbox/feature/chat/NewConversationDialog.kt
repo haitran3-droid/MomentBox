@@ -41,6 +41,7 @@ data class FollowingState(
 class FollowingViewModel(private val runtime: ChatRuntime) : ViewModel() {
     val state = MutableStateFlow(FollowingState())
     private var started = false
+    private var requestedUser: Long? = null
     var delivered = false
     fun start(user: Long?) {
         if (started) return
@@ -48,7 +49,13 @@ class FollowingViewModel(private val runtime: ChatRuntime) : ViewModel() {
         if (user != null) create(user) else load()
     }
 
-    fun load() {
+    fun retry() {
+        if (state.value.busy) return
+        val user = requestedUser
+        if (user != null) create(user) else load()
+    }
+
+    private fun load() {
         viewModelScope.launch {
             state.value = state.value.copy(busy = true, error = false)
             try {
@@ -67,6 +74,7 @@ class FollowingViewModel(private val runtime: ChatRuntime) : ViewModel() {
     }
 
     fun create(user: Long) {
+        requestedUser = user
         viewModelScope.launch {
             state.value = state.value.copy(busy = true, error = false)
             try {
@@ -94,99 +102,71 @@ class NewConversationDialog : DialogFragment() {
         }
     }
 
-    class NewConversationDialog : DialogFragment() {
-        private val model: FollowingViewModel by viewModels {
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(c: Class<T>): T =
-                    FollowingViewModel((requireActivity().application as MomentBoxApp).chatRuntime) as T
-            }
+    override fun onCreateDialog(saved: Bundle?): Dialog {
+        val context = requireContext()
+        val progress = ProgressBar(context)
+        val message = TextView(context).apply { setPadding(12, 16, 12, 16) }
+        val list = ListView(context)
+        val column = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 12, 24, 12)
+            addView(progress)
+            addView(message)
+            addView(list)
         }
-
-        override fun onCreateDialog(saved: Bundle?): Dialog {
-            val c = requireContext()
-            val column = LinearLayout(c).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(
-                24,
-                12,
-                24,
-                12
-            )
-            }
-            val progress = ProgressBar(c)
-            val message = TextView(c).apply { setPadding(12, 16, 12, 16) }
-            val list = ListView(c)
-            column.addView(progress)
-            column.addView(message)
-            column.addView(list)
-            val dialog =
-                MaterialAlertDialogBuilder(c).setTitle(R.string.m5_chat_new).setView(column)
-                    .setNegativeButton(R.string.m5_chat_cancel, null).create()
-            val runtime = (requireActivity().application as MomentBoxApp).chatRuntime
-            lifecycleScope.launch {
-                repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                    combine(
-                        model.state,
-                        runtime.session
-                    ) { state, active -> state to active }.collect { (state, active) ->
+        val dialog = MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.m5_chat_new)
+            .setView(column)
+            .setNegativeButton(R.string.m5_chat_cancel, null)
+            .create()
+        val runtime = (requireActivity().application as MomentBoxApp).chatRuntime
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                combine(model.state, runtime.session) { state, active -> state to active }
+                    .collect { (state, active) ->
                         if (state.session != null && state.session != active) {
                             dismissAllowingStateLoss()
                             return@collect
                         }
-                        progress.visibility =
-                            if (state.busy) View.VISIBLE else View.GONE
+                        progress.visibility = if (state.busy) View.VISIBLE else View.GONE
                         list.isEnabled = !state.busy
                         list.adapter = ArrayAdapter(
-                            c,
+                            context,
                             AndroidR.layout.simple_list_item_1,
-                            state.users.map { it.displayName.orEmpty() })
-                        list.setOnItemClickListener { _, _, position, _ -> model.create(state.users[position].id) }
+                            state.users.map { it.displayName.orEmpty() }
+                        )
+                        list.setOnItemClickListener { _, _, position, _ ->
+                            if (!model.state.value.busy) state.users.getOrNull(position)?.let { model.create(it.id) }
+                        }
                         message.visibility =
                             if (state.error || (!state.busy && state.users.isEmpty())) View.VISIBLE else View.GONE
                         message.setText(if (state.error) R.string.m5_chat_error else R.string.m5_chat_following_empty)
-                        message.setOnClickListener { model.load() }
-                        if (state.room != null && !model.delivered) {
+                        message.setOnClickListener { model.retry() }
+                        if (state.room != null && state.session != null && !model.delivered) {
                             model.delivered = true
-                            parentFragmentManager.setFragmentResult(
-                                "conversation",
-                                Bundle().apply {
-                                    putLong(
-                                        "id",
-                                        state.room
-                                    )
-                                    state.session?.let {
-                                    putString(
-                                        "owner",
-                                        it.ownerId
-                                    )
-                                    putString("source", it.source)
-                                    putLong(
-                                    "generation",
-                                    it.generation
-                                )
-                                }
-                                })
-                                dismiss()
+                            parentFragmentManager.setFragmentResult("conversation", Bundle().apply {
+                                putLong("id", state.room)
+                                putString("owner", state.session.ownerId)
+                                putString("source", state.session.source)
+                                putLong("generation", state.session.generation)
+                            })
+                            dismiss()
                         }
                     }
-                }
             }
-            model.start(arguments?.getLong("user")?.takeIf { it > 0 })
-            return dialog
         }
+        model.start(arguments?.getLong("user")?.takeIf { it > 0 })
+        return dialog
+    }
 
-        companion object {
-            /** Fragment Result có thể được giữ qua rotation; chỉ caller cùng phiên mới được nhận. */
-            fun matches(
-                result: Bundle,
-                session: ChatSession?
-            ) = session != null && result.getString("owner") == session.ownerId && result.getString(
-                "source"
-            ) == session.source && result.getLong("generation", -1) == session.generation
+    companion object {
+        /** Fragment Result có thể được giữ qua rotation; chỉ caller cùng phiên mới được nhận. */
+        fun matches(result: Bundle, session: ChatSession?): Boolean =
+            session != null && result.getString("owner") == session.ownerId &&
+                result.getString("source") == session.source &&
+                result.getLong("generation", -1) == session.generation
 
-            fun forUser(id: Long) =
-                NewConversationDialog().apply { arguments = Bundle().apply { putLong("user", id) } }
-        }
+        fun forUser(id: Long) =
+            NewConversationDialog().apply { arguments = Bundle().apply { putLong("user", id) } }
     }
 }

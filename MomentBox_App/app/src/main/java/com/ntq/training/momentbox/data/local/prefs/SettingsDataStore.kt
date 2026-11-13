@@ -257,6 +257,9 @@ class SettingsDataStore(private val preferences: DataStore<Preferences>) :
         }
     }
 
+    suspend fun preferenceNames(): List<String> =
+        preferences.data.first().asMap().keys.map { it.name }.sorted()
+
     override suspend fun getDebugDelay(): Int {
         return debugDelayMsFlow.first()
     }

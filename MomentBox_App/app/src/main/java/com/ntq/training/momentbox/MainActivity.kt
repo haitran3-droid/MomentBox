@@ -99,7 +99,7 @@ class MainActivity : AppCompatActivity() {
                         binding.tvChatBadge.visibility =
                             if (count > 0) View.VISIBLE else View.GONE
                         binding.tvChatBadge.text =
-                            NumberFormat.getIntegerInstance().format(count)
+                            NumberFormat.getIntegerInstance(resources.configuration.locales[0]).format(count)
                     }
                 }
             }

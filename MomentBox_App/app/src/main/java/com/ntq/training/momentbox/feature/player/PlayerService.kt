@@ -232,10 +232,8 @@ class PlayerService : Service() {
     }
     private val noisy = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, intent: Intent?) {
-            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) handler.post {
-                pause(
-                    true
-                )
+            if (noisyRegistered && !closed && intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                pause(true)
             }
         }
     }
@@ -584,10 +582,14 @@ class PlayerService : Service() {
 
     private fun registerNoisy() {
         if (!noisyRegistered) {
+            // Android releases Service-context receivers when onDestroy returns.
+            // The playback handler owns registration and teardown after that callback.
             ContextCompat.registerReceiver(
-                this,
+                applicationContext,
                 noisy,
                 IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+                null,
+                handler,
                 ContextCompat.RECEIVER_NOT_EXPORTED
             )
             noisyRegistered = true
@@ -596,7 +598,7 @@ class PlayerService : Service() {
 
     private fun unregisterNoisy() {
         if (noisyRegistered) {
-            unregisterReceiver(noisy)
+            applicationContext.unregisterReceiver(noisy)
             noisyRegistered = false
         }
     }
@@ -849,10 +851,12 @@ class PlayerService : Service() {
     }
 
     override fun onDestroy() {
-        handler.post { if (!closed) shutdown()
-        audio.unregisterAudioDeviceCallback(devices)
-        session.release()
-        thread.quitSafely() }
+        handler.post {
+            shutdown()
+            audio.unregisterAudioDeviceCallback(devices)
+            session.release()
+            thread.quitSafely()
+        }
         super.onDestroy()
     }
 }

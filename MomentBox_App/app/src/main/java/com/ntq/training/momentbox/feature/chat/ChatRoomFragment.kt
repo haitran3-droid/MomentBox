@@ -373,7 +373,7 @@ class ChatRoomFragment : Fragment() {
                         b.quickStatus.text = when (state.phase) {
                             QuickRecordPhase.RECORDING -> getString(
                                 R.string.m5_quick_recording,
-                                duration(state.elapsedMs)
+                                duration(state.elapsedMs, resources.configuration.locales[0])
                             )
 
                             QuickRecordPhase.ERROR -> getString(R.string.m4_record_error)

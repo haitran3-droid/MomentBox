@@ -6,6 +6,7 @@ import com.google.gson.GsonBuilder
 import com.ntq.training.momentbox.BuildConfig
 import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import com.ntq.training.momentbox.data.local.prefs.TokenStore
+import com.ntq.training.momentbox.data.local.prefs.TokenStorage
 import com.ntq.training.momentbox.data.remote.dto.RawFeedItemDto
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
@@ -23,7 +24,7 @@ object NetworkModule {
     /** Cung cấp đối tượng Gson dùng chung để phân tích cú pháp JSON */
     fun provideGson(): Gson = gson
 
-    fun provideRawOkHttpClient(context: Context): OkHttpClient {
+    fun provideRawOkHttpClient(context: Context, tokens: TokenStorage? = null): OkHttpClient {
         val builder = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
@@ -32,7 +33,7 @@ object NetworkModule {
 
         // Chỉ ghi log mạng trong môi trường phát triển (DEBUG), tắt trên RELEASE để bảo mật
         if (BuildConfig.DEBUG) {
-            builder.addNetworkInterceptor(NetworkLogInterceptor())
+            builder.addNetworkInterceptor(NetworkLogInterceptor(tokens))
         }
 
         return builder.build()
@@ -50,7 +51,7 @@ object NetworkModule {
         dummyJsonBaseUrl: String = BuildConfig.DUMMY_JSON_URL
     ): OkHttpClient {
         // 1. Tạo raw client để truyền vào Authenticator, tránh vòng lặp đệ quy 401
-        val rawClient = provideRawOkHttpClient(context)
+        val rawClient = provideRawOkHttpClient(context, tokenStore)
         val authenticator = TokenAuthenticator(
             tokenStore = tokenStore,
             settingsDataStore = settingsDataStore,
@@ -77,7 +78,7 @@ object NetworkModule {
         // 3. Các Interceptor chỉ phục vụ debug/kiểm thử
         if (BuildConfig.DEBUG) {
             builder.addInterceptor(DebugHeaderInterceptor(settingsDataStore))
-            builder.addNetworkInterceptor(NetworkLogInterceptor())
+            builder.addNetworkInterceptor(NetworkLogInterceptor(tokenStore))
         }
 
         // 4. Gắn Authenticator tự động xử lý khi nhận mã lỗi 401

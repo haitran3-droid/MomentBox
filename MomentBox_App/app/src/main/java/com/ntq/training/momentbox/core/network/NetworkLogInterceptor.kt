@@ -1,15 +1,9 @@
 package com.ntq.training.momentbox.core.network
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonParser
-import com.google.gson.JsonPrimitive
-import java.nio.charset.Charset
+import com.ntq.training.momentbox.data.local.prefs.TokenStorage
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.ConcurrentLinkedDeque
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import okhttp3.HttpUrl
+import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.Interceptor
 import okhttp3.MediaType
 import okhttp3.Response
@@ -36,16 +30,26 @@ data class NetworkLogEntry(
  * tránh deque bị clear giữa size và removeLast khi nhiều request hoàn tất cùng lúc.
  * Không writeTo multipart/media để xem trước: việc đó có thể gọi progress callback lần hai
  * hoặc tiêu thụ stream trước khi mạng gửi thật. Response dùng peekBody, không lấy .string(). */
-class NetworkLogInterceptor : Interceptor {
+class NetworkLogInterceptor(private val tokens: TokenStorage? = null) : Interceptor {
     companion object {
         private const val MAX_LOGS = 100
         private val gate = Any()
         private val buffer = ArrayDeque<NetworkLogEntry>()
+        private var revision = 0L
         private val mutable = MutableStateFlow<List<NetworkLogEntry>>(emptyList())
         val logsFlow = mutable.asStateFlow()
-        fun clearLogs() = synchronized(gate) { buffer.clear()
-        mutable.value = emptyList() }
-        private fun add(entry: NetworkLogEntry) = synchronized(gate) {
+
+        fun clearLogs() = synchronized(gate) {
+            revision++
+            buffer.clear()
+            mutable.value = emptyList()
+        }
+    }
+
+    private fun add(expectedRevision: Long, session: SessionRequest?, entry: NetworkLogEntry) {
+        synchronized(gate) {
+            if (revision != expectedRevision) return
+            if (session != null && tokens != null && tokens.getSessionGeneration() != session.generation) return
             buffer.addFirst(entry)
             while (buffer.size > MAX_LOGS) buffer.removeLast()
             mutable.value = buffer.toList()
@@ -57,6 +61,8 @@ class NetworkLogInterceptor : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
+        val logRevision = synchronized(gate) { revision }
+        val session = request.tag(SessionRequest::class.java)
         val requestHeaders = DebugLogPrivacy.headers(request.headers)
         val preview = request.body?.let { body ->
             if (!json(body.contentType()) || body.isDuplex() || body.isOneShot()) "[request body omitted: not replayable JSON]"
@@ -79,6 +85,8 @@ class NetworkLogInterceptor : Interceptor {
             chain.proceed(request)
         } catch (error: Exception) {
             add(
+                logRevision,
+                session,
                 NetworkLogEntry(
                     method = request.method,
                     url = DebugLogPrivacy.url(request.url),
@@ -114,6 +122,8 @@ class NetworkLogInterceptor : Interceptor {
             }
         }
         add(
+            logRevision,
+            session,
             NetworkLogEntry(
                 method = request.method,
                 url = DebugLogPrivacy.url(request.url),

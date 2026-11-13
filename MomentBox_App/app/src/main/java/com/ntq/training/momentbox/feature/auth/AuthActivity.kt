@@ -7,7 +7,6 @@ import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
 import android.view.inputmethod.EditorInfo
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isGone
@@ -28,6 +27,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.ntq.training.momentbox.BuildConfig
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.databinding.ActivityAuthBinding
+import com.ntq.training.momentbox.debug.DebugToolsEntry
 import com.ntq.training.momentbox.feature.reminder.ReminderJournalRoute
 import kotlinx.coroutines.launch
 import kotlin.getValue
@@ -74,7 +74,6 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         // Hide API chip in release build
         binding.chipApiSource.isVisible = BuildConfig.DEBUG
 
-        updateApiSourceLabel()
         if (intent.getBooleanExtra("logoutCleanupFailed", false)) {
             showSnackbar(getString(R.string.s22_failed))
             intent.removeExtra("logoutCleanupFailed")
@@ -153,7 +152,7 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         }
 
         binding.chipApiSource.setOnClickListener {
-            showDataSourceSelectionDialog()
+            DebugToolsEntry.intent(this, sourceOnly = true)?.let(::startActivity)
         }
     }
 
@@ -303,37 +302,9 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         }
     }
 
-    private fun showDataSourceSelectionDialog() {
-        val sources = arrayOf(
-            "MB Server (${BuildConfig.BASE_URL.trimEnd('/')})",
-            "DummyJSON (https://dummyjson.com)",
-            "Offline (Mock)"
-        )
-        val keys = arrayOf(
-            SettingsDataStore.SOURCE_MB_SERVER,
-            SettingsDataStore.SOURCE_DUMMY_JSON,
-            SettingsDataStore.SOURCE_OFFLINE
-        )
-
-        AlertDialog.Builder(this)
-            .setTitle("Chọn nguồn dữ liệu (Debug)")
-            .setItems(sources) { _, which ->
-                lifecycleScope.launch {
-                    val app = MomentBoxApp.instance
-                    val selectedKey = keys[which]
-                    viewModel.beginSourceChange()
-                    try {
-                        app.authRepository.changeDataSource(selectedKey)
-                        viewModel.onDataSourceChanged(selectedKey)
-                    } finally {
-                        viewModel.resetUiState()
-                    }
-                    updateApiSourceLabel()
-                    showSnackbar("Đã chuyển sang nguồn: ${sources[which]}")
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+    override fun onResume() {
+        super.onResume()
+        updateApiSourceLabel()
     }
 
     private fun showSnackbar(message: String) {

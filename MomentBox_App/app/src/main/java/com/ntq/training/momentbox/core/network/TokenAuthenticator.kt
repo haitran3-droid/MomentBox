@@ -133,6 +133,7 @@ class TokenAuthenticator(
 
                 val refreshRequest = Request.Builder()
                     .url(refreshUrl)
+                    .tag(SessionRequest::class.java, SessionRequest(startGeneration))
                     .post(refreshRequestBodyJson.toRequestBody("application/json".toMediaType()))
                     .build()
 

@@ -132,6 +132,7 @@ dependencies {
     // Kiểm thử giao diện trên thiết bị thật / giả lập (Instrumented Tests)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
 }
 val parcelizeCompiler = configurations.create("momentboxParcelizeCompiler") {
     isCanBeConsumed = false

@@ -12,6 +12,7 @@ const seed = require('./seed');
 const { ensureAudio } = require('./audio');
 
 const PORT = +process.env.PORT || 3000;
+const HOST = process.env.HOST || undefined;
 const ACCESS_TTL = +process.env.ACCESS_TOKEN_TTL || 900;            // seconds
 const REFRESH_TTL = +process.env.REFRESH_TOKEN_TTL || 7 * 24 * 3600; // seconds
 const AUDIO_DIR = path.join(__dirname, 'public', 'audio');
@@ -39,16 +40,16 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 
 // ---------------------------------------------------------------- helpers
 const MSG = {
-  VALIDATION_ERROR: { vi: 'Dữ liệu không hợp lệ', en: 'Invalid data' },
-  INVALID_CREDENTIALS: { vi: 'Email hoặc mật khẩu không đúng', en: 'Incorrect email or password' },
-  UNAUTHORIZED: { vi: 'Bạn cần đăng nhập', en: 'Authentication required' },
-  TOKEN_EXPIRED: { vi: 'Phiên đăng nhập đã hết hạn', en: 'Access token expired' },
-  REFRESH_TOKEN_INVALID: { vi: 'Phiên đăng nhập không còn hiệu lực, vui lòng đăng nhập lại', en: 'Refresh token is invalid' },
-  FORBIDDEN: { vi: 'Bạn không có quyền thực hiện thao tác này', en: 'Forbidden' },
-  NOT_FOUND: { vi: 'Không tìm thấy dữ liệu', en: 'Not found' },
-  INTERNAL: { vi: 'Có lỗi xảy ra, vui lòng thử lại', en: 'Something went wrong' },
+  VALIDATION_ERROR: { vi: 'Dữ liệu không hợp lệ', en: 'Invalid data', ja: '入力内容が無効です' },
+  INVALID_CREDENTIALS: { vi: 'Email hoặc mật khẩu không đúng', en: 'Incorrect email or password', ja: 'メールアドレスまたはパスワードが正しくありません' },
+  UNAUTHORIZED: { vi: 'Bạn cần đăng nhập', en: 'Authentication required', ja: 'ログインしてください' },
+  TOKEN_EXPIRED: { vi: 'Phiên đăng nhập đã hết hạn', en: 'Access token expired', ja: 'ログインの有効期限が切れました' },
+  REFRESH_TOKEN_INVALID: { vi: 'Phiên đăng nhập không còn hiệu lực, vui lòng đăng nhập lại', en: 'Refresh token is invalid', ja: 'もう一度ログインしてください' },
+  FORBIDDEN: { vi: 'Bạn không có quyền thực hiện thao tác này', en: 'Forbidden', ja: 'この操作を行う権限がありません' },
+  NOT_FOUND: { vi: 'Không tìm thấy dữ liệu', en: 'Not found', ja: 'データが見つかりません' },
+  INTERNAL: { vi: 'Có lỗi xảy ra, vui lòng thử lại', en: 'Something went wrong', ja: 'エラーが発生しました。もう一度お試しください' },
 };
-const lang = req => ((req.headers && req.headers['accept-language']) || 'vi').toLowerCase().startsWith('en') ? 'en' : 'vi';
+const lang = req => req.acceptsLanguages('vi', 'en', 'ja') || 'vi';
 const ok = (res, data, meta) => res.json(meta ? { success: true, data, meta } : { success: true, data });
 const fail = (req, res, status, code, details) =>
   res.status(status).json({ success: false, error: { code, message: (MSG[code] || MSG.INTERNAL)[lang(req)], ...(details && { details }) } });
@@ -545,11 +546,11 @@ io.on('connection', socket => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   const nets = Object.values(require('os').networkInterfaces()).flat().filter(n => n && n.family === 'IPv4' && !n.internal);
   console.log(`MomentBox mock server đang chạy:`);
   console.log(`  • Máy tính      : http://localhost:${PORT}`);
   console.log(`  • Android Emulator: http://10.0.2.2:${PORT}`);
-  nets.forEach(n => console.log(`  • Máy thật (LAN): http://${n.address}:${PORT}`));
+  if (!HOST) nets.forEach(n => console.log(`  • Máy thật (LAN): http://${n.address}:${PORT}`));
   console.log(`  Access token TTL = ${ACCESS_TTL}s`);
 });

@@ -18,9 +18,10 @@ internal fun presenceLabel(
     now: Long = System.currentTimeMillis()
 ): Pair<Boolean, String> {
     val members = members(state)
+    val numbers = NumberFormat.getIntegerInstance(c.resources.configuration.locales[0])
     if (state.room?.type == "group") return false to c.getString(
         R.string.m5_chat_members,
-        NumberFormat.getIntegerInstance().format(members.size)
+        numbers.format(members.size)
     )
     val peer =
         state.users.firstOrNull { it.id.toString() != state.owner && members.any { member -> member.id == it.id } }
@@ -32,15 +33,15 @@ internal fun presenceLabel(
         minutes < 1 -> c.getString(R.string.m5_chat_recent)
         minutes < 60 -> c.getString(
             R.string.m5_chat_minutes,
-            NumberFormat.getIntegerInstance().format(minutes)
+            numbers.format(minutes)
         )
         minutes < 1440 -> c.getString(
             R.string.m5_chat_hours,
-            NumberFormat.getIntegerInstance().format(minutes / 60)
+            numbers.format(minutes / 60)
         )
         else -> c.getString(
             R.string.m5_chat_days,
-            NumberFormat.getIntegerInstance().format(minutes / 1440)
+            numbers.format(minutes / 1440)
         )
     }
     return false to text

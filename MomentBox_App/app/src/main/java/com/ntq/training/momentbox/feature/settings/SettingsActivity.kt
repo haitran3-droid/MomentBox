@@ -36,6 +36,7 @@ import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import com.ntq.training.momentbox.databinding.ActivitySettingsBinding
 import com.ntq.training.momentbox.databinding.ItemSettingsRowBinding
+import com.ntq.training.momentbox.debug.DebugToolsEntry
 import com.ntq.training.momentbox.domain.model.User
 import com.ntq.training.momentbox.feature.auth.AuthActivity
 import com.ntq.training.momentbox.feature.language.LanguageDialogFragment
@@ -171,7 +172,7 @@ class SettingsActivity : AppCompatActivity() {
             setText(R.string.s22_permission_hint)
         }
         row(binding.settingsDeveloper, R.string.s22_developer, R.drawable.ic_s22_bug_report) {
-            com.ntq.training.momentbox.debug.DebugToolsEntry.intent(this)?.let { intent ->
+            DebugToolsEntry.intent(this)?.let { intent ->
                 if (intent.resolveActivity(packageManager) != null) startActivity(intent) else snack(
                     R.string.s22_failed
                 )

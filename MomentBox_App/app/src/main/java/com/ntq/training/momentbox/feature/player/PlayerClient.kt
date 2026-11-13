@@ -196,12 +196,14 @@ class PlayerClient(context: Context) {
     fun setQueue(values: List<Track>, index: Int, play: Boolean = false) {
         PlayerProtocol.validate(values, index)
         val copy = values.map { it.copy(waveform = it.waveform.toList()) }
-        submit { api -> api.setQueue(copy, index)
-        if (play) startPlayback() }
+        submit { api ->
+            api.setQueue(copy, index)
+            if (play) startPlayback()
+        }
     }
 
     fun play() {
-        if (remote != null) enqueue { startPlayback() }
+        submit { startPlayback() }
     }
 
     private suspend fun startPlayback() = withContext(Dispatchers.Main) {

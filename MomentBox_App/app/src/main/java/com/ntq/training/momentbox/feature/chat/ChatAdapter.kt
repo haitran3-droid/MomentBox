@@ -3,6 +3,7 @@ package com.ntq.training.momentbox.feature.chat
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Typeface
+import android.text.format.DateFormat
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
@@ -19,6 +20,7 @@ import com.ntq.training.momentbox.databinding.ItemChatOnlineBinding
 import com.ntq.training.momentbox.R
 import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -85,14 +87,15 @@ class ConversationAdapter(private val click: (Long) -> Unit) :
             )
             this.unread.isVisible = unread
             this.unread.text =
-            NumberFormat.getIntegerInstance().format(row.unreadCount)
+            NumberFormat.getIntegerInstance(c.resources.configuration.locales[0]).format(row.unreadCount)
             preview.text = when {
                 item.typing -> c.getString(R.string.m5_chat_typing)
                 row.lastMessageType == "image" -> c.getString(
                     R.string.m5_chat_image
                 )
                 row.lastMessageType == "voice" -> c.getString(R.string.m5_chat_voice) + " · " + duration(
-                    item.preview.duration ?: 0
+                    item.preview.duration ?: 0,
+                    c.resources.configuration.locales[0]
                 )
                 else -> row.lastMessagePreview
             }
@@ -156,22 +159,21 @@ class OnlineAdapter(private val click: (Long) -> Unit) :
             }
         }
 
-internal fun duration(ms: Long): String =
-    String.format(Locale.getDefault(), "%d:%02d", ms / 60000, ms / 1000 % 60)
+internal fun duration(ms: Long, locale: Locale): String =
+    String.format(locale, "%d:%02d", ms / 60000, ms / 1000 % 60)
+
+internal fun chatClock(ms: Long, context: Context): String =
+    DateFormat.getTimeFormat(context).format(ms)
 
 internal fun chatTime(ms: Long, c: Context): String {
     val date = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault())
     val today = LocalDate.now()
     return when (date.toLocalDate()) {
-        today -> date.format(
-            DateTimeFormatter.ofPattern(
-                "HH:mm",
-                Locale.getDefault()
-            )
-        )
+        today -> chatClock(ms, c)
         today.minusDays(1) -> c.getString(R.string.m5_chat_yesterday)
         else -> date.format(
-            DateTimeFormatter.ofPattern("dd/MM", Locale.getDefault())
+            DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(c.resources.configuration.locales[0])
         )
     }
 }

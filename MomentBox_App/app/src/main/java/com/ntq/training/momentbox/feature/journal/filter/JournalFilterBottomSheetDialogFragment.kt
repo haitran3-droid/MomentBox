@@ -10,6 +10,7 @@ import android.widget.FrameLayout
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.os.bundleOf
 import androidx.core.util.Pair as DateRangePair
+import androidx.core.view.isGone
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -142,7 +143,7 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
             var contentHeight = root.paddingTop + root.paddingBottom
             for (index in 0 until root.childCount) {
                 val child = root.getChildAt(index)
-                if (child.visibility == View.GONE) continue
+                if (child.isGone) continue
                 val margin = child.layoutParams as? ViewGroup.MarginLayoutParams
                 contentHeight += (margin?.topMargin ?: 0) + (margin?.bottomMargin ?: 0)
                 contentHeight += if (child === scroll) {
@@ -384,7 +385,7 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
             }.collect { count ->
                 if (_binding != null) {
                     binding.btnApplyFilter.text =
-                        getString(R.string.filter_apply_count_format, count)
+                        resources.getQuantityString(R.plurals.filter_apply_count_format, count, count)
                 }
             }
         }

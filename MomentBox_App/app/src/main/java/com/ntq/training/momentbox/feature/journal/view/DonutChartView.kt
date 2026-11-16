@@ -220,8 +220,9 @@ class DonutChartView @JvmOverloads constructor(
                 points.maxOf { it.first }.toInt().coerceAtLeast(1),
                 points.maxOf { it.second }.toInt().coerceAtLeast(1)
             )
-            val label = context.getString(
-                R.string.journal_sector_description,
+            val label = resources.getQuantityString(
+                R.plurals.journal_sector_description,
+                item.count,
                 resources.getStringArray(R.array.journal_mood_names)[item.mood - 1],
                 item.count,
                 item.percentage

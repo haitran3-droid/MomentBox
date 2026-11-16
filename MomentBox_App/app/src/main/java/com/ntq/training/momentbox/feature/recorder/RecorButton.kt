@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
 
@@ -39,12 +38,10 @@ class RecordButton @JvmOverloads constructor(context: Context, attrs: AttributeS
         c.drawCircle(cx, cy, radius - paint.strokeWidth / 2, paint)
         paint.color = 0xFFE5484D.toInt()
         c.drawArc(
-            RectF(
-                cx - radius + paint.strokeWidth / 2,
-                cy - radius + paint.strokeWidth / 2,
-                cx + radius - paint.strokeWidth / 2,
-                cy + radius - paint.strokeWidth / 2,
-            ),
+            cx - radius + paint.strokeWidth / 2,
+            cy - radius + paint.strokeWidth / 2,
+            cx + radius - paint.strokeWidth / 2,
+            cy + radius - paint.strokeWidth / 2,
             -90f,
             360 * progress,
             false,

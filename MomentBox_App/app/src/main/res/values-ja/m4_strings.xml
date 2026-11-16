@@ -12,10 +12,8 @@
     <string name="m4_take_photo">写真を撮る</string>
     <string name="m4_empty">アクセスできる写真や動画がありません。</string>
     <string name="m4_library_error">ライブラリを読み込めません。タップして再試行。</string>
-    <string name="m4_limit">最大10件選択できます。</string>
     <string name="m4_video_invalid">動画は60秒以内の有効な長さが必要です。</string>
     <string name="m4_unsupported">この項目は対応していません。</string>
-    <string name="m4_settings">設定を開く</string>
     <string name="m4_loading">読み込み中…</string>
     <string name="m4_camera">カメラ</string>
     <string name="m4_select">メディアを選択</string>
@@ -93,7 +91,9 @@
     <string name="m4_see_all">すべて表示</string>
     <string name="m4_no_recent">録音はまだありません</string>
     <string name="m4_recent_record_title">録音 %1$s</string>
-    <string name="m4_limit_remaining">今回は最大%1$d件を選択できます。</string>
+    <plurals name="m4_limit_remaining">
+        <item quantity="other">今回は最大%1$d件を選択できます。</item>
+    </plurals>
     <string name="m4_reorder_hint">長押ししてドラッグすると並べ替えられます</string>
     <string name="m4_audio_busy">音声が使用中です。録音を一時停止してから再試行してください。</string>
     <string name="m4_editor_restore_error">前回の編集を復元できません。元の画像は保持されています。</string>

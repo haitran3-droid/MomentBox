@@ -21,7 +21,6 @@ import android.media.MediaPlayer
 import android.media.PlaybackParams
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
-import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.os.Handler
@@ -31,6 +30,7 @@ import android.os.PowerManager
 import android.os.Process
 import android.os.RemoteCallbackList
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.ntq.training.momentbox.R
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -428,7 +428,7 @@ class PlayerService : Service() {
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
             )
             engine.setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
-            val uri = Uri.parse(track.uri)
+            val uri = track.uri.toUri()
             if (uri.scheme == "file") engine.setDataSource(checkNotNull(uri.path)) else engine.setDataSource(
                 applicationContext,
                 uri
@@ -649,12 +649,10 @@ class PlayerService : Service() {
     private fun updateRoute() {
         val current = if (Build.VERSION.SDK_INT >= 28) player?.routedDevice else null
         val type = current?.type ?: audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).firstOrNull {
-            it.type in setOf(
-                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-                AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-                AudioDeviceInfo.TYPE_WIRED_HEADSET,
-                AudioDeviceInfo.TYPE_USB_HEADSET
-            )
+            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                (Build.VERSION.SDK_INT >= 26 && it.type == AudioDeviceInfo.TYPE_USB_HEADSET)
         }?.type
         route = when (type) {
             AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLE_SPEAKER -> "bluetooth"

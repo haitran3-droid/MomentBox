@@ -1,7 +1,6 @@
 package com.ntq.training.momentbox.feature.tabs
 
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
 import android.widget.TextView
 import androidx.core.app.NotificationManagerCompat
@@ -22,6 +21,7 @@ import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.core.widget.TextViewCompat
 import androidx.core.widget.doAfterTextChanged
@@ -219,7 +219,7 @@ class ChatFragment : Fragment() {
                         )
                     else Intent(
                         Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.parse("package:" + requireContext().packageName)
+                        "package:${requireContext().packageName}".toUri()
                     )
                 startActivity(target)
             }.also {

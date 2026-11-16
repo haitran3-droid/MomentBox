@@ -1,13 +1,13 @@
 package com.ntq.training.momentbox.feature.language
 import android.app.Dialog
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.graphics.drawable.toDrawable
 import androidx.core.os.LocaleListCompat
 import androidx.core.os.bundleOf
 import androidx.core.content.res.ResourcesCompat
@@ -40,7 +40,7 @@ class LanguageDialogFragment : DialogFragment() {
         val dialog = super.onCreateDialog(savedInstanceState)
         // Bỏ tiêu đề mặc định của hệ thống và làm trong suốt nền cửa sổ để hiển thị bo góc dialog.xml
         dialog.window?.requestFeature(Window.FEATURE_NO_TITLE)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
         return dialog
     }
 

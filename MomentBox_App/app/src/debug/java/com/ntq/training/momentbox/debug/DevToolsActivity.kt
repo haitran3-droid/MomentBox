@@ -148,7 +148,7 @@ class DevToolsActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     combine(settings.debugDelayMsFlow, NetworkLogInterceptor.logsFlow) { delay, logs ->
-                        getString(R.string.s23_log_count, delay, logs.size)
+                        resources.getQuantityString(R.plurals.s23_log_count, logs.size, delay, logs.size)
                     }.collect { networkStatus.text = it }
                 }
                 launch {

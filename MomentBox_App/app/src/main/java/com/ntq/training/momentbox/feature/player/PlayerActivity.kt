@@ -241,7 +241,7 @@ class PlayerActivity : AppCompatActivity() {
         val speed = NumberFormat.getNumberInstance(resources.configuration.locales[0]).apply {
             maximumFractionDigits = 2
         }.format(state.speed)
-        b.playerSpeed.text = "$speed×"
+        b.playerSpeed.text = getString(R.string.player_speed_label, speed)
         b.playerSleep.text = when {
             state.sleepEndTrack -> getString(R.string.m5_player_timer_end)
             state.sleepAtEpochMs > 0 -> getString(
@@ -272,8 +272,9 @@ class PlayerActivity : AppCompatActivity() {
             }
         )
         b.playerElapsed.text = clock(state.positionMs)
-        b.playerRemaining.text =
-            "-" + clock((state.durationMs - state.positionMs).coerceAtLeast(0))
+        b.playerRemaining.text = getString(
+            R.string.player_remaining_label, clock((state.durationMs - state.positionMs).coerceAtLeast(0))
+        )
         val waveKey = track?.let { it.id + "|" + it.uri }.orEmpty()
         if (waveKey != waveformKey) {
             waveformKey = waveKey
@@ -295,8 +296,7 @@ class PlayerActivity : AppCompatActivity() {
         b.playerWaveform.setAmplitudes(track?.waveform?.takeIf { it.isNotEmpty() } ?: decoded)
         b.playerWaveform.setProgress(if (state.durationMs > 0) state.positionMs.toFloat() / state.durationMs else 0f)
         b.playerDebug.isVisible = BuildConfig.DEBUG
-        b.playerDebug.text =
-            "PlayerService · :player · AIDL $connection · focus=${state.focus}"
+        b.playerDebug.text = getString(R.string.player_debug_status, connection, state.focus)
         val error =
             state.error != null || (connection !in setOf("bound", "connecting", "disconnected"))
         b.playerError.isVisible = error || library.error

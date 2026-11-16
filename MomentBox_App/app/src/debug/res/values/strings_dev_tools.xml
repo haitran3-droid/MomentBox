@@ -8,7 +8,10 @@
     <string name="s23_delay">Độ trễ giả lập</string>
     <string name="s23_show_logs">Xem request</string>
     <string name="s23_clear_logs">Xoá log</string>
-    <string name="s23_log_count">Độ trễ %1$d ms · %2$d request</string>
+    <plurals name="s23_log_count">
+        <item quantity="one">Độ trễ %1$d ms · %2$d yêu cầu</item>
+        <item quantity="other">Độ trễ %1$d ms · %2$d yêu cầu</item>
+    </plurals>
     <string name="s23_no_requests">Chưa có request.</string>
     <string name="s23_refresh_completed">Đã tải lại hồ sơ. Mở Network log để xem luồng refresh.</string>
     <string name="s23_socket_options">Tuỳ chọn kết nối socket</string>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="journal_clear_date_range">Xóa khoảng ngày đã chọn</string>
+    <string name="journal_previous_month">Tháng trước</string>
+    <string name="journal_next_month">Tháng sau</string>
+    <plurals name="journal_attached_photos">
+        <item quantity="other">%d ảnh đính kèm</item>
+    </plurals>
+    <plurals name="journal_play_recordings">
+        <item quantity="other">Mở trình phát · %d bản ghi âm</item>
+    </plurals>
+</resources>

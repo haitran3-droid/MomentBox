@@ -2,7 +2,7 @@ package com.ntq.training.momentbox.data.repository
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.net.Uri
+import androidx.core.net.toUri
 import com.ntq.training.momentbox.core.media.OwnedImageFiles
 import com.ntq.training.momentbox.core.network.ProgressRequestBody
 import com.ntq.training.momentbox.core.network.SessionRequest
@@ -69,7 +69,7 @@ class ChatMediaRepository(
             var row: MessageEntity? = null
             // Chỉ handoff file chat-quick mới được xóa nguồn; URI Gallery/S14 luôn giữ nguyên.
             val quick = if (ownedQuick) runCatching {
-                val parsed = Uri.parse(uri)
+                val parsed = uri.toUri()
                 check(parsed.scheme == "file")
                 File(
                 checkNotNull(
@@ -90,14 +90,14 @@ class ChatMediaRepository(
                     UUID.randomUUID().toString() + if (type == "image") ".jpg" else ".m4a"
                 )
                 if (type == "image") {
-                    val bitmap = OwnedImageFiles.decode(context, Uri.parse(uri), 2048)
+                    val bitmap = OwnedImageFiles.decode(context, uri.toUri(), 2048)
                     try {
                         file.outputStream()
                             .use { check(bitmap.compress(Bitmap.CompressFormat.JPEG, 85, it)) }
                     } finally {
                         bitmap.recycle()
                     }
-                } else context.contentResolver.openInputStream(Uri.parse(uri))!!.use { input ->
+                } else context.contentResolver.openInputStream(uri.toUri())!!.use { input ->
                     file.outputStream().use { output ->
                         val buffer = ByteArray(8192)
                         var total = 0L

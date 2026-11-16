@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000"
@@ -83,7 +84,7 @@
                     style="@style/Media.CameraControl"
                     android:layout_width="match_parent"
                     android:layout_height="32dp"
-                    android:text="0°"
+                    android:text="@string/crop_initial_angle"
                     android:textColor="#FFD54F" />
 
                 <com.ntq.training.momentbox.feature.crop.AngleRulerView
@@ -102,7 +103,7 @@
                         style="@style/Media.CameraControl"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:drawableTop="@drawable/ic_media_rotate_90_degrees_ccw"
+                        app:drawableTopCompat="@drawable/ic_media_rotate_90_degrees_ccw"
                         android:drawablePadding="6dp"
                         android:minHeight="64dp"
                         android:text="@string/m4_rotate" />
@@ -112,7 +113,7 @@
                         style="@style/Media.CameraControl"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:drawableTop="@drawable/ic_media_flip"
+                        app:drawableTopCompat="@drawable/ic_media_flip"
                         android:drawablePadding="6dp"
                         android:minHeight="64dp"
                         android:text="@string/m4_flip" />
@@ -122,7 +123,7 @@
                         style="@style/Media.CameraControl"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:drawableTop="@drawable/ic_media_restart_alt"
+                        app:drawableTopCompat="@drawable/ic_media_restart_alt"
                         android:drawablePadding="6dp"
                         android:minHeight="64dp"
                         android:text="@string/m4_reset" />

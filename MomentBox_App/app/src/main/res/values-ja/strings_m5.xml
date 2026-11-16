@@ -24,10 +24,11 @@
     <string name="m5_chat_sent">送信済み</string>
     <string name="m5_chat_delivered">配信済み</string>
     <string name="m5_chat_seen">既読</string>
-    <string name="m5_chat_invalid">会話を開けません</string>
     <string name="m5_socket_connecting">接続中…</string>
     <string name="m5_socket_attempt">再接続中（%1$d回目）</string>
-    <string name="m5_socket_waiting">未接続 · %2$d秒後に%1$d回目 · 再試行</string>
+    <plurals name="m5_socket_waiting">
+        <item quantity="other">未接続 · %2$d秒後に%1$d回目 · 再試行</item>
+    </plurals>
     <string name="m5_socket_failed">接続できません · 再試行</string>
     <string name="m5_socket_expired">セッション期限切れ · 再認証中</string>
     <string name="m5_quick_hold">マイクを長押しで録音、離して送信、左へスワイプでキャンセル</string>
@@ -48,7 +49,9 @@
     <string name="m5_notification_you">自分</string>
     <string name="m5_notification_reply">返信…</string>
     <string name="m5_notification_reply_failed">送信できませんでした</string>
-    <string name="m5_notification_summary">未読メッセージ %1$d 件</string>
+    <plurals name="m5_notification_summary">
+        <item quantity="other">未読メッセージ %1$d 件</item>
+    </plurals>
     <string name="m5_notification_seen">既読にする</string>
     <string name="m5_notification_permission_title">メッセージ通知</string>
     <string name="m5_notification_permission_reason">チャットを閉じている間も新着メッセージを受け取るには通知を有効にしてください。許可しなくてもメッセージの閲覧と送信はできます。</string>

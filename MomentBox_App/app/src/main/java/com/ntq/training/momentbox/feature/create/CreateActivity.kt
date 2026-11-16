@@ -178,7 +178,7 @@ class CreateActivity : AppCompatActivity() {
             if (model.items.value.size >= model.maxItems) {
                 Toast.makeText(
                     this,
-                    getString(R.string.m4_limit_remaining, model.maxItems),
+                    resources.getQuantityString(R.plurals.m4_limit_remaining, model.maxItems, model.maxItems),
                     Toast.LENGTH_SHORT,
                 )
                     .show()

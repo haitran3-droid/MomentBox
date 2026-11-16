@@ -148,7 +148,7 @@ class JournalEditorActivity :
         if (remaining == 0)
             Snackbar.make(
                     binding.root,
-                    getString(R.string.m4_limit_remaining, 0),
+                    resources.getQuantityString(R.plurals.m4_limit_remaining, 0, 0),
                     Snackbar.LENGTH_LONG,
                 )
                 .show()
@@ -758,7 +758,7 @@ class JournalEditorActivity :
 
         // Warnings & Word count
         binding.tvLengthWarning.isVisible = state.isLengthWarning
-        binding.tvWordCount.text = getString(R.string.editor_word_count_format, state.wordCount)
+        binding.tvWordCount.text = resources.getQuantityString(R.plurals.editor_word_count_format, state.wordCount, state.wordCount)
 
         // Attachments
         val photos = state.attachments.filter { it.type.equals("image", ignoreCase = true) }

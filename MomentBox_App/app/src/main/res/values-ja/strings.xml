@@ -45,7 +45,6 @@
     <string name="login_no_account">アカウントをお持ちでないですか？</string>
     <string name="login_register_action">新規登録</string>
     <string name="feature_in_development">この機能は開発中です</string>
-    <string name="network_error_retry">ネットワークエラーが発生しました。再試行してください</string>
     <string name="retry">再試行</string>
 
     <!-- S22b Language Dialog -->
@@ -58,19 +57,10 @@
     <string name="apply">適用</string>
 
     <!-- Main Host -->
-    <string name="main_title">MomentBox Home</string>
-    <string name="main_welcome_user">ようこそ、%1$s！</string>
-    <string name="main_user_email">%1$s</string>
-    <string name="main_logout">ログアウト</string>
-    <string name="main_trigger_401">401エラーのシミュレーション（リフレッシュトークン検証）</string>
-    <string name="main_refresh_success">トークンのリフレッシュと再試行に成功しました！</string>
     <string name="main_session_expired">セッションの有効期限が切れました。再度ログインしてください。</string>
-    <string name="main_session_valid">有効なセッション (Token OK)</string>
-    <string name="main_session_refreshed">401エラー後にトークンが自動更新されました</string>
     <string name="onboarding_art_journal_date">2026年10月26日</string>
     <string name="onboarding_art_chat_incoming">今日はいい天気！☀️</string>
     <string name="onboarding_art_chat_outgoing">カフェで写真を撮ろう？📸</string>
-    <string name="main_debug_refresh_request">401 → トークン更新 → 再試行を確認中…</string>
 
     <!-- M2 Navigation -->
     <string name="nav_feed">フィード</string>
@@ -92,7 +82,6 @@
         <item quantity="other">%1$d件の新着投稿</item>
     </plurals>
     <string name="suggestions_title">おすすめのユーザー</string>
-    <string name="see_all">すべて見る</string>
     <string name="follow">フォロー</string>
     <string name="following">フォロー中</string>
     <string name="feed_error">フィードの読み込みに失敗しました</string>
@@ -129,20 +118,12 @@
     <string name="screen_unlocked">ロックが解除されました</string>
     <string name="sound_muted">消音</string>
     <string name="sound_unmuted">音声を再生</string>
-    <string name="create_post_coming_soon">投稿機能は近日公開予定です (Milestone M4)</string>
 
     <!-- M3 Strings (JA) -->
     <string name="common_back">戻る</string>
     <string name="common_search">検索</string>
     <string name="journal_title">日記</string>
     <string name="journal_search_hint">タイトル、本文、タグで検索…</string>
-    <string name="journal_filter_desc">フィルターと並び替え</string>
-    <string name="journal_stats_desc">統計</string>
-    <string name="journal_streak_format">🔥 %1$d日</string>
-    <string name="journal_this_week">今週</string>
-    <string name="journal_posts_count_format">%1$d件のエントリ</string>
-    <string name="journal_pin">固定</string>
-    <string name="journal_unpin">固定解除</string>
     <string name="journal_delete">削除</string>
     <string name="journal_empty_title">日記のエントリがまだありません</string>
     <string name="journal_empty_desc">今日の思考や感情を記録し始めましょう</string>
@@ -152,8 +133,12 @@
     <string name="journal_action_pin">固定</string>
     <string name="journal_action_unpin">固定解除</string>
     <string name="journal_action_delete">削除</string>
-    <string name="journal_streak_days">🔥 %1$d日</string>
-    <string name="journal_entries_count">%1$d件のエントリ</string>
+    <plurals name="journal_streak_days">
+        <item quantity="other">🔥 %1$d日</item>
+    </plurals>
+    <plurals name="journal_entries_count">
+        <item quantity="other">%1$d件のエントリ</item>
+    </plurals>
     <string name="filter_title">並び替えとフィルター</string>
     <string name="filter_reset">リセット</string>
     <string name="filter_sort_by">並び替え基準</string>
@@ -169,7 +154,9 @@
     <string name="filter_has_photo">写真あり</string>
     <string name="filter_has_audio">音声あり</string>
     <string name="filter_date_range_title">期間</string>
-    <string name="filter_apply_count_format">適用 · %1$d件の結果</string>
+    <plurals name="filter_apply_count_format">
+        <item quantity="other">適用 · %1$d件の結果</item>
+    </plurals>
     <string name="filter_apply_no_count">適用</string>
     <string name="filter_all_time">すべての期間</string>
     <string name="editor_title_new">新しい日記</string>
@@ -201,7 +188,9 @@
     <string name="editor_restore_draft_desc">未完成の日記の下書きがあります。復元しますか？</string>
     <string name="editor_restore_action">復元</string>
     <string name="editor_restore_discard">破棄</string>
-    <string name="editor_word_count_format">%1$d語</string>
+    <plurals name="editor_word_count_format">
+        <item quantity="other">%1$d語</item>
+    </plurals>
     <string name="editor_ambient_picker_title">環境音を選択</string>
     <string name="editor_ambient_rain">環境音：雨の音</string>
     <string name="editor_ambient_ocean">環境音：波の音</string>
@@ -233,13 +222,14 @@
     <string name="journal_period_next">次の期間</string>
     <string name="journal_insight_empty">日記を続けて感情のパターンを見つけましょう。</string>
     <string name="journal_insight_weekend">週末は気分が良く（+%1$d%%）、%2$sに最も多く書いています。</string>
-    <string name="journal_insight_habit">%1$sに最も多く書いており、%2$d件の日記があります。</string>
+    <plurals name="journal_insight_habit">
+        <item quantity="other">%1$sに最も多く書いており、%2$d件の日記があります。</item>
+    </plurals>
     <string name="journal_header_today">今日</string>
     <string name="journal_header_yesterday">昨日</string>
     <string name="journal_header_this_week">今週</string>
     <string name="journal_header_previous_week">先週</string>
     <string name="journal_header_week_format">第%1$d週（%2$d年）</string>
-    <string name="journal_camera_next_milestone">カメラはM4で統合されます。</string>
     <string name="editor_word_count_zero">0語</string>
     <string name="journal_storage_error">データを読み書きできません。再試行してください。</string>
     <string name="journal_retry">再試行</string>
@@ -249,7 +239,9 @@
     <string name="journal_mood_chip_4">😢 悲しい</string>
     <string name="journal_mood_chip_5">😡 最悪</string>
     <string name="journal_day_mood_description">%1$s、%2$s</string>
-    <string name="journal_sector_description">%1$s、%2$d件、%3$d%%</string>
+    <plurals name="journal_sector_description">
+        <item quantity="other">%1$s、%2$d件、%3$d%%</item>
+    </plurals>
     <string name="journal_audio_play">音声を再生</string><string name="journal_audio_pause">音声を一時停止</string>
     <string name="editor_ambient_volume">環境音の音量</string>
     <string name="journal_insight_weekend_styled"><b>週末は気分が良く</b>（+^1%）、<b>^2</b>に最も多く書いています。</string>

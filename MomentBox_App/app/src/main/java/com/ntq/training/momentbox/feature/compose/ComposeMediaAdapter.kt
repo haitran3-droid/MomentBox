@@ -169,7 +169,7 @@ class ComposeMediaAdapter(
 
         val item = items[position]
         images.load(item.uri).override(240).centerCrop().into(holder.image)
-        holder.number.text = (position + 1).toString()
+        holder.number.text = holder.itemView.resources.getString(R.string.localized_integer, position + 1)
         holder.close.setOnClickListener { remove(item.id) }
     }
 

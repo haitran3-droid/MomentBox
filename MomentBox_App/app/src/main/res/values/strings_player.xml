@@ -27,7 +27,6 @@
     <string name="m5_player_timer_end">Hết bài</string>
     <string name="m5_player_empty">Chưa có bản ghi. Thêm ghi âm vào nhật ký hoặc lưu bài giọng nói.</string>
     <string name="m5_player_load_error">Không tải được bài đã lưu. Bản ghi ngoại tuyến vẫn dùng được.</string>
-    <string name="m5_player_retry">Thử lại</string>
     <string name="m5_player_error">Không thể phát âm thanh. Hãy kiểm tra tệp hoặc kết nối.</string>
     <string name="m5_player_favorite">Yêu thích bản ghi</string>
     <string name="m5_player_queue_hint">Tối đa 50 bản ghi gần nhất. Kéo để sắp xếp.</string>

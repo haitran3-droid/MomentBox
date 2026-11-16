@@ -14,6 +14,7 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import androidx.core.graphics.createBitmap
 import androidx.core.os.BundleCompat
 import com.ntq.training.momentbox.core.media.BitmapRenderSnapshot
 import kotlin.math.abs
@@ -232,7 +233,7 @@ class CropOverlayView @JvmOverloads constructor(context: Context, attrs: Attribu
                 val w = (frame.width / pixelScale).roundToInt().coerceIn(1, 2048)
 
                 val h = (frame.height / pixelScale).roundToInt().coerceIn(1, 2048)
-                val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                val out = createBitmap(w, h, Bitmap.Config.ARGB_8888)
                 val m =
                     Matrix().apply {
                         setValues(

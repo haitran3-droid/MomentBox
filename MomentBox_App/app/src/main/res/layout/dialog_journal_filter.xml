@@ -342,6 +342,7 @@
                 android:paddingEnd="8dp">
 
                 <ImageView
+                    android:importantForAccessibility="no"
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_journal_date_range"
@@ -362,6 +363,7 @@
 
                 <ImageView
                     android:id="@+id/btnClearDateRange"
+                    android:contentDescription="@string/journal_clear_date_range"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:background="?attr/selectableItemBackgroundBorderless"

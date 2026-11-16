@@ -270,7 +270,7 @@ class JournalFragment : Fragment() {
                 launch {
                     viewModel.streakDaysFlow.collect { streakDays ->
                         overview.tvCalendarStreak.text =
-                            getString(R.string.journal_streak_days, streakDays)
+                            resources.getQuantityString(R.plurals.journal_streak_days, streakDays, streakDays)
                         overview.tvCalendarStreak.visibility =
                             if (streakDays > 0) View.VISIBLE else View.GONE
                     }

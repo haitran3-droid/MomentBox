@@ -5,7 +5,6 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.InsetDrawable
-import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -15,6 +14,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.net.toUri
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
@@ -129,7 +129,7 @@ class CropFragment : Fragment(R.layout.fragment_crop) {
             try {
                 val image = OwnedImageFiles.decode(
                     requireContext(),
-                    Uri.parse(requireArguments().getString("uri"))
+                    requireNotNull(requireArguments().getString("uri")).toUri()
                 )
                 b.cropCanvas.setImage(image)
                 if (squareOnly) b.cropCanvas.setRatio(

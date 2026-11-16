@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isGone
 
 class PlayerChipRow @JvmOverloads constructor(c: Context, a: AttributeSet? = null) :
     ViewGroup(c, a) {
@@ -20,7 +21,7 @@ class PlayerChipRow @JvmOverloads constructor(c: Context, a: AttributeSet? = nul
             var high = 0
             for (i in 0 until childCount) {
                 val child = getChildAt(i)
-                if (child.visibility == GONE) continue
+                if (child.isGone) continue
                 child.measure(
                 MeasureSpec.makeMeasureSpec(available, MeasureSpec.AT_MOST),
                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)

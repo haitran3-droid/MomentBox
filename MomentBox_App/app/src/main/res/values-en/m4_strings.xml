@@ -12,10 +12,8 @@
     <string name="m4_take_photo">Take photo</string>
     <string name="m4_empty">No photos or videos available with current access.</string>
     <string name="m4_library_error">Unable to read library. Tap to retry.</string>
-    <string name="m4_limit">Select up to 10 items.</string>
     <string name="m4_video_invalid">Videos must have a valid duration of at most 60 seconds.</string>
     <string name="m4_unsupported">This item is unsupported.</string>
-    <string name="m4_settings">Open Settings</string>
     <string name="m4_loading">Loading…</string>
     <string name="m4_camera">Camera</string>
     <string name="m4_select">Select media</string>
@@ -93,7 +91,10 @@
     <string name="m4_see_all">View all</string>
     <string name="m4_no_recent">No recordings yet</string>
     <string name="m4_recent_record_title">Recording %1$s</string>
-    <string name="m4_limit_remaining">You can select up to %1$d items in this flow.</string>
+    <plurals name="m4_limit_remaining">
+        <item quantity="one">You can select up to %1$d item in this flow.</item>
+        <item quantity="other">You can select up to %1$d items in this flow.</item>
+    </plurals>
     <string name="m4_reorder_hint">Hold and drag to reorder</string>
     <string name="m4_audio_busy">Audio is busy. Try again after recording pauses.</string>
     <string name="m4_editor_restore_error">Unable to restore the previous edit. The original image is preserved.</string>

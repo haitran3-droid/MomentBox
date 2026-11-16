@@ -15,7 +15,6 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaMetadataRetriever
 import android.media.MediaRecorder
-import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.os.Handler
@@ -25,6 +24,7 @@ import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.core.media.StaticPcmSound
@@ -463,7 +463,7 @@ class RecordingService : Service() {
         PendingIntent.getService(
             this,
             (session + action).hashCode(),
-            intent(this, action, session).setData(Uri.parse("momentbox://record/$session/$action")),
+            intent(this, action, session).setData("momentbox://record/$session/$action".toUri()),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
@@ -474,7 +474,7 @@ class RecordingService : Service() {
                 s.session.hashCode(),
                 Intent(this, RecorderActivity::class.java)
                     .putExtra("session", s.session)
-                    .setData(Uri.parse("momentbox://record/${s.session}")),
+                    .setData("momentbox://record/${s.session}".toUri()),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         return NotificationCompat.Builder(this, CHANNEL)

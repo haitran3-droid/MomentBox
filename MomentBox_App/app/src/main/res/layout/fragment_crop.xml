@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000"
@@ -73,7 +74,7 @@
             android:layout_height="24dp"
             android:layout_marginTop="54dp"
             android:fontFamily="@font/be_vietnam_pro_bold"
-            android:text="0°"
+            android:text="@string/crop_initial_angle"
             android:textColor="#FFD54F"
             android:textSize="14sp" />
 
@@ -101,7 +102,7 @@
                 android:layout_height="64dp"
                 android:layout_weight="1"
                 android:alpha="0.9"
-                android:drawableTop="@drawable/ic_media_rotate_90_degrees_ccw"
+                app:drawableTopCompat="@drawable/ic_media_rotate_90_degrees_ccw"
                 android:drawablePadding="6dp"
                 android:fontFamily="@font/be_vietnam_pro_regular"
                 android:gravity="top|center_horizontal"
@@ -115,7 +116,7 @@
                 android:layout_height="64dp"
                 android:layout_weight="1"
                 android:alpha="0.9"
-                android:drawableTop="@drawable/ic_media_flip"
+                app:drawableTopCompat="@drawable/ic_media_flip"
                 android:drawablePadding="6dp"
                 android:fontFamily="@font/be_vietnam_pro_regular"
                 android:gravity="top|center_horizontal"
@@ -129,7 +130,7 @@
                 android:layout_height="64dp"
                 android:layout_weight="1"
                 android:alpha="0.9"
-                android:drawableTop="@drawable/ic_media_restart_alt"
+                app:drawableTopCompat="@drawable/ic_media_restart_alt"
                 android:drawablePadding="6dp"
                 android:fontFamily="@font/be_vietnam_pro_regular"
                 android:gravity="top|center_horizontal"

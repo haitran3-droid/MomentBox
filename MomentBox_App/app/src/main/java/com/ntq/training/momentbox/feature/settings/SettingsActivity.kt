@@ -172,11 +172,7 @@ class SettingsActivity : AppCompatActivity() {
             setText(R.string.s22_permission_hint)
         }
         row(binding.settingsDeveloper, R.string.s22_developer, R.drawable.ic_s22_bug_report) {
-            DebugToolsEntry.intent(this)?.let { intent ->
-                if (intent.resolveActivity(packageManager) != null) startActivity(intent) else snack(
-                    R.string.s22_failed
-                )
-            }
+            DebugToolsEntry.intent(this)?.let(::startActivity)
         }
         binding.settingsDeveloper.iconBox.setBackgroundResource(R.drawable.bg_s22_developer)
         binding.settingsDeveloper.icon.imageTintList = ColorStateList.valueOf(
@@ -396,12 +392,13 @@ class SettingsActivity : AppCompatActivity() {
             state.settings.enabled -> getString(if (state.daily?.timing == ReminderTiming.EXACT) R.string.s22_reminder_exact else R.string.s22_reminder_fallback)
             else -> null
         }
-        binding.settingsReminder.subtitle.apply {
-            isVisible = true
-            text = getString(
+        val schedule = getString(
             if (state.settings.enabled) R.string.s22_daily else R.string.s22_reminder_off,
             time
-        ) + (detail?.let { "\n$it" } ?: "")
+        )
+        binding.settingsReminder.subtitle.apply {
+            isVisible = true
+            text = listOfNotNull(schedule, detail).joinToString("\n")
         }
     }
 

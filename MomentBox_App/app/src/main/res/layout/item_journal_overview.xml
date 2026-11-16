@@ -51,6 +51,7 @@
 
                 <ImageView
                     android:id="@+id/btnPrevMonth"
+                    android:contentDescription="@string/journal_previous_month"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
@@ -60,6 +61,7 @@
 
                 <ImageView
                     android:id="@+id/btnNextMonth"
+                    android:contentDescription="@string/journal_next_month"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
@@ -105,6 +107,7 @@
         tools:visibility="gone">
 
         <ImageView
+            android:importantForAccessibility="no"
             android:layout_width="72dp"
             android:layout_height="72dp"
             android:src="@drawable/ic_nav_journal"

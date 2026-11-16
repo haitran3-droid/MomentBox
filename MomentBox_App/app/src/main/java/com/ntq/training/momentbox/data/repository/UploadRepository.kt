@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
+import androidx.core.net.toUri
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.OwnedImageFiles
@@ -215,7 +216,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     val prepared = mutableListOf<Pair<File, String>>()
                     for (media in input.media) {
                         currentCoroutineContext().ensureActive()
-                        val original = File(Uri.parse(media.uri).path ?: "")
+                        val original = File(media.uri.toUri().path ?: "")
                         check(original.isFile && original.length() in 1..50L * 1024 * 1024)
                         if (media.isVideo) {
                             val duration =
@@ -246,7 +247,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                             prepared.add(compressed to "image/jpeg")
                         }
                     }
-                    val voice = input.voice?.let { File(Uri.parse(it.uri).path ?: "") }
+                    val voice = input.voice?.let { File(it.uri.toUri().path ?: "") }
                     if (voice != null) check(voice.isFile && voice.length() in 1..50L * 1024 * 1024)
                     val all = prepared + listOfNotNull(voice?.let { it to "audio/mp4" })
                     val progress = UploadProgress(all.map { it.first.length() })
@@ -461,7 +462,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                 .filterNot { it in retained }
                 .forEach { path ->
                     runCatching {
-                        val uri = Uri.parse(path)
+                        val uri = path.toUri()
                         if (uri.scheme == "file")
                             File(uri.path!!)
                                 .canonicalFile
@@ -553,7 +554,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                 app,
                 15001,
                 Intent(app, UploadCancelReceiver::class.java)
-                    .setData(Uri.parse("momentbox://upload/$uploadId/cancel"))
+                    .setData("momentbox://upload/$uploadId/cancel".toUri())
                     .putExtra("uploadId", uploadId),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
@@ -590,7 +591,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     PostDetailActivity::class.java,
                 )
                     .setAction(Intent.ACTION_VIEW)
-                    .setData(Uri.parse("momentbox://post/$id")),
+                    .setData("momentbox://post/$id".toUri()),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         manager.notify(

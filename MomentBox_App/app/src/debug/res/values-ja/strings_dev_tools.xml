@@ -8,7 +8,9 @@
     <string name="s23_delay">遅延のシミュレーション</string>
     <string name="s23_show_logs">リクエストを表示</string>
     <string name="s23_clear_logs">通信ログを消去</string>
-    <string name="s23_log_count">遅延 %1$d ms · リクエスト %2$d 件</string>
+    <plurals name="s23_log_count">
+        <item quantity="other">遅延 %1$d ms · リクエスト %2$d 件</item>
+    </plurals>
     <string name="s23_no_requests">リクエストはまだありません。</string>
     <string name="s23_refresh_completed">プロフィールを再読み込みしました。通信ログでセッションの更新を確認できます。</string>
     <string name="s23_socket_options">ソケット接続設定</string>

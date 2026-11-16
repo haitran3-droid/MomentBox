@@ -2,13 +2,13 @@ package com.ntq.training.momentbox.feature.compose
 
 import android.graphics.Rect
 import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Bundle
 import android.text.Spannable
 import android.text.style.ForegroundColorSpan
 import android.view.TouchDelegate
 import android.view.View
 import androidx.activity.OnBackPressedCallback
+import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
@@ -306,11 +306,12 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                         rendering = true
                         if (b.composeCaption.text.toString() != draft.caption)
                             b.composeCaption.setText(draft.caption)
-                        b.composeCounter.text =
-                            "${draft.caption.length} / ${
+                        b.composeCounter.text = getString(
+                            R.string.compose_character_counter,
+                            draft.caption.length,
                             NumberFormat.getIntegerInstance(resources.configuration.locales[0])
-                                .format(2200)
-                        }"
+                                .format(2200),
+                        )
                         b.composePrivacy.setText(
                             when (draft.privacy) {
                                 "friends" -> R.string.m4_friends
@@ -460,7 +461,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
         try {
             player =
                 MediaPlayer().apply {
-                    setDataSource(requireContext(), Uri.parse(voice.uri))
+                    setDataSource(requireContext(), voice.uri.toUri())
                     setOnCompletionListener { stopVoice() }
                     setOnErrorListener { _, _, _ ->
                         stopVoice()

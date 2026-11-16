@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.player
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -10,6 +11,10 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.view.AccessibilityDelegateCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat
 import androidx.core.view.setPadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -77,11 +82,46 @@ class PlayerQueueSheet : BottomSheetDialogFragment() {
                 val drag = ImageView(parent.context).apply {
                     setImageResource(R.drawable.ic_m4_drag)
                     setPadding((16 * d).toInt())
-                    contentDescription =
-                    getString(R.string.m5_player_queue_hint)
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 }
                 line.addView(drag, LinearLayout.LayoutParams((48 * d).toInt(), (48 * d).toInt()))
-                return Row(line, text, drag)
+                val holder = Row(line, text, drag)
+                bindDragHandle(holder)
+                ViewCompat.setAccessibilityDelegate(holder.itemView, object : AccessibilityDelegateCompat() {
+                    override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
+                        super.onInitializeAccessibilityNodeInfo(host, info)
+                        val position = holder.bindingAdapterPosition
+                        if (position !in rows.indices || dragging) return
+                        if (position > 0) {
+                            info.addAction(AccessibilityActionCompat(
+                                R.id.player_queue_move_up,
+                                getString(R.string.player_queue_move_up)
+                            ))
+                        }
+                        if (position < rows.lastIndex) {
+                            info.addAction(AccessibilityActionCompat(
+                                R.id.player_queue_move_down,
+                                getString(R.string.player_queue_move_down)
+                            ))
+                        }
+                    }
+
+                    override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+                        val offset = when (action) {
+                            R.id.player_queue_move_up -> -1
+                            R.id.player_queue_move_down -> 1
+                            else -> return super.performAccessibilityAction(host, action, args)
+                        }
+                        val from = holder.bindingAdapterPosition
+                        val to = from + offset
+                        if (dragging || from !in rows.indices || to !in rows.indices) return false
+                        rows.add(to, rows.removeAt(from))
+                        notifyItemMoved(from, to)
+                        saveOrder()
+                        return true
+                    }
+                })
+                return holder
             }
 
             override fun onBindViewHolder(holder: Row, index: Int) {
@@ -94,17 +134,9 @@ class PlayerQueueSheet : BottomSheetDialogFragment() {
                 )
                 holder.itemView.setOnClickListener {
                     val target = holder.bindingAdapterPosition
-                    if (target >= 0) client.setQueue(
-                    rows.toList(),
-                    target,
-                    true
-                )
-                }
-                holder.drag.setOnTouchListener { _, event ->
-                    if (event.actionMasked == MotionEvent.ACTION_DOWN) helper?.startDrag(
-                        holder
-                    )
-                    false
+                    if (target in rows.indices) {
+                        client.setQueue(rows.toList(), target, play = true)
+                    }
                 }
             }
         }
@@ -135,13 +167,7 @@ class PlayerQueueSheet : BottomSheetDialogFragment() {
                     super.clearView(rv, holder)
                     if (dragging) {
                         dragging = false
-                        val state = client.state.value
-                        val id = state.queue.getOrNull(state.index)?.id
-                        val index = rows.indexOfFirst { it.id == id }
-                        client.setQueue(
-                        rows.toList(),
-                        index.coerceAtLeast(0)
-                    )
+                        saveOrder()
                     }
                 }
             }).also { it.attachToRecyclerView(list) }
@@ -160,6 +186,22 @@ class PlayerQueueSheet : BottomSheetDialogFragment() {
             }
         }
         return root
+    }
+
+    // The handle begins a drag on touch down. The queue row exposes reorder actions to TalkBack.
+    @SuppressLint("ClickableViewAccessibility")
+    private fun bindDragHandle(holder: Row) {
+        holder.drag.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) helper?.startDrag(holder)
+            false
+        }
+    }
+
+    private fun saveOrder() {
+        val state = client.state.value
+        val currentId = state.queue.getOrNull(state.index)?.id
+        val position = rows.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
+        client.setQueue(rows.toList(), position)
     }
 
     override fun onDestroyView() {

@@ -24,10 +24,12 @@
     <string name="m5_chat_sent">Sent</string>
     <string name="m5_chat_delivered">Delivered</string>
     <string name="m5_chat_seen">Seen</string>
-    <string name="m5_chat_invalid">Couldn’t open this conversation</string>
     <string name="m5_socket_connecting">Connecting…</string>
     <string name="m5_socket_attempt">Reconnecting · attempt %1$d</string>
-    <string name="m5_socket_waiting">Disconnected · attempt %1$d in %2$d s · Retry now</string>
+    <plurals name="m5_socket_waiting">
+        <item quantity="one">Disconnected · attempt %1$d in %2$d second · Retry now</item>
+        <item quantity="other">Disconnected · attempt %1$d in %2$d seconds · Retry now</item>
+    </plurals>
     <string name="m5_socket_failed">Couldn’t connect · Retry now</string>
     <string name="m5_socket_expired">Session expired · Signing in again</string>
     <string name="m5_quick_hold">Hold to record. Release to send or swipe left to cancel.</string>
@@ -48,7 +50,10 @@
     <string name="m5_notification_you">You</string>
     <string name="m5_notification_reply">Reply…</string>
     <string name="m5_notification_reply_failed">Couldn’t send reply</string>
-    <string name="m5_notification_summary">Unread messages: %1$d</string>
+    <plurals name="m5_notification_summary">
+        <item quantity="one">Unread message: %1$d</item>
+        <item quantity="other">Unread messages: %1$d</item>
+    </plurals>
     <string name="m5_notification_seen">Mark as read</string>
     <string name="m5_notification_permission_title">Message notifications</string>
     <string name="m5_notification_permission_reason">Enable notifications to get new messages when Chat is closed. You can still read and send messages without granting permission.</string>

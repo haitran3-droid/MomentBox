@@ -14,6 +14,7 @@ import android.util.TypedValue
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.toColorInt
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.feature.journal.stats.TrendPoint
 import java.time.LocalDate
@@ -37,7 +38,7 @@ class LineChartView @JvmOverloads constructor(
     // === CÔNG CỤ VẼ CANVAS ===
     private val gridLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        color = Color.parseColor("#EEEEF4")
+        color = "#EEEEF4".toColorInt()
         strokeWidth = 1f * resources.displayMetrics.density
     }
 

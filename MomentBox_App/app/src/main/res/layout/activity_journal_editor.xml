@@ -54,6 +54,7 @@
 
                 <ImageView
                     android:id="@+id/iv_draft_status_icon"
+                    android:importantForAccessibility="no"
                     android:layout_width="14dp"
                     android:layout_height="14dp"
                     android:layout_marginEnd="4dp"
@@ -127,6 +128,7 @@
                 android:paddingEnd="12dp">
 
                 <ImageView
+                    android:importantForAccessibility="no"
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:src="@drawable/ic_journal_calendar_month"
@@ -146,6 +148,7 @@
                     tools:text="Thứ Tư, 21/10/2026 · 21:30" />
 
                 <ImageView
+                    android:importantForAccessibility="no"
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:src="@drawable/ic_journal_expand_more"
@@ -203,7 +206,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
                                 android:includeFontPadding="false"
-                                android:text="😄"
+                                android:text="@string/mood_great_emoji"
                                 android:textSize="27sp" />
                         </FrameLayout>
                     </FrameLayout>
@@ -255,7 +258,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
                                 android:includeFontPadding="false"
-                                android:text="🙂"
+                                android:text="@string/mood_good_emoji"
                                 android:textSize="27sp" />
                         </FrameLayout>
                     </FrameLayout>
@@ -307,7 +310,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
                                 android:includeFontPadding="false"
-                                android:text="😐"
+                                android:text="@string/mood_okay_emoji"
                                 android:textSize="27sp" />
                         </FrameLayout>
                     </FrameLayout>
@@ -360,7 +363,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
                                 android:includeFontPadding="false"
-                                android:text="😢"
+                                android:text="@string/mood_sad_emoji"
                                 android:textSize="27sp" />
                         </FrameLayout>
                     </FrameLayout>
@@ -412,7 +415,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
                                 android:includeFontPadding="false"
-                                android:text="😡"
+                                android:text="@string/mood_terrible_emoji"
                                 android:textSize="27sp" />
                         </FrameLayout>
                     </FrameLayout>
@@ -434,6 +437,7 @@
             <!-- Tiêu đề22sp: letterSpacing dùng đơn vị em nên CSS-0.3px tương đương-0.3/22. -->
             <EditText
                 android:id="@+id/et_title"
+                android:importantForAutofill="no"
                 style="@style/JournalTextBold"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -455,6 +459,7 @@
             <!-- Nội dung bài viết -->
             <EditText
                 android:id="@+id/et_content"
+                android:importantForAutofill="no"
                 style="@style/JournalTextRegular"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -516,6 +521,7 @@
                     android:orientation="vertical">
 
                     <ImageView
+                        android:importantForAccessibility="no"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_journal_add_photo_alternate"
@@ -622,6 +628,7 @@
                     android:paddingEnd="12dp">
 
                     <ImageView
+                        android:importantForAccessibility="no"
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:layout_marginEnd="2dp"
@@ -665,6 +672,7 @@
 
             <ImageView
                 android:id="@+id/iv_ambient_icon"
+                android:importantForAccessibility="no"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:layout_gravity="center"
@@ -686,9 +694,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="?attr/selectableItemBackground"
-                android:drawableEnd="@drawable/ic_journal_expand_more"
+                app:drawableEndCompat="@drawable/ic_journal_expand_more"
                 android:drawablePadding="4dp"
-                android:drawableTint="@color/white"
+                app:drawableTint="@color/white"
                 android:fontFamily="@font/be_vietnam_pro_semibold"
                 android:includeFontPadding="false"
                 android:text="@string/editor_ambient_rain"
@@ -703,6 +711,7 @@
                 android:orientation="horizontal">
 
                 <ImageView
+                    android:importantForAccessibility="no"
                     android:layout_width="14dp"
                     android:layout_height="14dp"
                     android:alpha="0.7"

@@ -103,7 +103,6 @@ class ChatRoomViewModel(
 
     override fun onCleared() {
         quick.close()
-        super.onCleared()
     }
 
     val selected = saved.getStateFlow("conversationId", -1L)

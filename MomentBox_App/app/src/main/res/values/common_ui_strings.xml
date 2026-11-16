@@ -9,18 +9,10 @@
     <string name="media_toggle_sound">Bật hoặc tắt âm thanh</string>
     <string name="media_toggle_fullscreen">Chuyển chế độ toàn màn hình</string>
     <string name="media_unlock_controls">Mở khóa</string>
-    <string name="feature_coming_soon">Tính năng đang được phát triển.</string>
-    <string name="profile_account_title">Tài khoản của bạn</string>
-    <string name="journal_placeholder_title">Nhật ký cảm xúc</string>
-    <string name="journal_placeholder_desc">Khám phá và lưu giữ những khoảnh khắc đáng nhớ của bạn.</string>
-    <string name="chat_placeholder_title">Tin nhắn trực tiếp</string>
-    <string name="chat_placeholder_desc">Trò chuyện và kết nối nhanh chóng cùng bạn bè.</string>
     <!-- Format số/glyph và nhãn demo là token không dịch; getString vẫn định dạng số theo locale hiện tại. -->
     <string name="ui_integer_count" translatable="false">%1$d</string>
     <string name="ui_page_counter" translatable="false">%1$d/%2$d</string>
     <string name="ui_default_speed" translatable="false">1.0x</string>
-    <string name="ui_demo_chat_count" translatable="false">5</string>
-    <string name="source_mb_label" translatable="false">MB Server</string>
     <string name="language_badge_vi" translatable="false">VN</string>
     <string name="language_badge_en" translatable="false">GB</string>
     <string name="language_badge_ja" translatable="false">JP</string>

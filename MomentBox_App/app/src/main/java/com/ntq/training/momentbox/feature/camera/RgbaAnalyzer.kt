@@ -3,6 +3,7 @@ package com.ntq.training.momentbox.feature.camera
 import android.graphics.Bitmap
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import androidx.core.graphics.createBitmap
 import java.nio.ByteOrder
 
 class RgbaAnalyzer(private val overlay: CameraOverlayView, private val front: () -> Boolean) :
@@ -26,7 +27,7 @@ class RgbaAnalyzer(private val overlay: CameraOverlayView, private val front: ()
             if (bitmap?.width != w || bitmap?.height != h) {
                 pixels = IntArray(w * h)
                 bitmap?.recycle()
-                bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                bitmap = createBitmap(w, h)
             }
             // RGBA packed thông thường chỉ cần một lần đọc Int mỗi pixel, nhánh stride lạ vẫn đúng
             // byte.

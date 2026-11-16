@@ -8,7 +8,9 @@
     <string name="s23_delay">Độ trễ giả lập</string>
     <string name="s23_show_logs">Xem yêu cầu</string>
     <string name="s23_clear_logs">Xóa nhật ký mạng</string>
-    <string name="s23_log_count">Độ trễ %1$d ms · %2$d yêu cầu</string>
+    <plurals name="s23_log_count">
+        <item quantity="other">Độ trễ %1$d ms · %2$d yêu cầu</item>
+    </plurals>
     <string name="s23_no_requests">Chưa có yêu cầu.</string>
     <string name="s23_refresh_completed">Đã tải lại hồ sơ. Mở nhật ký mạng để xem quá trình làm mới phiên.</string>
     <string name="s23_socket_options">Tùy chọn kết nối socket</string>

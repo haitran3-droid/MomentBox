@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.Manifest
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -21,6 +20,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
@@ -234,7 +234,7 @@ class PermissionsActivity : AppCompatActivity() {
     }
 
     private fun open(key: String) {
-        val uri = Uri.parse("package:$packageName")
+        val uri = "package:$packageName".toUri()
         val intent = when {
             key == "notification" && Build.VERSION.SDK_INT >= 26 -> Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(
                 Settings.EXTRA_APP_PACKAGE,

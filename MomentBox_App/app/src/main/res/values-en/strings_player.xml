@@ -27,7 +27,6 @@
     <string name="m5_player_timer_end">End of track</string>
     <string name="m5_player_empty">No recordings yet. Add audio to your journal or save a voice post.</string>
     <string name="m5_player_load_error">Saved posts could not load. Offline recordings remain available.</string>
-    <string name="m5_player_retry">Retry</string>
     <string name="m5_player_error">Audio could not play. Check the file or connection.</string>
     <string name="m5_player_favorite">Favorite recording</string>
     <string name="m5_player_queue_hint">Up to 50 recent recordings. Drag to reorder.</string>

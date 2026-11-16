@@ -2,6 +2,7 @@ package com.ntq.training.momentbox.feature.compose
 
 import android.app.Application
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -100,7 +101,7 @@ class ComposeViewModel(app: Application, private val saved: SavedStateHandle) :
         return (value.media.map { it.uri } + listOfNotNull(value.voice?.uri))
             .mapNotNull { path ->
                 runCatching {
-                        val uri = Uri.parse(path)
+                        val uri = path.toUri()
                         if (uri.scheme != "file") null
                         else File(uri.path!!).canonicalFile.takeIf { it.parentFile == folder }
                     }
@@ -127,7 +128,7 @@ class ComposeViewModel(app: Application, private val saved: SavedStateHandle) :
 
                 val file = File(folder, "${UUID.randomUUID()}.$suffix")
                 staged = file
-                val source = requireNotNull(application.contentResolver.openInputStream(Uri.parse(uri)))
+                val source = requireNotNull(application.contentResolver.openInputStream(uri.toUri()))
                 source.use { input ->
                     file.outputStream().use { out ->
                         val buffer = ByteArray(8192)
@@ -179,7 +180,7 @@ class ComposeViewModel(app: Application, private val saved: SavedStateHandle) :
                                     previous
                                 else {
                                     val path = owned(item.uri, if (item.isVideo) "mp4" else "jpg")
-                                    staged += File(Uri.parse(path).path!!).canonicalFile
+                                    staged += File(path.toUri().path!!).canonicalFile
                                     item.copy(uri = path, sourceUri = item.uri)
                                 }
                             }
@@ -271,7 +272,7 @@ class ComposeViewModel(app: Application, private val saved: SavedStateHandle) :
         var staged: File? = null
         return try {
             val path = owned(audio.uri, "m4a")
-            staged = File(Uri.parse(path).path!!).canonicalFile
+            staged = File(path.toUri().path!!).canonicalFile
             val next = mutable.value.copy(voice = audio.copy(uri = path))
             persistNow(next)
             mutable.update { it.copy(voice = next.voice) }

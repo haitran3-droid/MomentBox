@@ -8,7 +8,6 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.LayerDrawable
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
@@ -21,7 +20,9 @@ import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -203,7 +204,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                 val bm =
                     OwnedImageFiles.decode(
                         requireContext(),
-                        Uri.parse(requireArguments().getString("uri")),
+                        requireNotNull(requireArguments().getString("uri")).toUri(),
                     )
                 b.editorCanvas.setImage(bm)
                 b.editorSave.isEnabled = true
@@ -215,7 +216,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
         }
         val prefs = requireContext().getSharedPreferences("m4-editor-hints", 0)
         b.editorHint.isVisible = !prefs.getBoolean("gesture", false)
-        if (b.editorHint.isVisible) prefs.edit().putBoolean("gesture", true).apply()
+        if (b.editorHint.isVisible) prefs.edit { putBoolean("gesture", true) }
         stickerCategory = state?.getInt("category") ?: 0
         showTool(state?.getString("tool") ?: "sticker")
     }

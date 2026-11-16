@@ -107,6 +107,7 @@
                 tools:visibility="gone">
 
                 <ImageView
+                    android:importantForAccessibility="no"
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_journal_search"
@@ -114,6 +115,7 @@
 
                 <EditText
                     android:id="@+id/etSearchQuery"
+                    android:importantForAutofill="no"
                     style="@style/JournalTextRegular"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
@@ -131,6 +133,7 @@
 
                 <ImageView
                     android:id="@+id/btnCloseSearch"
+                    android:contentDescription="@string/feed_search_close"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:background="?attr/selectableItemBackgroundBorderless"

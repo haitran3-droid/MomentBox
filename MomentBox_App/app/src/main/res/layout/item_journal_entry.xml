@@ -31,6 +31,7 @@
 
             <ImageView
                 android:id="@+id/ivUnderlayPin"
+                android:importantForAccessibility="no"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_push_pin"
@@ -60,6 +61,7 @@
             android:orientation="vertical">
 
             <ImageView
+                android:importantForAccessibility="no"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_delete"
@@ -163,6 +165,7 @@
 
                     <ImageView
                         android:id="@+id/ivPinnedIcon"
+                        android:contentDescription="@string/journal_header_pinned"
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:layout_marginStart="6dp"
@@ -222,6 +225,7 @@
                         tools:visibility="visible">
 
                         <ImageView
+                            android:importantForAccessibility="no"
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@drawable/ic_journal_image"
@@ -251,6 +255,7 @@
                         tools:visibility="visible">
 
                         <ImageView
+                            android:importantForAccessibility="no"
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@drawable/ic_journal_mic"
@@ -258,6 +263,7 @@
 
                         <TextView
                             android:id="@+id/tvAudioCount"
+                            android:importantForAccessibility="no"
                             style="@style/JournalTextMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"

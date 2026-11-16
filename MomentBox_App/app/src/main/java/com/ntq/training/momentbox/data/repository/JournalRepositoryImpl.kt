@@ -3,9 +3,9 @@ package com.ntq.training.momentbox.data.repository
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.currentCoroutineContext
 import android.content.Context
-import android.net.Uri
 import android.util.Log
 import android.webkit.MimeTypeMap
+import androidx.core.net.toUri
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.ntq.training.momentbox.data.local.db.DayMood
 import com.ntq.training.momentbox.data.local.db.JournalAttachmentEntity
@@ -376,7 +376,7 @@ class JournalRepositoryImpl(
                         context.filesDir,
                         if (isAudio) "recordings" else "journal"
                     ).also { check(it.exists() || it.mkdirs()) }
-                    val uri = Uri.parse(sourcePathOrUri)
+                    val uri = sourcePathOrUri.toUri()
                     val extension = if (uri.scheme == "content") {
                         context.contentResolver.getType(uri)?.let {
                             MimeTypeMap.getSingleton().getExtensionFromMimeType(it)

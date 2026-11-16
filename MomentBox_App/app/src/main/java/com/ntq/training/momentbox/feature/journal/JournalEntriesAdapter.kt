@@ -64,7 +64,7 @@ class JournalEntriesAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(header: JournalListItem.Header) {
             binding.tvHeaderTitle.text = localizedHeader(binding.root.context, header)
-            binding.tvHeaderCount.text = binding.root.context.getString(R.string.journal_entries_count, header.count)
+            binding.tvHeaderCount.text = binding.root.resources.getQuantityString(R.plurals.journal_entries_count, header.count, header.count)
         }
     }
 
@@ -88,7 +88,7 @@ class JournalEntriesAdapter(
             val date = dateTime.toLocalDate()
 
             // 1. Badge ngày & thứ
-            binding.tvBadgeDay.text = date.dayOfMonth.toString()
+            binding.tvBadgeDay.text = binding.root.resources.getString(R.string.localized_integer, date.dayOfMonth)
             binding.tvBadgeDayOfWeek.text = formatDayOfWeek(date.dayOfWeek.value)
 
             val badgeBgColor = getMoodLightColor(entry.mood)
@@ -126,7 +126,12 @@ class JournalEntriesAdapter(
             val photoCount = entry.photoCount
             if (photoCount > 0) {
                 binding.layoutPhotoCount.visibility = View.VISIBLE
-                binding.tvPhotoCount.text = photoCount.toString()
+                binding.tvPhotoCount.text = binding.root.resources.getString(R.string.localized_integer, photoCount)
+                binding.tvPhotoCount.contentDescription = context.resources.getQuantityString(
+                    R.plurals.journal_attached_photos,
+                    photoCount,
+                    photoCount
+                )
             } else {
                 binding.layoutPhotoCount.visibility = View.GONE
             }
@@ -134,7 +139,12 @@ class JournalEntriesAdapter(
             val audioCount = entry.audioCount
             if (audioCount > 0) {
                 binding.layoutAudioCount.visibility = View.VISIBLE
-                binding.tvAudioCount.text = audioCount.toString()
+                binding.tvAudioCount.text = binding.root.resources.getString(R.string.localized_integer, audioCount)
+                binding.layoutAudioCount.contentDescription = context.resources.getQuantityString(
+                    R.plurals.journal_play_recordings,
+                    audioCount,
+                    audioCount
+                )
             } else {
                 binding.layoutAudioCount.visibility = View.GONE
             }

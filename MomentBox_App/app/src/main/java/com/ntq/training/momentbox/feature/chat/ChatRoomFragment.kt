@@ -15,6 +15,8 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
@@ -175,10 +177,16 @@ class ChatRoomFragment : Fragment() {
         }
         b.input.filters = arrayOf(InputFilter.LengthFilter(5000))
         b.input.setText(model.draft)
+        fun updateSendButton() {
+            val hasText = model.draft.isNotBlank()
+            b.send.setImageResource(if (hasText) R.drawable.ic_send else R.drawable.ic_mic)
+            b.send.contentDescription = getString(if (hasText) R.string.m5_chat_send else R.string.m5_chat_voice)
+        }
+        updateSendButton()
         b.input.doAfterTextChanged { text ->
             model.draft = text?.toString()
                 .orEmpty()
-            b.send.setImageResource(if (model.draft.isBlank()) R.drawable.ic_mic else R.drawable.ic_send)
+            updateSendButton()
             val now = SystemClock.elapsedRealtime()
             inputIdle?.cancel()
             if (model.draft.isNotBlank()) {
@@ -256,6 +264,12 @@ class ChatRoomFragment : Fragment() {
                     false
                 )
             }
+        }
+        ViewCompat.replaceAccessibilityAction(b.send, AccessibilityActionCompat.ACTION_CLICK, null) { _, _ ->
+            if (model.draft.isBlank()) {
+                attach("record")
+                true
+            } else b.send.performClick()
         }
         b.input.setOnEditorActionListener { _, action, _ ->
             if (action == EditorInfo.IME_ACTION_SEND && model.draft.isNotBlank()) {

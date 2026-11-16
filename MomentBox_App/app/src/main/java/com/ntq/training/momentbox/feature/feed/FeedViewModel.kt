@@ -458,7 +458,6 @@ class FeedViewModel(
     }
 
     override fun onCleared() {
-        super.onCleared()
         loadJob?.cancel()
         paginationJob?.cancel()
         socketManager.disconnect()

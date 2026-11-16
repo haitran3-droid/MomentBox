@@ -20,6 +20,9 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withMatrix
+import androidx.core.graphics.withTranslation
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.BitmapRenderSnapshot
 import com.ntq.training.momentbox.feature.camera.PhotoFilter
@@ -292,47 +295,46 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
         for (l in document.layers) {
             paint.color = l.color
             paint.style = Paint.Style.FILL
-            canvas.save()
-            canvas.concat(matrix(layerMatrix(l)))
-            if (l.kind == "draw") {
-                val path = Path()
-                l.points.firstOrNull()?.let { path.moveTo(it.x, it.y) }
-                l.points.zipWithNext().forEach { (a, b) ->
-                    path.quadTo(a.x, a.y, (a.x + b.x) / 2, (a.y + b.y) / 2)
-                }
-                paint.style = Paint.Style.STROKE
-                paint.strokeWidth = l.thickness
-                paint.strokeCap = Paint.Cap.ROUND
-                paint.strokeJoin = Paint.Join.ROUND
-                canvas.drawPath(path, paint)
-                paint.style = Paint.Style.FILL
-            } else {
-                paint.textAlign = Paint.Align.CENTER
-                paint.textSize = textSize(l)
-                paint.typeface =
-                    if (l.kind == "text")
-                        ResourcesCompat.getFont(
-                            context,
-                            R.font.be_vietnam_pro_bold,
+            canvas.withMatrix(matrix(layerMatrix(l))) {
+                if (l.kind == "draw") {
+                    val path = Path()
+                    l.points.firstOrNull()?.let { path.moveTo(it.x, it.y) }
+                    l.points.zipWithNext().forEach { (a, b) ->
+                        path.quadTo(a.x, a.y, (a.x + b.x) / 2, (a.y + b.y) / 2)
+                    }
+                    paint.style = Paint.Style.STROKE
+                    paint.strokeWidth = l.thickness
+                    paint.strokeCap = Paint.Cap.ROUND
+                    paint.strokeJoin = Paint.Join.ROUND
+                    canvas.drawPath(path, paint)
+                    paint.style = Paint.Style.FILL
+                } else {
+                    paint.textAlign = Paint.Align.CENTER
+                    paint.textSize = textSize(l)
+                    paint.typeface =
+                        if (l.kind == "text")
+                            ResourcesCompat.getFont(
+                                context,
+                                R.font.be_vietnam_pro_bold,
+                            )
+                        else Typeface.DEFAULT
+                    if (l.background) {
+                        val color = paint.color
+                        paint.color = 0x99000000.toInt()
+                        canvas.drawRoundRect(
+                            -paint.measureText(l.text) / 2 - 12,
+                            -textSize(l) * .6f,
+                            paint.measureText(l.text) / 2 + 12,
+                            textSize(l) * .6f,
+                            12f,
+                            12f,
+                            paint,
                         )
-                    else Typeface.DEFAULT
-                if (l.background) {
-                    val color = paint.color
-                    paint.color = 0x99000000.toInt()
-                    canvas.drawRoundRect(
-                        -paint.measureText(l.text) / 2 - 12,
-                        -textSize(l) * .6f,
-                        paint.measureText(l.text) / 2 + 12,
-                        textSize(l) * .6f,
-                        12f,
-                        12f,
-                        paint,
-                    )
-                    paint.color = color
+                        paint.color = color
+                    }
+                    canvas.drawText(l.text, 0f, -(paint.ascent() + paint.descent()) / 2, paint)
                 }
-                canvas.drawText(l.text, 0f, -(paint.ascent() + paint.descent()) / 2, paint)
             }
-            canvas.restore()
             if (selection && selectedId == l.id && l.kind != "draw") drawSelection(canvas, l)
         }
     }
@@ -353,50 +355,47 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
         // Renderer đang ở tọa độ ảnh. Bỏ base rồi vẽ controls bằng tọa độ View: vòng26dp,
         // glyph16dp và nét1.5dp không đổi khi ảnh12MP/nhỏ hoặc layer được phóng to/thu nhỏ.
         // Hit test phía dưới vẫn dùng bán kính24dp để giữ vùng chạm48dp cho người dùng.
-        canvas.save()
-        canvas.concat(matrix(base().inverse()))
-        selectionPath.reset()
-        selectionPath.moveTo(corners[0].x.toFloat(), corners[0].y.toFloat())
-        corners.drop(1).forEach { selectionPath.lineTo(it.x.toFloat(), it.y.toFloat()) }
-        selectionPath.close()
-        paint.color = Color.WHITE
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 1.5f * dp
-        paint.pathEffect = selectionDash
-        canvas.drawPath(selectionPath, paint)
-        paint.pathEffect = null
-        val remove = corners[0]
+        canvas.withMatrix(matrix(base().inverse())) {
+            selectionPath.reset()
+            selectionPath.moveTo(corners[0].x.toFloat(), corners[0].y.toFloat())
+            corners.drop(1).forEach { selectionPath.lineTo(it.x.toFloat(), it.y.toFloat()) }
+            selectionPath.close()
+            paint.color = Color.WHITE
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1.5f * dp
+            paint.pathEffect = selectionDash
+            canvas.drawPath(selectionPath, paint)
+            paint.pathEffect = null
+            val remove = corners[0]
 
-        val resize = corners[2]
-        paint.style = Paint.Style.FILL
-        paint.color = 0xFFE5484D.toInt()
-        canvas.drawCircle(remove.x.toFloat(), remove.y.toFloat(), 13 * dp, paint)
-        paint.style = Paint.Style.STROKE
-        paint.color = Color.WHITE
-        paint.strokeWidth = 2 * dp
-        canvas.drawCircle(remove.x.toFloat(), remove.y.toFloat(), 12 * dp, paint)
-        paint.style = Paint.Style.FILL
-        canvas.drawCircle(resize.x.toFloat(), resize.y.toFloat(), 13 * dp, paint)
-        for ((point, icon) in listOf(remove to deleteIcon, resize to expandIcon)) {
-            canvas.save()
-            canvas.translate(point.x.toFloat(), point.y.toFloat())
-            canvas.rotate(l.rotation)
-            val half = (8 * dp).roundToInt()
-            icon.setBounds(-half, -half, half, half)
-            icon.draw(canvas)
-            canvas.restore()
+            val resize = corners[2]
+            paint.style = Paint.Style.FILL
+            paint.color = 0xFFE5484D.toInt()
+            canvas.drawCircle(remove.x.toFloat(), remove.y.toFloat(), 13 * dp, paint)
+            paint.style = Paint.Style.STROKE
+            paint.color = Color.WHITE
+            paint.strokeWidth = 2 * dp
+            canvas.drawCircle(remove.x.toFloat(), remove.y.toFloat(), 12 * dp, paint)
+            paint.style = Paint.Style.FILL
+            canvas.drawCircle(resize.x.toFloat(), resize.y.toFloat(), 13 * dp, paint)
+            for ((point, icon) in listOf(remove to deleteIcon, resize to expandIcon)) {
+                canvas.withTranslation(point.x.toFloat(), point.y.toFloat()) {
+                    canvas.rotate(l.rotation)
+                    val half = (8 * dp).roundToInt()
+                    icon.setBounds(-half, -half, half, half)
+                    icon.draw(canvas)
+                }
+            }
         }
-        canvas.restore()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
         val bm = image ?: return
-        canvas.save()
-        canvas.concat(matrix(base()))
-        render(canvas, working ?: history.document, bm, true)
-        canvas.restore()
+        canvas.withMatrix(matrix(base())) {
+            render(canvas, working ?: history.document, bm, true)
+        }
         if (drop) {
             paint.color = 0xFF5B4BDB.toInt()
             paint.style = Paint.Style.STROKE
@@ -412,7 +411,7 @@ class StickerCanvasView @JvmOverloads constructor(context: Context, attrs: Attri
         val document = history.document
         // Renderer riêng tránh chia sẻ Paint/Canvas giữa Main và worker.
         return BitmapRenderSnapshot(bm) { input ->
-            val out = Bitmap.createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
+            val out = createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
             try {
                 val renderer = StickerCanvasView(context.applicationContext)
                 renderer.image = input

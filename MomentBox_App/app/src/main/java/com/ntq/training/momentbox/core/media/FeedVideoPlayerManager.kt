@@ -5,7 +5,7 @@ import android.graphics.Rect
 import android.view.View
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -124,7 +124,7 @@ class FeedVideoPlayerManager(
         activeRenderer.player = player
 
         try {
-            val mediaItem = MediaItem.fromUri(Uri.parse(videoUrl))
+            val mediaItem = MediaItem.fromUri(videoUrl.toUri())
             player.setMediaItem(mediaItem, savedPositions[postId] ?: startPositionMs)
             player.prepare()
             resume()

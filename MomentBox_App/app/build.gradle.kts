@@ -100,7 +100,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
-    implementation("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.2.10")
+    implementation(libs.kotlin.parcelize.runtime)
 
     // S11/S12: CameraX + EXIF
     implementation(libs.androidx.camera.core)
@@ -132,7 +132,7 @@ dependencies {
     // Kiểm thử giao diện trên thiết bị thật / giả lập (Instrumented Tests)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
+    debugImplementation(libs.leakcanary.android)
 }
 val parcelizeCompiler = configurations.create("momentboxParcelizeCompiler") {
     isCanBeConsumed = false

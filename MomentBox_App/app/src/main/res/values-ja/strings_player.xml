@@ -27,7 +27,6 @@
     <string name="m5_player_timer_end">曲の終わり</string>
     <string name="m5_player_empty">録音がありません。日記に音声を追加するか音声投稿を保存してください。</string>
     <string name="m5_player_load_error">保存した投稿を読み込めません。端末の録音は再生できます。</string>
-    <string name="m5_player_retry">再試行</string>
     <string name="m5_player_error">再生できません。ファイルまたは接続を確認してください。</string>
     <string name="m5_player_favorite">録音のお気に入り</string>
     <string name="m5_player_queue_hint">最新50件。ドラッグして並べ替え。</string>

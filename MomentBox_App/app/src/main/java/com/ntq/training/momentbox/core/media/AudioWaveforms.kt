@@ -5,8 +5,8 @@ import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
-import android.net.Uri
 import android.os.SystemClock
+import androidx.core.net.toUri
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.awaitCancellation
@@ -36,7 +36,7 @@ object AudioWaveforms {
     suspend fun read(context: Context, value: String): List<Float> = withContext(Dispatchers.IO) {
         var temporary: File? = null
         try {
-            val uri = Uri.parse(value)
+            val uri = value.toUri()
             val key =
                 value + if (uri.scheme == "file") ":" + File(checkNotNull(uri.path)).lastModified() else ""
             synchronized(cache) { cache[key] }?.let { return@withContext it }

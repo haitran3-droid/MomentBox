@@ -45,7 +45,6 @@
     <string name="login_no_account">Don\'t have an account?</string>
     <string name="login_register_action">Sign up</string>
     <string name="feature_in_development">Feature in development</string>
-    <string name="network_error_retry">Connection error, please try again</string>
     <string name="retry">Retry</string>
 
     <!-- S22b Language Dialog -->
@@ -58,19 +57,10 @@
     <string name="apply">Apply</string>
 
     <!-- Main Host -->
-    <string name="main_title">MomentBox Home</string>
-    <string name="main_welcome_user">Welcome, %1$s!</string>
-    <string name="main_user_email">%1$s</string>
-    <string name="main_logout">Log out</string>
-    <string name="main_trigger_401">Simulate 401 error (Test Refresh Token)</string>
-    <string name="main_refresh_success">Token refreshed and request retried successfully!</string>
     <string name="main_session_expired">Session expired. Please log in again.</string>
-    <string name="main_session_valid">Valid Session (Token OK)</string>
-    <string name="main_session_refreshed">Token automatically refreshed after 401</string>
     <string name="onboarding_art_journal_date">26 Oct, 2026</string>
     <string name="onboarding_art_chat_incoming">Such a beautiful day! ☀️</string>
     <string name="onboarding_art_chat_outgoing">Coffee and photos? 📸</string>
-    <string name="main_debug_refresh_request">Testing 401 → refresh → retry…</string>
 
     <!-- M2 Navigation -->
     <string name="nav_feed">Feed</string>
@@ -93,7 +83,6 @@
         <item quantity="other">%1$d new posts</item>
     </plurals>
     <string name="suggestions_title">Suggested for you</string>
-    <string name="see_all">See all</string>
     <string name="follow">Follow</string>
     <string name="following">Following</string>
     <string name="feed_error">Failed to load feed</string>
@@ -132,20 +121,12 @@
     <string name="screen_unlocked">Controls unlocked</string>
     <string name="sound_muted">Muted</string>
     <string name="sound_unmuted">Sound on</string>
-    <string name="create_post_coming_soon">Post creation is coming soon (Milestone M4)</string>
 
     <!-- M3 Strings (EN) -->
     <string name="common_back">Back</string>
     <string name="common_search">Search</string>
     <string name="journal_title">Journal</string>
     <string name="journal_search_hint">Search by title, content, tags…</string>
-    <string name="journal_filter_desc">Filter &amp; sort</string>
-    <string name="journal_stats_desc">Statistics</string>
-    <string name="journal_streak_format">🔥 %1$d days</string>
-    <string name="journal_this_week">THIS WEEK</string>
-    <string name="journal_posts_count_format">%1$d entries</string>
-    <string name="journal_pin">Pin</string>
-    <string name="journal_unpin">Unpin</string>
     <string name="journal_delete">Delete</string>
     <string name="journal_empty_title">No journal entries yet</string>
     <string name="journal_empty_desc">Start recording your thoughts and feelings today</string>
@@ -155,8 +136,14 @@
     <string name="journal_action_pin">Pin</string>
     <string name="journal_action_unpin">Unpin</string>
     <string name="journal_action_delete">Delete</string>
-    <string name="journal_streak_days">🔥 %1$d days</string>
-    <string name="journal_entries_count">%1$d entries</string>
+    <plurals name="journal_streak_days">
+        <item quantity="one">🔥 %1$d day</item>
+        <item quantity="other">🔥 %1$d days</item>
+    </plurals>
+    <plurals name="journal_entries_count">
+        <item quantity="one">%1$d entry</item>
+        <item quantity="other">%1$d entries</item>
+    </plurals>
     <string name="filter_title">Sort &amp; filter</string>
     <string name="filter_reset">Reset</string>
     <string name="filter_sort_by">Sort by</string>
@@ -172,7 +159,10 @@
     <string name="filter_has_photo">Has photos</string>
     <string name="filter_has_audio">Has audio</string>
     <string name="filter_date_range_title">Date range</string>
-    <string name="filter_apply_count_format">Apply · %1$d results</string>
+    <plurals name="filter_apply_count_format">
+        <item quantity="one">Apply · %1$d result</item>
+        <item quantity="other">Apply · %1$d results</item>
+    </plurals>
     <string name="filter_apply_no_count">Apply</string>
     <string name="filter_all_time">All time</string>
     <string name="editor_title_new">New entry</string>
@@ -204,7 +194,10 @@
     <string name="editor_restore_draft_desc">You have an unfinished journal draft. Would you like to restore it?</string>
     <string name="editor_restore_action">Restore</string>
     <string name="editor_restore_discard">Discard</string>
-    <string name="editor_word_count_format">%1$d words</string>
+    <plurals name="editor_word_count_format">
+        <item quantity="one">%1$d word</item>
+        <item quantity="other">%1$d words</item>
+    </plurals>
     <string name="editor_ambient_picker_title">Choose ambient sound</string>
     <string name="editor_ambient_rain">Ambient: Rain</string>
     <string name="editor_ambient_ocean">Ambient: Ocean</string>
@@ -230,19 +223,21 @@
     <string name="stats_delta_down">▼ %1$d</string>
     <string name="stats_percentage_format">%1$d%%</string>
     <string name="stats_share_subject">Journal Statistics Report</string>
-    <string name="stats_share_summary_format">Journal Statistics Report - MomentBox\nPeriod: %1$s\nEntries: %2$d\nCurrent streak: %3$d days\nTotal words: %4$s words\nVoice: %5$d mins\nInsight: %6$s</string>
+    <string name="stats_share_summary_format">Journal Statistics Report - MomentBox\nPeriod: %1$s\nEntries: %2$d\nCurrent streak (days): %3$d\nTotal words: %4$s\nVoice (min): %5$d\nInsight: %6$s</string>
 
     <string name="journal_period_previous">Previous period</string>
     <string name="journal_period_next">Next period</string>
     <string name="journal_insight_empty">Keep writing to discover patterns in your emotions.</string>
     <string name="journal_insight_weekend">You feel happier on weekends (+%1$d%%) and write most often on %2$s.</string>
-    <string name="journal_insight_habit">You write most often on %1$s with %2$d entries.</string>
+    <plurals name="journal_insight_habit">
+        <item quantity="one">You write most often on %1$s with %2$d entry.</item>
+        <item quantity="other">You write most often on %1$s with %2$d entries.</item>
+    </plurals>
     <string name="journal_header_today">TODAY</string>
     <string name="journal_header_yesterday">YESTERDAY</string>
     <string name="journal_header_this_week">THIS WEEK</string>
     <string name="journal_header_previous_week">LAST WEEK</string>
     <string name="journal_header_week_format">WEEK %1$d (%2$d)</string>
-    <string name="journal_camera_next_milestone">Camera will be integrated in milestone M4.</string>
     <string name="editor_word_count_zero">0 words</string>
     <string name="journal_storage_error">Unable to read or save data. Please retry.</string>
     <string name="journal_retry">Retry</string>
@@ -252,7 +247,10 @@
     <string name="journal_mood_chip_4">😢 Sad</string>
     <string name="journal_mood_chip_5">😡 Terrible</string>
     <string name="journal_day_mood_description">%1$s, %2$s</string>
-    <string name="journal_sector_description">%1$s, %2$d entries, %3$d%%</string>
+    <plurals name="journal_sector_description">
+        <item quantity="one">%1$s, %2$d entry, %3$d%%</item>
+        <item quantity="other">%1$s, %2$d entries, %3$d%%</item>
+    </plurals>
     <string name="journal_audio_play">Play audio</string>
     <string name="journal_audio_pause">Pause audio</string>
     <string name="editor_ambient_volume">Ambient volume</string>

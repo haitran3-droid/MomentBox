@@ -12,7 +12,6 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.Manifest
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
@@ -21,6 +20,7 @@ import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.IconCompat
+import androidx.core.net.toUri
 import com.bumptech.glide.Glide
 import com.google.gson.Gson
 import com.ntq.training.momentbox.data.local.db.ConversationEntity
@@ -209,8 +209,9 @@ class ChatNotifications(private val app: MomentBoxApp) {
                                         .setSmallIcon(R.drawable.ic_chat_bubble)
                                         .setContentTitle(app.getString(R.string.m5_chat_title))
                                         .setContentText(
-                                            app.getString(
-                                                R.string.m5_notification_summary,
+                                            app.resources.getQuantityString(
+                                                R.plurals.m5_notification_summary,
+                                                total,
                                                 total
                                             )
                                         )
@@ -321,7 +322,7 @@ class ChatNotifications(private val app: MomentBoxApp) {
 
     private fun reply(session: ChatSession, room: Long): PendingIntent {
         val intent = Intent(app, ChatActionReceiver::class.java).setAction(ChatActionReceiver.REPLY)
-            .setData(Uri.parse("momentbox-internal://chat/${hash(session)}/${session.generation}/$room/reply"))
+            .setData("momentbox-internal://chat/${hash(session)}/${session.generation}/$room/reply".toUri())
             .putExtra("owner", session.ownerId).putExtra("source", session.source)
             .putExtra("generation", session.generation).putExtra("conversationId", room)
         val mutable = if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
@@ -335,7 +336,7 @@ class ChatNotifications(private val app: MomentBoxApp) {
 
     private fun seen(session: ChatSession, room: Long, through: Long): PendingIntent {
         val intent = Intent(app, ChatActionReceiver::class.java).setAction(ChatActionReceiver.SEEN)
-            .setData(Uri.parse("momentbox-internal://chat/${hash(session)}/${session.generation}/$room/seen/$through"))
+            .setData("momentbox-internal://chat/${hash(session)}/${session.generation}/$room/seen/$through".toUri())
             .putExtra("owner", session.ownerId).putExtra("source", session.source)
             .putExtra("generation", session.generation).putExtra("conversationId", room)
             .putExtra("through", through)
@@ -349,7 +350,7 @@ class ChatNotifications(private val app: MomentBoxApp) {
 
     private fun content(session: ChatSession, room: Long): PendingIntent {
         val intent = ChatActivity.intent(app, room)
-            .setData(Uri.parse("momentbox-internal://chat/${hash(session)}/${session.generation}/$room/open"))
+            .setData("momentbox-internal://chat/${hash(session)}/${session.generation}/$room/open".toUri())
             .putExtra("m5Notification", true).putExtra("owner", session.ownerId)
             .putExtra("source", session.source).putExtra("generation", session.generation)
         return PendingIntent.getActivity(

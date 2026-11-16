@@ -24,10 +24,12 @@
     <string name="m5_chat_sent">Đã gửi</string>
     <string name="m5_chat_delivered">Đã nhận</string>
     <string name="m5_chat_seen">Đã xem</string>
-    <string name="m5_chat_invalid">Không thể mở cuộc trò chuyện</string>
     <string name="m5_socket_connecting">Đang kết nối…</string>
     <string name="m5_socket_attempt">Đang thử lần %1$d</string>
-    <string name="m5_socket_waiting">Mất kết nối · lần %1$d sau %2$d giây · Thử ngay</string>
+    <plurals name="m5_socket_waiting">
+        <item quantity="one">Mất kết nối · lần %1$d sau %2$d giây · Thử ngay</item>
+        <item quantity="other">Mất kết nối · lần %1$d sau %2$d giây · Thử ngay</item>
+    </plurals>
     <string name="m5_socket_failed">Không thể kết nối · Thử ngay</string>
     <string name="m5_socket_expired">Phiên hết hạn · đang xác thực lại</string>
     <string name="m5_quick_hold">Giữ nút micro để ghi; thả để gửi, vuốt trái để hủy</string>
@@ -48,7 +50,10 @@
     <string name="m5_notification_you">Bạn</string>
     <string name="m5_notification_reply">Trả lời…</string>
     <string name="m5_notification_reply_failed">Không gửi được</string>
-    <string name="m5_notification_summary">%1$d tin nhắn chưa đọc</string>
+    <plurals name="m5_notification_summary">
+        <item quantity="one">%1$d tin nhắn chưa đọc</item>
+        <item quantity="other">%1$d tin nhắn chưa đọc</item>
+    </plurals>
     <string name="m5_notification_seen">Đã đọc</string>
     <string name="m5_notification_permission_title">Thông báo tin nhắn</string>
     <string name="m5_notification_permission_reason">Bật thông báo để nhận tin nhắn mới khi bạn không mở Chat. Bạn vẫn có thể đọc và gửi tin khi không cấp quyền.</string>

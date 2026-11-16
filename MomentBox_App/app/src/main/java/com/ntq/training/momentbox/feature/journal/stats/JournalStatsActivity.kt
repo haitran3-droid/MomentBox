@@ -16,6 +16,7 @@ import androidx.activity.viewModels
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -34,7 +35,6 @@ import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
-import java.util.Locale
 
 class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
     ActivityJournalStatsBinding::inflate
@@ -50,7 +50,9 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
         )
     }
 
-    private val numberFormatter = NumberFormat.getInstance(Locale.getDefault())
+    private val numberFormatter by lazy {
+        NumberFormat.getNumberInstance(resources.configuration.locales[0])
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,8 +95,7 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
         binding.tvPeriodRange.setOnTouchListener { _, event -> gestures.onTouchEvent(event) }
         binding.lineChartView.setOnTouchListener { _, event -> gestures.onTouchEvent(event) }
         binding.tvTrendDateRange.setOnClickListener {
-            binding.layoutPeriodNavigation.visibility =
-                if (binding.layoutPeriodNavigation.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            binding.layoutPeriodNavigation.isVisible = !binding.layoutPeriodNavigation.isVisible
         }
     }
 
@@ -167,8 +168,9 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
                     // Trong lúc chờ kỳ mới, giữ nguyên snapshot đang vẽ; không bind lại card/tag cũ thêm một lần.
                     if (state.isLoading) return@collect
                     val result = state.statsResult ?: return@collect
-                    binding.tvPeriodRange.text =
-                        result.dateRangeText + " · " + state.anchorDate.year
+                    binding.tvPeriodRange.text = getString(
+                        R.string.journal_stats_range_year, result.dateRangeText, state.anchorDate.year
+                    )
                     bindStatsResult(result)
                 }
             }
@@ -177,7 +179,7 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
 
     private fun bindStatsResult(stats: JournalStatsResult) {
         // 1. Thẻ Bài viết
-        binding.tvEntriesCount.text = stats.totalEntries.toString()
+        binding.tvEntriesCount.text = numberFormatter.format(stats.totalEntries)
         val delta = stats.deltaEntriesVsPreviousPeriod
         if (delta >= 0) {
             binding.tvEntriesDelta.text = getString(R.string.stats_delta_up, delta)
@@ -188,13 +190,13 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
         }
 
         // 2. Thẻ Chuỗi hiện tại
-        binding.tvStreakCount.text = stats.currentStreakDays.toString()
+        binding.tvStreakCount.text = numberFormatter.format(stats.currentStreakDays)
 
         // 3. Thẻ Số từ
         binding.tvWordsCount.text = numberFormatter.format(stats.totalWords)
 
         // 4. Thẻ Ghi âm
-        binding.tvAudioMinutes.text = stats.totalAudioMinutes.toString()
+        binding.tvAudioMinutes.text = numberFormatter.format(stats.totalAudioMinutes)
 
         // 5. Biểu đồ tròn Phân bố cảm xúc (Donut Chart)
         binding.donutChartView.setData(
@@ -295,7 +297,7 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
             insight.improvementPct,
             day
         )
-        else getString(R.string.journal_insight_habit, day, insight.count)
+        else resources.getQuantityString(R.plurals.journal_insight_habit, insight.count, day, insight.count)
     }
 
     private fun styledInsightText(insight: JournalInsight): CharSequence {

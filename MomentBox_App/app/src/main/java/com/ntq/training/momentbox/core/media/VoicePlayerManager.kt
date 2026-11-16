@@ -24,7 +24,11 @@ class VoicePlayerManager internal constructor(
     private val audio: PlaybackAudio,
     private val scheduler: VoiceProgressScheduler
 ) {
-    constructor(context: Context) : this({ AndroidVoiceEngine() }, AndroidPlaybackAudio.get(context), AndroidVoiceProgressScheduler())
+    constructor(context: Context) : this(
+        { AndroidVoiceEngine() },
+        AndroidPlaybackAudio.get(context),
+        AndroidVoiceProgressScheduler()
+    )
 
     private val _playbackState = MutableStateFlow(VoicePlaybackState())
     val playbackState: StateFlow<VoicePlaybackState> = _playbackState.asStateFlow()
@@ -42,7 +46,8 @@ class VoicePlayerManager internal constructor(
             val player = engine ?: return
             runCatching {
                 if (prepared && player.isPlaying) {
-                    _playbackState.value = _playbackState.value.copy(currentPositionMs = player.position)
+                    _playbackState.value =
+                        _playbackState.value.copy(currentPositionMs = player.position)
                     scheduler.schedule(this)
                 }
             }.onFailure { fail(it.message ?: "Lỗi đọc tiến trình âm thanh") }
@@ -62,7 +67,8 @@ class VoicePlayerManager internal constructor(
         expectedDurationMs = durationSec * 1000
         currentSpeed = 1f
         userIntendedPlay = true
-        _playbackState.value = VoicePlaybackState(postId = postId, isLoading = true, durationMs = expectedDurationMs)
+        _playbackState.value =
+            VoicePlaybackState(postId = postId, isLoading = true, durationMs = expectedDurationMs)
         if (!audio.acquire(this, { pauseVoice() }, kind = AudioPlaybackKind.VOICE)) {
             fail("Không thể giành quyền phát âm thanh")
             return
@@ -78,8 +84,12 @@ class VoicePlayerManager internal constructor(
                         runCatching {
                             candidate.start()
                             candidate.setSpeed(currentSpeed)
-                            _playbackState.value = _playbackState.value.copy(isPlaying = true, isLoading = false,
-                                errorMessage = null, durationMs = candidate.duration.takeIf { it > 0 } ?: expectedDurationMs)
+                            _playbackState.value = _playbackState.value.copy(
+                                isPlaying = true,
+                                isLoading = false,
+                                errorMessage = null,
+                                durationMs = candidate.duration.takeIf { it > 0 }
+                                    ?: expectedDurationMs)
                             scheduler.schedule(updateProgress)
                         }.onFailure { fail(it.message ?: "Lỗi phát âm thanh") }
                     }
@@ -92,7 +102,11 @@ class VoicePlayerManager internal constructor(
                         userIntendedPlay = false
                         disposeEngine()
                         audio.release(this)
-                        _playbackState.value = _playbackState.value.copy(isPlaying = false, isLoading = false, currentPositionMs = 0)
+                        _playbackState.value = _playbackState.value.copy(
+                            isPlaying = false,
+                            isLoading = false,
+                            currentPositionMs = 0
+                        )
                     }
                 }
                 candidate.prepare(audioUrl)
@@ -132,7 +146,8 @@ class VoicePlayerManager internal constructor(
         runCatching {
             engine?.start()
             engine?.setSpeed(currentSpeed)
-            _playbackState.value = _playbackState.value.copy(isPlaying = true, isLoading = false, errorMessage = null)
+            _playbackState.value =
+                _playbackState.value.copy(isPlaying = true, isLoading = false, errorMessage = null)
             scheduler.schedule(updateProgress)
         }.onFailure { fail(it.message ?: "Lỗi tiếp tục phát") }
     }
@@ -170,7 +185,8 @@ class VoicePlayerManager internal constructor(
         userIntendedPlay = false
         disposeEngine()
         audio.release(this)
-        _playbackState.value = _playbackState.value.copy(isPlaying = false, isLoading = false, errorMessage = message)
+        _playbackState.value =
+            _playbackState.value.copy(isPlaying = false, isLoading = false, errorMessage = message)
     }
 
     fun stopVoice() {
@@ -182,5 +198,6 @@ class VoicePlayerManager internal constructor(
         audio.release(this)
         _playbackState.value = VoicePlaybackState()
     }
+
     fun release() = stopVoice()
 }

@@ -118,14 +118,17 @@ class ComposeViewModel(app: Application, private val saved: SavedStateHandle) :
             withContext(Dispatchers.IO) { obsolete.forEach { it.delete() } }
         }
 
-    private suspend fun owned(uri: String, suffix: String): String =
-        withContext(Dispatchers.IO) {
-            val folder =
-                File(application.filesDir, "post-drafts").apply { check(mkdirs() || isDirectory) }
+    private suspend fun owned(uri: String, suffix: String): String {
+        var staged: File? = null
+        try {
+            return withContext(Dispatchers.IO) {
+                val folder =
+                    File(application.filesDir, "post-drafts").apply { check(mkdirs() || isDirectory) }
 
-            val file = File(folder, "${UUID.randomUUID()}.$suffix")
-            try {
-                application.contentResolver.openInputStream(Uri.parse(uri))!!.use { input ->
+                val file = File(folder, "${UUID.randomUUID()}.$suffix")
+                staged = file
+                val source = requireNotNull(application.contentResolver.openInputStream(Uri.parse(uri)))
+                source.use { input ->
                     file.outputStream().use { out ->
                         val buffer = ByteArray(8192)
 
@@ -143,11 +146,12 @@ class ComposeViewModel(app: Application, private val saved: SavedStateHandle) :
                     }
                 }
                 Uri.fromFile(file).toString()
-            } catch (e: Exception) {
-                file.delete()
-                throw e
             }
+        } catch (error: Exception) {
+            withContext(NonCancellable + Dispatchers.IO) { staged?.delete() }
+            throw error
         }
+    }
 
     /**
      * Tạm hoãn import cho đến khi người dùng quyết định draft cũ. Mỗi đợt mới hủy copy cũ trước
@@ -181,7 +185,7 @@ class ComposeViewModel(app: Application, private val saved: SavedStateHandle) :
                             }
                         val value = mutable.value.copy(media = next).snapshot()
                         persistNow(value)
-                        mutable.value = value
+                        mutable.update { it.copy(media = value.media) }
                         done(next)
                     } catch (e: CancellationException) {
                         staged.filterNot { it in ownedFiles(persisted) }.forEach { it.delete() }
@@ -270,7 +274,7 @@ class ComposeViewModel(app: Application, private val saved: SavedStateHandle) :
             staged = File(Uri.parse(path).path!!).canonicalFile
             val next = mutable.value.copy(voice = audio.copy(uri = path))
             persistNow(next)
-            mutable.value = next
+            mutable.update { it.copy(voice = next.voice) }
             true
         } catch (e: CancellationException) {
             staged?.takeIf { it !in ownedFiles(persisted) }?.delete()

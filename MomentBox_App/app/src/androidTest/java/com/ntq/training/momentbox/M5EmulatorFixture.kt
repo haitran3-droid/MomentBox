@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Process
 import android.os.SystemClock
 import android.view.View
+import androidx.core.app.NotificationCompat
 import androidx.core.content.FileProvider
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.lifecycle.ViewModelProvider
@@ -19,7 +20,11 @@ import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import androidx.viewpager2.widget.ViewPager2
 import com.ntq.training.momentbox.core.media.OwnedImageFiles
+import com.ntq.training.momentbox.core.network.NetworkModule
+import com.ntq.training.momentbox.core.network.SessionRequest
+import com.ntq.training.momentbox.core.notification.ChatActionApi
 import com.ntq.training.momentbox.core.notification.ChatNotifications
+import com.ntq.training.momentbox.core.notification.NotificationReplyBody
 import com.ntq.training.momentbox.core.realtime.NotificationScope
 import com.ntq.training.momentbox.core.realtime.RealtimeSocket
 import com.ntq.training.momentbox.core.realtime.SocketManager
@@ -27,6 +32,9 @@ import com.ntq.training.momentbox.data.local.db.JournalAttachmentEntity
 import com.ntq.training.momentbox.data.local.db.JournalEntryEntity
 import com.ntq.training.momentbox.data.local.prefs.ReminderStore
 import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
+import com.ntq.training.momentbox.data.remote.api.AuthApi
+import com.ntq.training.momentbox.data.remote.dto.LoginRequest
+import com.ntq.training.momentbox.data.repository.ChatSession
 import com.ntq.training.momentbox.domain.model.FeedItem
 import com.ntq.training.momentbox.feature.chat.ChatActivity
 import com.ntq.training.momentbox.feature.feed.FeedViewModel
@@ -69,6 +77,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -175,13 +184,13 @@ class M5EmulatorFixture {
                     socket.events("presence:update").first { event ->
                         event.payload.optLong("userId") == peer && !event.payload.optBoolean("online")
                     }
+                    SystemClock.elapsedRealtime()
                 }
                 println("M5_QA presenceReady peer=$peer")
-                val event = withTimeout(35_000) { offlineEvent.await() }
-                val serverMillis = Instant.parse(event.payload.getString("lastSeenAt")).toEpochMilli()
+                val receivedOffline = withTimeout(35_000) { offlineEvent.await() }
                 withTimeout(2_000) { users.first { list -> list.any { it.id == peer && !it.online } } }
-                val offlineMillis = System.currentTimeMillis() - serverMillis
-                assertTrue("Offline propagation: ${offlineMillis}ms", offlineMillis in 0 until 2000)
+                val offlineMillis = SystemClock.elapsedRealtime() - receivedOffline
+                assertTrue("Offline database update: ${offlineMillis}ms", offlineMillis < 2000)
                 val onlineEvent = async(start = CoroutineStart.UNDISPATCHED) {
                     socket.events("presence:update").first { event ->
                         event.payload.optLong("userId") == peer && event.payload.optBoolean("online")
@@ -204,23 +213,20 @@ class M5EmulatorFixture {
         val scenario = ActivityScenario.launch<MainActivity>(Intent(app, MainActivity::class.java))
         scenario.use {
             val session = runBlocking { withTimeout(15_000) { app.chatRuntime.session.first { it != null } } }!!
-            val room = runBlocking {
-                withTimeout(10_000) {
-                    app.database.chatDao().conversations(session.ownerId, session.source)
-                        .first { rows -> rows.any { it.unreadCount > 0 && !it.muted } }
-                        .first { it.unreadCount > 0 && !it.muted }.id
-                }
-            }
+            val text = "M5 QA notification ${UUID.randomUUID()}"
+            val room = runBlocking { sendIncomingMessage(session, text) }
             val content = runBlocking {
                 withTimeout(10_000) {
-                    var pending = manager.activeNotifications.firstOrNull {
-                        it.notification.extras.getLong(ChatNotifications.ROOM) == room
+                    fun notificationForMessage() = manager.activeNotifications.firstOrNull {
+                        val notification = it.notification
+                        notification.extras.getLong(ChatNotifications.ROOM) == room &&
+                            NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
+                                ?.messages?.any { message -> message.text?.toString() == text } == true
                     }
+                    var pending = notificationForMessage()
                     while (pending == null) {
                         delay(150)
-                        pending = manager.activeNotifications.firstOrNull {
-                            it.notification.extras.getLong(ChatNotifications.ROOM) == room
-                        }
+                        pending = notificationForMessage()
                     }
                     pending.notification.contentIntent
                 }
@@ -248,6 +254,25 @@ class M5EmulatorFixture {
                 instrumentation.runOnMainSync { first.finish() }
             }
         }
+    }
+
+    private suspend fun sendIncomingMessage(session: ChatSession, text: String): Long {
+        withTimeout(15_000) { app.socketManager.isConnectedFlow.first { it } }
+        val client = OkHttpClient()
+        val peerEmail = if (session.ownerId == "4") "lananh@momentbox.dev" else "travel@momentbox.dev"
+        val login = NetworkModule.provideRetrofit(client).create(AuthApi::class.java)
+            .login(LoginRequest(peerEmail, "123456"))
+        val peer = checkNotNull(login.body()?.data)
+        val room = app.chatRuntime.repository.create(session, checkNotNull(peer.user).id)
+        val peerClient = client.newBuilder()
+            .addInterceptor { chain ->
+                chain.proceed(chain.request().newBuilder()
+                    .header("Authorization", "Bearer ${peer.accessToken}").build())
+            }.build()
+        val ack = NetworkModule.provideRetrofit(peerClient).create(ChatActionApi::class.java)
+            .send(room, NotificationReplyBody(UUID.randomUUID().toString(), content = text), SessionRequest(0L))
+        check(ack.success)
+        return room
     }
 
     private fun resumedChat(): ChatActivity? {

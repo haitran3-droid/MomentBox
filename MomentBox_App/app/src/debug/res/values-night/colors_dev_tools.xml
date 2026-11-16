@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="s23_log_success">#6DDBA2</color>
+    <color name="s23_leak_outline">#A95F62</color>
+</resources>

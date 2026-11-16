@@ -4,14 +4,10 @@
     <string name="s23_source">Nguồn dữ liệu</string>
     <string name="s23_switch_source_notice">Đổi nguồn sẽ đăng xuất phiên hiện tại. Nhật ký trên máy được giữ lại.</string>
     <string name="s23_network">Network log</string>
-    <string name="s23_simulate_401">Giả lập 401 và tải lại hồ sơ</string>
+    <string name="s23_simulate_401">Giả lập lỗi 401 (test refresh token)</string>
     <string name="s23_delay">Độ trễ giả lập</string>
     <string name="s23_show_logs">Xem request</string>
-    <string name="s23_clear_logs">Xoá log</string>
-    <plurals name="s23_log_count">
-        <item quantity="one">Độ trễ %1$d ms · %2$d yêu cầu</item>
-        <item quantity="other">Độ trễ %1$d ms · %2$d yêu cầu</item>
-    </plurals>
+    <string name="s23_clear_logs">Xoá</string>
     <string name="s23_no_requests">Chưa có request.</string>
     <string name="s23_refresh_completed">Đã tải lại hồ sơ. Mở Network log để xem luồng refresh.</string>
     <string name="s23_socket_options">Tuỳ chọn kết nối socket</string>
@@ -22,7 +18,7 @@
     <string name="s23_active">Đang áp dụng</string>
     <string name="s23_attempts">Số lần thử lại</string>
     <string name="s23_randomization">Hệ số ngẫu nhiên (0–1)</string>
-    <string name="s23_memory">Bộ nhớ</string>
+    <string name="s23_memory">Bộ nhớ &amp; Leak Lab</string>
     <string name="s23_refresh_memory">Đo lại bộ nhớ</string>
     <string name="s23_pref_keys">Khoá DataStore</string>
     <string name="s23_memory_status">Glide disk %1$s\nGlide RAM %2$s / %3$s\nHeap ứng dụng %4$s</string>
@@ -33,4 +29,15 @@
     <string name="s23_leak_listener">Giữ listener trong singleton</string>
     <string name="s23_leak_handler">Giữ Activity bằng Handler</string>
     <string name="s23_leak_clear">Dọn tham chiếu của Leak lab</string>
+    <string name="s23_dashboard_network">Network log (Interceptor)</string>
+    <string name="s23_dashboard_socket" translatable="false">Socket.IO</string>
+    <string name="s23_dashboard_leak_lab" translatable="false">Leak Lab</string>
+    <string name="s23_dashboard_ms" translatable="false">%1$d ms</string>
+    <string name="s23_dashboard_listener">Listener chưa huỷ</string>
+    <string name="s23_dashboard_socket_id" translatable="false">id: %1$s</string>
+    <string name="s23_dashboard_socket_tuning" translatable="false">timeout %1$d ms · attempts %2$d\ndelay %3$d–%4$d ms · randomization %5$s</string>
+    <string name="s23_dashboard_glide" translatable="false">Glide: RAM %1$s · Disk %2$s</string>
+    <string name="s23_dashboard_prefs" translatable="false">Prefs ›</string>
+    <string name="s23_dashboard_static" translatable="false">Static Activity</string>
+    <string name="s23_dashboard_handler" translatable="false">Handler delay</string>
 </resources>

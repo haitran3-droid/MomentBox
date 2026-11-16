@@ -1,5 +1,7 @@
 package com.ntq.training.momentbox.debug
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,6 +20,11 @@ import leakcanary.LeakCanary
 class LeakLabActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val scenario = intent.getIntExtra(EXTRA_SCENARIO, 0)
+        if (scenario in scenarios) {
+            if (savedInstanceState == null) runScenario(scenario) else finish()
+            return
+        }
         enableEdgeToEdge()
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -31,23 +38,7 @@ class LeakLabActivity : AppCompatActivity() {
                 setOnClickListener { click() }
             })
         }
-        action(R.string.s23_leak_static) {
-            clearRetainedReferences()
-            retainedActivity = this
-            handler.postDelayed(::clearRetainedReferences, LAB_DURATION_MS)
-            finishAndAnalyze()
-        }
-        action(R.string.s23_leak_listener) {
-            clearRetainedReferences()
-            LeakLabListeners.callbacks += { title }
-            handler.postDelayed(::clearRetainedReferences, LAB_DURATION_MS)
-            finishAndAnalyze()
-        }
-        action(R.string.s23_leak_handler) {
-            clearRetainedReferences()
-            handler.postDelayed({ title }, LAB_DURATION_MS)
-            finishAndAnalyze()
-        }
+        scenarios.forEach { scenario -> action(scenario) { runScenario(scenario) } }
         action(R.string.s23_leak_clear, ::clearRetainedReferences)
         val scroll = ScrollView(this).apply { addView(panel) }
         setContentView(scroll)
@@ -58,6 +49,20 @@ class LeakLabActivity : AppCompatActivity() {
         }
     }
 
+    private fun runScenario(scenario: Int) {
+        if (scenario !in scenarios) return
+        clearRetainedReferences()
+        when (scenario) {
+            R.string.s23_leak_static -> retainedActivity = this
+            R.string.s23_leak_listener -> LeakLabListeners.callbacks += { title }
+            R.string.s23_leak_handler -> handler.postDelayed({ title }, LAB_DURATION_MS)
+        }
+        if (scenario != R.string.s23_leak_handler) {
+            handler.postDelayed(::clearRetainedReferences, LAB_DURATION_MS)
+        }
+        finishAndAnalyze()
+    }
+
     private fun finishAndAnalyze() {
         finish()
         // Give LeakCanary time to observe onDestroy before requesting a heap dump.
@@ -65,6 +70,12 @@ class LeakLabActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val EXTRA_SCENARIO = "leak_scenario"
+        private val scenarios = listOf(R.string.s23_leak_static, R.string.s23_leak_listener, R.string.s23_leak_handler)
+
+        fun intent(context: Context, scenario: Int): Intent =
+            Intent(context, LeakLabActivity::class.java).putExtra(EXTRA_SCENARIO, scenario)
+
         private const val LAB_DURATION_MS = 60_000L
         private val handler = Handler(Looper.getMainLooper())
         private val analyze = Runnable { LeakCanary.dumpHeap() }

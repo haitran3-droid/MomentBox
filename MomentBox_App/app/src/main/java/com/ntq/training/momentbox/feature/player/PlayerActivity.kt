@@ -58,10 +58,10 @@ class PlayerActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding =
             ActivityPlayerBinding.inflate(layoutInflater)
-            setContentView(binding.root)
-            client =
+        setContentView(binding.root)
+        client =
             PlayerClient(this)
-            (application as MomentBoxApp).playerAudioBridge.connect(true)
+        (application as MomentBoxApp).playerAudioBridge.connect(true)
         requested = if (saved == null) intent.getStringExtra("trackId")
             ?.takeIf { it.length <= 128 } else saved.getString("pendingTrackId")
             ?.takeIf { it.length <= 128 }
@@ -279,8 +279,8 @@ class PlayerActivity : AppCompatActivity() {
             waveformKey = waveKey
             decoded =
                 emptyList()
-                decode?.cancel()
-                if (track != null && track.waveform.isEmpty()) decode =
+            decode?.cancel()
+            if (track != null && track.waveform.isEmpty()) decode =
                 lifecycleScope.launch {
                     val values = AudioWaveforms.read(
                         applicationContext,

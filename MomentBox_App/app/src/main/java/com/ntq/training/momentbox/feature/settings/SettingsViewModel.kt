@@ -68,8 +68,8 @@ class SettingsViewModel(private val app: MomentBoxApp) : ViewModel() {
             try {
                 val bytes =
                     cache.diskBytes()
-                    mutable.update { it.copy(cacheBytes = bytes) }
-                    app.reminderScheduler.reconcile()
+                mutable.update { it.copy(cacheBytes = bytes) }
+                app.reminderScheduler.reconcile()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

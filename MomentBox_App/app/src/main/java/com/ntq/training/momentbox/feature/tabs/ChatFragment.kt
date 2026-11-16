@@ -361,15 +361,15 @@ class ChatFragment : Fragment() {
         notificationNotice?.dismiss()
         notificationNotice =
             null
-            permissionJob?.cancel()
-            permissionJob =
+        permissionJob?.cancel()
+        permissionJob =
             null
-            binding?.listPanel?.conversations?.adapter =
+        binding?.listPanel?.conversations?.adapter =
             null
-            binding?.listPanel?.onlineUsers?.adapter = null
-            detailBack = null
-            binding =
+        binding?.listPanel?.onlineUsers?.adapter = null
+        detailBack = null
+        binding =
             null
-            super.onDestroyView()
+        super.onDestroyView()
     }
 }

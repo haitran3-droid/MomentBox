@@ -38,9 +38,9 @@ class ProfilePeopleDialog : DialogFragment() {
             setOnClickListener { model.loadPeople() } }
         val list =
             ListView(requireContext())
-            column.addView(progress)
-            column.addView(text)
-            column.addView(
+        column.addView(progress)
+        column.addView(text)
+        column.addView(
             retry
         )
         column.addView(list)

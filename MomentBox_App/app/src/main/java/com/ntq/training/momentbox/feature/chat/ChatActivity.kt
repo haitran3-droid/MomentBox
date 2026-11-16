@@ -33,7 +33,7 @@ class ChatActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding =
             ActivityChatBinding.inflate(layoutInflater)
-            setContentView(binding.root)
+        setContentView(binding.root)
         // Fragment cũ có thể được Android restore trước khi activate xác minh xong phiên.
         // Giữ root vẽ background để WindowManager hoàn tất transition/finish bình thường.
         // Chỉ ẩn hai vùng nội dung có thể chứa Fragment được phục hồi.

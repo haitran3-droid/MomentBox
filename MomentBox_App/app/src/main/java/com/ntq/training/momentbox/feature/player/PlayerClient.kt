@@ -174,9 +174,9 @@ class PlayerClient(context: Context) {
         check(Looper.myLooper() == Looper.getMainLooper())
         started =
             false
-            main.removeCallbacksAndMessages(null)
-            detach()
-            connectionState.value =
+        main.removeCallbacksAndMessages(null)
+        detach()
+        connectionState.value =
             "disconnected"
     }
 

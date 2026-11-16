@@ -122,8 +122,8 @@ class PlayerQueueSheet : BottomSheetDialogFragment() {
                 if (from < 0 || to < 0) return false
                 dragging =
                     true
-                    rows.add(to, rows.removeAt(from))
-                    adapter.notifyItemMoved(
+                rows.add(to, rows.removeAt(from))
+                adapter.notifyItemMoved(
                     from,
                     to
                 )

@@ -236,11 +236,11 @@ class MessageAdapter(
             waveform.seek = { this@MessageAdapter.seek(message, it) }
             voiceError.isVisible =
                 voiceKey == message.localId && playback.errorMessage != null
-                voiceError.setOnClickListener {
-            this@MessageAdapter.voice(
-                message
-            )
-        }
+            voiceError.setOnClickListener {
+                this@MessageAdapter.voice(
+                    message
+                )
+            }
             val upload = uploads[message.localId]
             uploadProgress.isVisible = upload?.uploading == true
             uploadCancel.isVisible =

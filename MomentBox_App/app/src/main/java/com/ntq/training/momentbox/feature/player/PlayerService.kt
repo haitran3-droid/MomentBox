@@ -408,9 +408,9 @@ class PlayerService : Service() {
             player?.start()
             player?.playbackParams =
                 PlaybackParams().setSpeed(speed)
-                registerNoisy()
-                publish()
-                return
+            registerNoisy()
+            publish()
+            return
         }
         if (player != null) {
             publish()
@@ -442,7 +442,7 @@ class PlayerService : Service() {
                     engine.start()
                     engine.playbackParams =
                         PlaybackParams().setSpeed(speed)
-                        engine.setVolume(
+                    engine.setVolume(
                         volume,
                         volume
                     )
@@ -525,7 +525,7 @@ class PlayerService : Service() {
                                 player?.start()
                                 player?.playbackParams =
                                     PlaybackParams().setSpeed(speed)
-                                    registerNoisy()
+                                registerNoisy()
                             }
                         }
 
@@ -610,8 +610,8 @@ class PlayerService : Service() {
         player = null
         prepared =
             false
-            runCatching { old?.release() }
-            unregisterNoisy()
+        runCatching { old?.release() }
+        unregisterNoisy()
     }
 
     private fun fail(code: String) {

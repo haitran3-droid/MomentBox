@@ -65,9 +65,9 @@ object AudioWaveforms {
                                     currentCoroutineContext().ensureActive()
                                     val read =
                                         input.read(buffer)
-                                        if (read < 0) break
-                                        count += read
-                                        check(
+                                    if (read < 0) break
+                                    count += read
+                                    check(
                                         count <= 50L * 1024 * 1024
                                     )
                                     output.write(buffer, 0, read)
@@ -177,7 +177,7 @@ object AudioWaveforms {
                     }
                     outputDone =
                         info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
-                        decoder.releaseOutputBuffer(
+                    decoder.releaseOutputBuffer(
                         index,
                         false
                     )

@@ -32,8 +32,8 @@ class QuarterBlurTransformation(private val sigmaPx: Int = 5, private val sampli
         try {
             result.density =
                 toTransform.density
-                result.setHasAlpha(true)
-                result.eraseColor(Color.TRANSPARENT)
+            result.setHasAlpha(true)
+            result.eraseColor(Color.TRANSPARENT)
             Canvas(result).drawBitmap(
                 toTransform,
                 null,

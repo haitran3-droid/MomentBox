@@ -105,9 +105,9 @@ class ChatMediaRepository(
                             currentCoroutineContext().ensureActive()
                             val count =
                                 input.read(buffer)
-                                if (count < 0) break
-                                total += count
-                                check(
+                            if (count < 0) break
+                            total += count
+                            check(
                                 total <= 50L * 1024 * 1024
                             )
                             output.write(buffer, 0, count)
@@ -183,7 +183,7 @@ class ChatMediaRepository(
             check(runtime.current() == expected && response.success)
             val result =
                 checkNotNull(response.data)
-                check(result.type == row.type || (row.type == "voice" && result.type == "audio"))
+            check(result.type == row.type || (row.type == "voice" && result.type == "audio"))
             val confirmed = runtime.repository.uploaded(expected, row.localId, result.url) ?: return
             _progress.update {
                 it + (row.localId to ChatMediaProgress(

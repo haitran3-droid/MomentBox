@@ -242,10 +242,10 @@ class ReminderRingingService : Service() {
         controller.stop()
         mutable.value =
             controller.state.value
-            driver.release()
-            observing?.cancel()
-            commands.close()
-            owner.cancel()
+        driver.release()
+        observing?.cancel()
+        commands.close()
+        owner.cancel()
         // OS có thể hủy service; không launch coroutine từ onDestroy để ghi đè notice event mới.
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
         super.onDestroy()

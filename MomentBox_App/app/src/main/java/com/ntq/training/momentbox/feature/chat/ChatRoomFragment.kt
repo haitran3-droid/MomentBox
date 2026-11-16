@@ -178,7 +178,7 @@ class ChatRoomFragment : Fragment() {
         b.input.doAfterTextChanged { text ->
             model.draft = text?.toString()
                 .orEmpty()
-                b.send.setImageResource(if (model.draft.isBlank()) R.drawable.ic_mic else R.drawable.ic_send)
+            b.send.setImageResource(if (model.draft.isBlank()) R.drawable.ic_mic else R.drawable.ic_send)
             val now = SystemClock.elapsedRealtime()
             inputIdle?.cancel()
             if (model.draft.isNotBlank()) {
@@ -319,7 +319,7 @@ class ChatRoomFragment : Fragment() {
                                             app,
                                             url
                                         )
-                                        adapter.waveform(messageKey(message), values)
+                                    adapter.waveform(messageKey(message), values)
                                 } catch (cancelled: CancellationException) {
                                     requestedWaveforms.remove(messageKey(message))
                                     throw cancelled

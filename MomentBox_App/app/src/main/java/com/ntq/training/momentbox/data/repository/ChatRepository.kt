@@ -240,7 +240,7 @@ class ChatRepository(
         check(sessionProvider() == expected)
         val response =
             api.following(SessionRequest(expected.generation))
-            check(
+        check(
             sessionProvider() == expected && response.success
         )
         return checkNotNull(response.data).filter { it.id.toString() != expected.ownerId }
@@ -388,9 +388,9 @@ class ChatRepository(
             require(previous.type in setOf("image", "voice") && previous.serverId == null)
             val row =
                 previous.copy(mediaUrl = url, status = "SENDING")
-                dao.upsertMessage(row)
-                result =
-            row
+            dao.upsertMessage(row)
+            result =
+                row
         }
         return result.takeIf { sessionProvider() == expected }
     }

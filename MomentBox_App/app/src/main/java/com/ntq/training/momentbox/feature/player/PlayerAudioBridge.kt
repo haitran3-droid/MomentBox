@@ -95,7 +95,7 @@ class PlayerAudioBridge(private val app: MomentBoxApp) {
                 }
                 callback =
                     peer
-                    commands.trySend { if (remote === api) api.registerAudioPeer(peer) }
+                commands.trySend { if (remote === api) api.registerAudioPeer(peer) }
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {

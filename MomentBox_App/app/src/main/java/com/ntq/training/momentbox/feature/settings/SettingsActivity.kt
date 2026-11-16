@@ -71,7 +71,7 @@ class SettingsActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding =
             ActivitySettingsBinding.inflate(layoutInflater)
-            setContentView(binding.root)
+        setContentView(binding.root)
         images = Glide.with(this)
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())

@@ -422,6 +422,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         imageKey = null
         coverKey =
             null
-            super.onDestroyView()
+        super.onDestroyView()
     }
 }

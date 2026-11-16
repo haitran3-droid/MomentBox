@@ -59,7 +59,7 @@ class ProfilePageFragment : Fragment(R.layout.fragment_profile_page) {
                 out.left = col * gap / 3
                 out.right =
                     gap - (col + 1) * gap / 3
-                    if (i >= 3) out.top = gap
+                if (i >= 3) out.top = gap
             }
         })
         b.profileGrid.addOnScrollListener(object : RecyclerView.OnScrollListener() {

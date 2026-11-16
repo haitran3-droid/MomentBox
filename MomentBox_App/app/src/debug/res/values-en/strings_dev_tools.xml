@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="s23_back">Back</string>
+    <string name="s23_source">Data source</string>
+    <string name="s23_switch_source_notice">Switching sources signs you out. Journals on this device are kept.</string>
+    <string name="s23_network">Network log</string>
+    <string name="s23_simulate_401">Simulate a 401 and reload the profile</string>
+    <string name="s23_delay">Simulated delay</string>
+    <string name="s23_show_logs">View requests</string>
+    <string name="s23_clear_logs">Clear network log</string>
+    <string name="s23_log_count">Delay %1$d ms · Requests: %2$d</string>
+    <string name="s23_no_requests">No requests yet.</string>
+    <string name="s23_refresh_completed">Profile reloaded. Open the network log to see the session refresh.</string>
+    <string name="s23_socket_options">Socket connection options</string>
+    <string name="s23_disconnect">Disconnect</string>
+    <string name="s23_connect">Reconnect</string>
+    <string name="s23_outage">Simulate a 10-second outage</string>
+    <string name="s23_saved">Saved</string>
+    <string name="s23_active">Active</string>
+    <string name="s23_attempts">Retry attempts</string>
+    <string name="s23_randomization">Randomization factor (0–1)</string>
+    <string name="s23_memory">Memory</string>
+    <string name="s23_refresh_memory">Measure memory again</string>
+    <string name="s23_pref_keys">DataStore keys</string>
+    <string name="s23_memory_status">Glide disk %1$s\nGlide RAM %2$s / %3$s\nApp heap %4$s</string>
+    <string name="s23_invalid_value">Check the value you entered.</string>
+    <string name="s23_action_failed">Action failed. Check the data source, sign-in session, and connection.</string>
+    <string name="s23_leak_instructions">Choose a scenario so LeakCanary can analyze the Activity after it closes. References are cleared after 60 seconds.</string>
+    <string name="s23_leak_static">Retain an Activity in a companion object</string>
+    <string name="s23_leak_listener">Retain a listener in a singleton</string>
+    <string name="s23_leak_handler">Retain an Activity with a Handler</string>
+    <string name="s23_leak_clear">Clear Leak lab references</string>
+</resources>

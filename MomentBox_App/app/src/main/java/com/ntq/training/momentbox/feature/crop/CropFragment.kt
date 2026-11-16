@@ -116,7 +116,7 @@ class CropFragment : Fragment(R.layout.fragment_crop) {
         b.cropDegrees.text = "0°"
         selectedRatio =
             if (squareOnly) 1 else 0
-            if (squareOnly) b.cropCanvas.setRatio(
+        if (squareOnly) b.cropCanvas.setRatio(
             1.0,
             true
         )

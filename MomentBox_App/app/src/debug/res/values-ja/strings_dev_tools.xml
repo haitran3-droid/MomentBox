@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="s23_back">戻る</string>
+    <string name="s23_source">データソース</string>
+    <string name="s23_switch_source_notice">データソースを切り替えるとログアウトします。この端末の日記は保持されます。</string>
+    <string name="s23_network">通信ログ</string>
+    <string name="s23_simulate_401">401 エラーを再現してプロフィールを再読み込み</string>
+    <string name="s23_delay">遅延のシミュレーション</string>
+    <string name="s23_show_logs">リクエストを表示</string>
+    <string name="s23_clear_logs">通信ログを消去</string>
+    <string name="s23_log_count">遅延 %1$d ms · リクエスト %2$d 件</string>
+    <string name="s23_no_requests">リクエストはまだありません。</string>
+    <string name="s23_refresh_completed">プロフィールを再読み込みしました。通信ログでセッションの更新を確認できます。</string>
+    <string name="s23_socket_options">ソケット接続設定</string>
+    <string name="s23_disconnect">切断</string>
+    <string name="s23_connect">再接続</string>
+    <string name="s23_outage">10 秒間の接続切断を再現</string>
+    <string name="s23_saved">保存済み</string>
+    <string name="s23_active">適用中</string>
+    <string name="s23_attempts">再試行回数</string>
+    <string name="s23_randomization">ランダム化係数 (0–1)</string>
+    <string name="s23_memory">メモリ</string>
+    <string name="s23_refresh_memory">メモリを再測定</string>
+    <string name="s23_pref_keys">DataStore キー</string>
+    <string name="s23_memory_status">Glide のディスク使用量 %1$s\nGlide の RAM 使用量 %2$s / %3$s\nアプリのヒープ %4$s</string>
+    <string name="s23_invalid_value">入力した値を確認してください。</string>
+    <string name="s23_action_failed">操作に失敗しました。データソース、ログイン状態、接続を確認してください。</string>
+    <string name="s23_leak_instructions">LeakCanary が終了後の Activity を解析できるよう、テスト項目を選んでください。参照は 60 秒後に解除されます。</string>
+    <string name="s23_leak_static">companion object で Activity を保持</string>
+    <string name="s23_leak_listener">シングルトンでリスナーを保持</string>
+    <string name="s23_leak_handler">Handler で Activity を保持</string>
+    <string name="s23_leak_clear">リークテストの参照を解除</string>
+</resources>

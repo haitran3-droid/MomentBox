@@ -1,0 +1,31 @@
+<resources>
+    <string name="s21_posts">Bài viết</string>
+    <string name="s21_videos">Video</string>
+    <string name="s21_saved">Đã lưu</string>
+    <string name="s21_followers">Người theo dõi</string>
+    <string name="s21_following">Đang theo dõi</string>
+    <string name="s21_edit">Chỉnh sửa hồ sơ</string>
+    <string name="s21_share">Chia sẻ hồ sơ</string>
+    <string name="s21_people">Thêm bạn</string>
+    <string name="s21_settings">Cài đặt</string>
+    <string name="s21_block_unavailable">Chặn · Chưa hỗ trợ</string>
+    <string name="s21_report_unavailable">Báo cáo · Chưa hỗ trợ</string>
+    <string name="s21_avatar">Đổi ảnh đại diện</string>
+    <string name="s21_retry">Thử lại</string>
+    <string name="s21_error">Không tải được dữ liệu. Vui lòng thử lại.</string>
+    <string name="s21_empty">Chưa có bài viết</string>
+    <string name="s21_follow">Theo dõi</string>
+    <string name="s21_unfollow">Đang theo dõi</string>
+    <string name="s21_message">Nhắn tin</string>
+    <string name="s21_name">Tên hiển thị</string>
+    <string name="s21_bio">Tiểu sử</string>
+    <string name="s21_location">Vị trí</string>
+    <string name="s21_save">Lưu</string>
+    <string name="s21_cancel">Hủy</string>
+    <string name="s21_name_required">Vui lòng nhập tên hiển thị</string>
+    <string name="s21_update_error">Chưa cập nhật được hồ sơ. Vui lòng thử lại.</string>
+    <string name="s21_source_unsupported">Máy chủ hiện tại chưa hỗ trợ thao tác này.</string>
+    <string name="s21_more">Tùy chọn hồ sơ</string>
+    <string name="s21_share_text">Trang cá nhân của %1$s: %2$s</string>
+    <string name="s21_unknown_count">—</string>
+</resources>

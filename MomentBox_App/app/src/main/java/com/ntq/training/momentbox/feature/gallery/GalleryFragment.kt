@@ -3,13 +3,22 @@ package com.ntq.training.momentbox.feature.gallery
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.widget.BaseAdapter
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -20,8 +29,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.ntq.training.momentbox.R
@@ -46,7 +58,7 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(
                 modelClass: Class<T>,
-                extras: androidx.lifecycle.viewmodel.CreationExtras,
+                extras: CreationExtras,
             ) = GalleryViewModel(repository, extras.createSavedStateHandle()) as T
         }
     }
@@ -86,12 +98,12 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
             startActivity(
                 Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:${requireContext().packageName}"),
+                    "package:${requireContext().packageName}".toUri(),
                 )
             )
             return
         }
-        prefs.edit().putBoolean(primary, true).apply()
+        prefs.edit { putBoolean(primary, true) }
         val requested =
             if (Build.VERSION.SDK_INT >= 33)
                 buildList {
@@ -102,7 +114,7 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
                     }
                     .toTypedArray()
             else arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-        prefs.edit().apply { requested.forEach { putBoolean(it, true) } }.apply()
+        prefs.edit { requested.forEach { putBoolean(it, true) } }
         permissions.launch(requested)
     }
 
@@ -113,8 +125,7 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
      */
     private fun requestMissingType(permission: String) {
         if (
-            Build.VERSION.SDK_INT < 33 ||
-                granted(permission) ||
+            granted(permission) ||
                 (Build.VERSION.SDK_INT >= 34 &&
                     granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED))
         )
@@ -126,12 +137,12 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
             startActivity(
                 Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:${requireContext().packageName}"),
+                    "package:${requireContext().packageName}".toUri(),
                 )
             )
             return
         }
-        prefs.edit().putBoolean(permission, true).apply()
+        prefs.edit { putBoolean(permission, true) }
         permissions.launch(arrayOf(permission))
     }
 
@@ -141,21 +152,22 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         binding = b
         adapter =
             GalleryAdapter(
-                com.bumptech.glide.Glide.with(this),
+                Glide.with(this),
                 { parentFragmentManager.setFragmentResult("create_camera", Bundle()) },
             ) { item ->
                 val message =
                     when (create.toggle(item)) {
-                        SelectionChange.LIMIT -> R.string.m4_limit_remaining
-                        SelectionChange.UNSUPPORTED_VIDEO -> R.string.m4_video_invalid
-                        SelectionChange.INVALID -> R.string.m4_unsupported
+                        SelectionChange.LIMIT -> resources.getQuantityString(
+                            R.plurals.m4_limit_remaining, create.maxItems, create.maxItems
+                        )
+                        SelectionChange.UNSUPPORTED_VIDEO -> getString(R.string.m4_video_invalid)
+                        SelectionChange.INVALID -> getString(R.string.m4_unsupported)
                         else -> null
                     }
                 message?.let {
                     Snackbar.make(
                             b.root,
-                            if (it == R.string.m4_limit_remaining) getString(it, create.maxItems)
-                            else getString(it),
+                            it,
                             Snackbar.LENGTH_LONG,
                         )
                         .show()
@@ -168,7 +180,7 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         b.galleryGrid.addItemDecoration(
             object : RecyclerView.ItemDecoration() {
                 override fun getItemOffsets(
-                    out: android.graphics.Rect,
+                    out: Rect,
                     child: View,
                     parent: RecyclerView,
                     state: RecyclerView.State,
@@ -205,7 +217,7 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
             startActivity(
                 Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:${requireContext().packageName}"),
+                    "package:${requireContext().packageName}".toUri(),
                 )
             )
             true
@@ -213,16 +225,18 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         b.filterFavorite.isVisible = Build.VERSION.SDK_INT >= 30
         b.filterVideo.isVisible = !create.imagesOnly
         b.filterPhoto.setOnClickListener {
-            requestMissingType(Manifest.permission.READ_MEDIA_IMAGES)
+            if (Build.VERSION.SDK_INT >= 33) requestMissingType(Manifest.permission.READ_MEDIA_IMAGES)
         }
         b.filterVideo.setOnClickListener {
-            if (!create.imagesOnly) requestMissingType(Manifest.permission.READ_MEDIA_VIDEO)
+            if (Build.VERSION.SDK_INT >= 33 && !create.imagesOnly) {
+                requestMissingType(Manifest.permission.READ_MEDIA_VIDEO)
+            }
         }
         fun renderFilterLabels() {
             for (i in 0 until b.galleryFilters.childCount) {
-                val chip = b.galleryFilters.getChildAt(i) as com.google.android.material.chip.Chip
+                val chip = b.galleryFilters.getChildAt(i) as Chip
                 chip.typeface =
-                    androidx.core.content.res.ResourcesCompat.getFont(
+                    ResourcesCompat.getFont(
                         requireContext(),
                         if (chip.isChecked) R.font.be_vietnam_pro_semibold
                         else R.font.be_vietnam_pro_medium,
@@ -249,9 +263,9 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         }
         b.galleryAlbum.setOnClickListener {
             val albums = model.state.value.albums
-            val requests = com.bumptech.glide.Glide.with(this)
+            val requests = Glide.with(this)
             val list =
-                object : android.widget.BaseAdapter() {
+                object : BaseAdapter() {
                     override fun getCount() = albums.size
 
                     override fun getItem(position: Int) = albums[position]
@@ -261,13 +275,13 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
                     override fun getView(
                         position: Int,
                         convert: View?,
-                        parent: android.view.ViewGroup,
+                        parent: ViewGroup,
                     ): View {
                         val dp = resources.displayMetrics.density
                         val row =
-                            android.widget.LinearLayout(requireContext()).apply {
-                                orientation = android.widget.LinearLayout.HORIZONTAL
-                                gravity = android.view.Gravity.CENTER_VERTICAL
+                            LinearLayout(requireContext()).apply {
+                                orientation = LinearLayout.HORIZONTAL
+                                gravity = Gravity.CENTER_VERTICAL
                                 setPadding(
                                     (16 * dp).toInt(),
                                     (8 * dp).toInt(),
@@ -276,30 +290,33 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
                                 )
                             }
                         val image =
-                            android.widget.ImageView(requireContext()).apply {
+                            ImageView(requireContext()).apply {
                                 layoutParams =
-                                    android.widget.LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams(
                                         (48 * dp).toInt(),
                                         (48 * dp).toInt(),
                                     )
-                                scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                                scaleType = ImageView.ScaleType.CENTER_CROP
                             }
                         val album = albums[position]
                         requests.load(album.cover).override(120).centerCrop().into(image)
                         row.addView(image)
                         row.addView(
-                            android.widget.TextView(requireContext()).apply {
-                                text =
-                                    "${album.name.ifBlank { getString(R.string.m4_recent) }} (${album.count})"
+                            TextView(requireContext()).apply {
+                                text = getString(
+                                    R.string.gallery_album_count,
+                                    album.name.ifBlank { getString(R.string.m4_recent) },
+                                    album.count,
+                                )
                                 setPadding((12 * dp).toInt(), 0, 0, 0)
                                 setTextColor(
-                                    androidx.core.content.ContextCompat.getColor(
+                                    ContextCompat.getColor(
                                         context,
                                         R.color.text_primary,
                                     )
                                 )
                                 typeface =
-                                    androidx.core.content.res.ResourcesCompat.getFont(
+                                    ResourcesCompat.getFont(
                                         context,
                                         R.font.be_vietnam_pro_medium,
                                     )

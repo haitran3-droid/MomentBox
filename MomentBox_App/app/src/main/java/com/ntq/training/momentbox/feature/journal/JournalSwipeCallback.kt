@@ -21,24 +21,35 @@ class JournalSwipeCallback(context: Context, private val onRevealChanged: (Boole
     override fun onInterceptTouchEvent(rv: RecyclerView, event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                downX = event.x; downY = event.y; active = false; consumeClose = false
+                downX = event.x
+                downY = event.y
+                active = false
+                consumeClose = false
                 candidate = rv.findChildViewUnder(event.x, event.y)?.let { rv.getChildViewHolder(it) } as? JournalEntriesAdapter.EntryViewHolder
                 if (opened != null && opened !== candidate) close(opened)
                 candidate?.let { holder ->
                     val foreground = holder.binding.cardForeground
                     val right = holder.itemView.right + foreground.translationX
                     if (opened === holder && event.x > right) candidate = null // underlay button owns this tap
-                    else if (opened === holder) { close(holder); consumeClose = true }
+                    else if (opened === holder) {
+                        close(holder)
+                        consumeClose = true
+                    }
                     base = foreground.translationX
                 }
                 return consumeClose
             }
             MotionEvent.ACTION_MOVE -> {
                 if (candidate == null) return false
-                val dx = event.x - downX; val dy = event.y - downY
-                if (abs(dy) > slop && abs(dy) > abs(dx)) { candidate = null; return false }
+                val dx = event.x - downX
+                val dy = event.y - downY
+                if (abs(dy) > slop && abs(dy) > abs(dx)) {
+                    candidate = null
+                    return false
+                }
                 if (abs(dx) > slop && abs(dx) > abs(dy)) {
-                    active = true; rv.parent?.requestDisallowInterceptTouchEvent(true)
+                    active = true
+                    rv.parent?.requestDisallowInterceptTouchEvent(true)
                     draw(candidate!!, (base + dx).coerceIn(-width, 0f))
                     return true
                 }
@@ -48,7 +59,10 @@ class JournalSwipeCallback(context: Context, private val onRevealChanged: (Boole
         return false
     }
     override fun onTouchEvent(rv: RecyclerView, event: MotionEvent) {
-        if (consumeClose) { if (event.actionMasked == MotionEvent.ACTION_UP) consumeClose = false; return }
+        if (consumeClose) {
+            if (event.actionMasked == MotionEvent.ACTION_UP) consumeClose = false
+            return
+        }
         val holder = candidate ?: return
         when (event.actionMasked) {
             MotionEvent.ACTION_MOVE -> draw(holder, (base + event.x - downX).coerceIn(-width, 0f))
@@ -59,9 +73,14 @@ class JournalSwipeCallback(context: Context, private val onRevealChanged: (Boole
                     holder.binding.layoutUnderlayActions.visibility = View.VISIBLE
                     holder.binding.cardForeground.animate().translationX(-width).setDuration(160).start()
                 } else close(holder)
-                candidate = null; active = false
+                candidate = null
+                active = false
             }
-            MotionEvent.ACTION_CANCEL -> { close(holder); candidate = null; active = false }
+            MotionEvent.ACTION_CANCEL -> {
+                close(holder)
+                candidate = null
+                active = false
+            }
         }
     }
     override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) = Unit

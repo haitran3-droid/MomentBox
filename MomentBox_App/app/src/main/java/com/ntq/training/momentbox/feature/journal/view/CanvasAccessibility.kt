@@ -32,12 +32,15 @@ internal class CanvasAccessibility(
         node.isEnabled = item?.enabled ?: false
         node.isSelected = item?.selected ?: false
         if (item?.enabled == true) {
-            node.isClickable = true; node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK)
+            node.isClickable = true
+            node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK)
         }
     }
 
     override fun onPerformActionForVirtualView(id: Int, action: Int, args: Bundle?): Boolean {
         if (action != AccessibilityNodeInfoCompat.ACTION_CLICK || nodes().none { it.id == id && it.enabled }) return false
-        activate(id); invalidateRoot(); return true
+        activate(id)
+        invalidateRoot()
+        return true
     }
 }

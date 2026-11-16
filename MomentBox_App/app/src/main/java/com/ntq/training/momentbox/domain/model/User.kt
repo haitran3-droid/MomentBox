@@ -13,5 +13,6 @@ data class User(
     val followerCount: Int = 0,
     val followingCount: Int = 0,
     val isFollowing: Boolean = false,
-    val mutualCount: Int = 0
+    val mutualCount: Int = 0,
+    val avatarVersion: Long = 0
 )

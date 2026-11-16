@@ -1,0 +1,13 @@
+<resources>
+    <string name="s20_title">Time to write your journal ✍️</string>
+    <string name="s20_subtitle">How was your day?\nChoose a mood to get started.</string>
+    <string name="s20_write">Write now</string>
+    <string name="s20_snooze">Remind me in 10 minutes</string>
+    <string name="s20_skip">Skip today</string>
+    <string name="s20_mood1">Great</string>
+    <string name="s20_mood2">Happy</string>
+    <string name="s20_mood3">Neutral</string>
+    <string name="s20_mood4">Sad</string>
+    <string name="s20_mood5">Terrible</string>
+    <string name="s20_action_error">Could not update the reminder. Please try again.</string>
+</resources>

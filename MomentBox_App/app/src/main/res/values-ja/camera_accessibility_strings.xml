@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="m4_camera_focus">カメラのピントを合わせる</string>
+    <string name="m4_camera_start_video">動画撮影を開始</string>
+    <string name="m4_camera_stop_video">動画撮影を停止</string>
+    <string name="m4_camera_timer_seconds">%1$d秒</string>
+</resources>

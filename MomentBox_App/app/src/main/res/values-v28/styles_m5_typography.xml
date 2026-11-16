@@ -1,0 +1,10 @@
+<resources>
+
+    <style name="M5ChatListTitle" parent="M5ChatListTitleBase">
+        <item name="android:textFontWeight">700</item>
+    </style>
+
+    <style name="M5ChatConnectionLabel" parent="M5ChatConnectionLabelBase">
+        <item name="android:textFontWeight">600</item>
+    </style>
+</resources>

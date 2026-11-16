@@ -12,6 +12,8 @@ class RecordingWaveformView
 constructor(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
     private var samples: List<Int> = emptyList()
 
+    private val dp = resources.displayMetrics.density
+    private val dash = DashPathEffect(floatArrayOf(4 * dp, 4 * dp), 0f)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     fun setWaveform(values: List<Int>) {
@@ -22,14 +24,12 @@ constructor(context: Context, attrs: AttributeSet? = null) : View(context, attrs
     override fun onDraw(c: Canvas) {
         super.onDraw(c)
 
-        val dp = resources.displayMetrics.density
-
         val mid = height / 2f
 
         val head = width / 2f
         paint.color = 0xFFD0CFDC.toInt()
         paint.strokeWidth = dp
-        paint.pathEffect = DashPathEffect(floatArrayOf(4 * dp, 4 * dp), 0f)
+        paint.pathEffect = dash
         c.drawLine(head, mid, width.toFloat(), mid, paint)
         paint.pathEffect = null
         val spacing = 5 * dp

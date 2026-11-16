@@ -3,7 +3,6 @@ package com.ntq.training.momentbox.feature.videoplayer
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
-import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,9 +17,11 @@ import android.view.Gravity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.isVisible
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -30,6 +31,7 @@ import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.databinding.ActivityVideoPlayerBinding
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import java.text.NumberFormat
 import java.util.Locale
 
 
@@ -184,11 +186,19 @@ class VideoPlayerActivity : AppCompatActivity() {
         })
     }
 
+    private fun playbackSpeedLabel(speed: Float): String {
+        val formatted = NumberFormat.getNumberInstance(resources.configuration.locales[0]).apply {
+            minimumFractionDigits = 1
+            maximumFractionDigits = 2
+        }.format(speed)
+        return getString(R.string.video_speed_label, formatted)
+    }
+
     private fun setupViews() {
         with(binding) {
             tvVideoTitle.text = postTitle
             tvVideoAuthorViews.text = getString(R.string.media_video_author, authorName)
-            tvSpeedText.text = "${currentSpeed}x"
+            tvSpeedText.text = playbackSpeedLabel(currentSpeed)
             // Player mới mặc định đang pause; có thể chưa phát onIsPlayingChanged(false).
             ivPlayPauseLarge.setImageResource(R.drawable.ic_play_arrow)
 
@@ -201,7 +211,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 if (isLocked) {
                     btnUnlockOverlay.visibility = View.VISIBLE
                     resetAutoHideTimer()
-                } else if (overlayControls.visibility == View.VISIBLE) hideOverlayControls()
+                } else if (overlayControls.isVisible) hideOverlayControls()
                 else showOverlayControls()
             }
             videoPlayerRoot.setOnTouchListener { view, event ->
@@ -358,7 +368,7 @@ class VideoPlayerActivity : AppCompatActivity() {
 
         // Nạp MediaItem (tự động xử lý MP4 hoặc HLS)
         if (videoUrl.isNotBlank()) {
-            val uri = Uri.parse(videoUrl)
+            val uri = videoUrl.toUri()
             val mediaItem = MediaItem.fromUri(uri)
             player.setMediaItem(mediaItem, currentPositionMs)
             player.prepare()
@@ -407,7 +417,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         val padding = (24 * resources.displayMetrics.density).toInt()
         for (speed in listOf(0.5f, 1f, 1.25f, 1.5f, 2f)) {
             content.addView(TextView(this).apply {
-                text = "${speed}x"
+                text = playbackSpeedLabel(speed)
                 textSize = 16f
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(padding, padding / 2, padding, padding / 2)
@@ -417,7 +427,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 setOnClickListener {
                     currentSpeed = speed
                     exoPlayer?.setPlaybackSpeed(speed)
-                    binding.tvSpeedText.text = "${speed}x"
+                    binding.tvSpeedText.text = playbackSpeedLabel(speed)
                     sheet.dismiss()
                 }
             }, LinearLayout.LayoutParams(-1, -2))

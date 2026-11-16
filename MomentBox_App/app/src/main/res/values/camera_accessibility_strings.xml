@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="m4_camera_focus">Lấy nét camera</string>
+    <string name="m4_camera_start_video">Bắt đầu quay video</string>
+    <string name="m4_camera_stop_video">Dừng quay video</string>
+    <string name="m4_camera_timer_seconds">%1$ds</string>
+    <string name="m4_camera_count" translatable="false">%1$d</string>
+</resources>

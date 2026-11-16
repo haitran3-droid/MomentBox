@@ -2,8 +2,10 @@ package com.ntq.training.momentbox.feature.journal.view
 
 import android.content.Context
 import android.util.AttributeSet
+import androidx.core.content.res.ResourcesCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
+import com.ntq.training.momentbox.R
 
 /** ToggleGroup mặc định vuông góc nút giữa; mockup yêu cầu từng segment có radius9 và bóng selected. */
 class JournalSegmentedGroup @JvmOverloads constructor(
@@ -11,15 +13,15 @@ class JournalSegmentedGroup @JvmOverloads constructor(
     attrs: AttributeSet? = null
 ) : MaterialButtonToggleGroup(context, attrs) {
     private val medium by lazy {
-        androidx.core.content.res.ResourcesCompat.getFont(
+        ResourcesCompat.getFont(
             context,
-            com.ntq.training.momentbox.R.font.be_vietnam_pro_medium
+            R.font.be_vietnam_pro_medium
         )
     }
     private val semibold by lazy {
-        androidx.core.content.res.ResourcesCompat.getFont(
+        ResourcesCompat.getFont(
             context,
-            com.ntq.training.momentbox.R.font.be_vietnam_pro_semibold
+            R.font.be_vietnam_pro_semibold
         )
     }
 

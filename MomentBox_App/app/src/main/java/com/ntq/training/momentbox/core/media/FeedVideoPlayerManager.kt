@@ -1,11 +1,13 @@
 package com.ntq.training.momentbox.core.media
 
 import android.content.Context
+import android.graphics.Rect
 import android.view.View
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -60,7 +62,7 @@ class FeedVideoPlayerManager(
                         currentPoster?.visibility = View.GONE
                     }
 
-                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    override fun onPlayerError(error: PlaybackException) {
                         firstFrameRendered = false
                         currentPoster?.visibility = View.VISIBLE
                         pauseForInterruption()
@@ -122,7 +124,7 @@ class FeedVideoPlayerManager(
         activeRenderer.player = player
 
         try {
-            val mediaItem = MediaItem.fromUri(Uri.parse(videoUrl))
+            val mediaItem = MediaItem.fromUri(videoUrl.toUri())
             player.setMediaItem(mediaItem, savedPositions[postId] ?: startPositionMs)
             player.prepare()
             resume()
@@ -156,7 +158,7 @@ class FeedVideoPlayerManager(
      */
     fun checkAndPauseIfOffscreen() {
         val view = currentPlayerView ?: return
-        val rect = android.graphics.Rect()
+        val rect = Rect()
         val isVisible = view.getGlobalVisibleRect(rect)
         if (!isVisible) {
             pause()
@@ -203,7 +205,10 @@ class FeedVideoPlayerManager(
 
     fun resume() {
         val postId = currentPostId ?: return
-        if (!isAutoplayAllowed() || !playbackIntents.canAutoplay(postId)) { pause(); return }
+        if (!isAutoplayAllowed() || !playbackIntents.canAutoplay(postId)) {
+            pause()
+            return
+        }
         // Autoplay không được giành âm thanh từ voice hoặc fullscreen.
         if (!isMuted && !audio.acquire(this, { pauseForInterruption() }, mayInterrupt = false)) return
         exoPlayer?.play()

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><!-- Qualifier tiếng Việt đầy đủ, cùng nội dung fallback mặc định; không tạo kho lưu locale khác. -->
+<resources>
+    <string name="m5_socket_waiting_unknown">Đang chờ kết nối lại (lần %1$d)…</string>
+</resources>

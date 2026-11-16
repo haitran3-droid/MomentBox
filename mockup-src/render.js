@@ -1,8 +1,9 @@
 // Build mockups.html from src/*.html and render PNGs with headless Chrome.
-// Usage: node render.js [screenIds...|boards]   (no args = everything)
+// Usage: node render.js [screenIds...] [boards] [pairs]   (no args = everything)
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
+const { pathToFileURL } = require('node:url');
 
 const ROOT = __dirname;
 const OUT = path.resolve(ROOT, '..', 'mockups');
@@ -13,14 +14,17 @@ const PROFILE = process.env.CHROME_PROFILE || path.join(ROOT, '.chrome-profile')
 const parts = fs.readdirSync(path.join(ROOT, 'src')).filter(f => f.endsWith('.html')).sort();
 const html = parts.map(f => fs.readFileSync(path.join(ROOT, 'src', f), 'utf8')).join('\n');
 const page = path.join(ROOT, 'mockups.html');
-fs.writeFileSync(page, html);
 
 const screens = [...html.matchAll(/<section class="screen([^"]*)" id="(S\w+)"[^>]*?data-t="([^"]+)"[^>]*?data-g="(\w+)"/g)]
   .map(m => ({ id: m[2], land: /\bland\b/.test(m[1]), title: m[3], group: m[4] }));
 
 const slug = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
   .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
-const url = hash => 'file:///' + page.replace(/\\/g, '/') + '#' + hash;
+const url = hash => {
+  const location = pathToFileURL(page);
+  location.hash = hash;
+  return location.href;
+};
 
 const jobs = [];
 function shot(hash, w, h, file, dsf) { jobs.push({ hash, w, h, file, dsf }); }
@@ -55,7 +59,13 @@ const args = process.argv.slice(2);
 const wantBoards = !args.length || args.includes('boards');
 const wantPairs = !args.length || args.includes('pairs');
 const ids = args.filter(a => a !== 'boards' && a !== 'pairs');
+const unknown = ids.filter(id => !screens.some(screen => screen.id === id));
+if (unknown.length) {
+  console.error('Unknown mockup screen ID: ' + unknown.join(', '));
+  process.exit(1);
+}
 const todo = ids.length ? screens.filter(s => ids.includes(s.id)) : (args.length ? [] : screens);
+fs.writeFileSync(page, html);
 
 fs.mkdirSync(path.join(OUT, 'annotated'), { recursive: true });
 fs.mkdirSync(path.join(OUT, 'boards'), { recursive: true });

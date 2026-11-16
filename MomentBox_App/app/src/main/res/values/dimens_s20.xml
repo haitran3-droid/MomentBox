@@ -1,0 +1,4 @@
+<resources>
+    <dimen name="s20_mood_size">48dp</dimen>
+    <dimen name="s20_mood_gap">6dp</dimen>
+</resources>

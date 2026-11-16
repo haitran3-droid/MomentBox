@@ -1,0 +1,16 @@
+<resources>
+    <!-- Khai báo weight thật: AppCompat có thể chuẩn hóa fontFamily đơn lẻ về NORMAL400. -->
+    <style name="M5ChatListTitleBase">
+        <item name="android:fontFamily">@font/be_vietnam_pro_bold</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="M5ChatListTitle" parent="M5ChatListTitleBase" />
+
+    <style name="M5ChatConnectionLabelBase">
+        <item name="android:fontFamily">@font/be_vietnam_pro_semibold</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style name="M5ChatConnectionLabel" parent="M5ChatConnectionLabelBase" />
+</resources>

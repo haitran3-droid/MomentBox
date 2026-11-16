@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="journal_clear_date_range">Clear selected date range</string>
+    <string name="journal_previous_month">Previous month</string>
+    <string name="journal_next_month">Next month</string>
+    <plurals name="journal_attached_photos">
+        <item quantity="one">%d attached photo</item>
+        <item quantity="other">%d attached photos</item>
+    </plurals>
+    <plurals name="journal_play_recordings">
+        <item quantity="one">Open player · %d recording</item>
+        <item quantity="other">Open player · %d recordings</item>
+    </plurals>
+</resources>

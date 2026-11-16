@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Qualifier tiếng Việt đầy đủ, cùng nội dung fallback mặc định; không tạo kho lưu locale khác. -->
+<resources>
+    <string name="s22_title">Cài đặt</string>
+    <string name="s22_section_general">Chung</string>
+    <string name="s22_section_data">Dữ liệu &amp; bộ nhớ</string>
+    <string name="s22_section_other">Khác</string>
+    <string name="s22_language">Ngôn ngữ</string>
+    <string name="s22_theme">Giao diện</string>
+    <string name="s22_reminder">Nhắc viết nhật ký</string>
+    <string name="s22_cache">Bộ nhớ đệm ảnh</string>
+    <string name="s22_clear">Xoá</string>
+    <string name="s22_export">Xuất nhật ký (JSON)</string>
+    <string name="s22_export_hint">Nội dung và thông tin đính kèm, không gồm tệp ảnh/âm thanh</string>
+    <string name="s22_permissions">Quyền ứng dụng</string>
+    <string name="s22_permission_hint">Thông báo, Camera, Micro, Ảnh</string>
+    <string name="s22_autoplay">Tự động phát video</string>
+    <string name="s22_developer">Developer tools</string>
+    <string name="s22_debug_version">Chỉ có ở bản debug · %1$s</string>
+    <string name="s22_logout">Đăng xuất</string>
+    <string name="s22_working">Đang xử lý…</string>
+    <string name="s22_failed">Không thể hoàn tất. Vui lòng thử lại.</string>
+    <string name="s22_cache_cleared">Đã xoá bộ nhớ đệm ảnh</string>
+    <string name="s22_exported">Đã xuất nhật ký JSON</string>
+    <string name="s22_open">Mở</string>
+    <string name="s22_cancel">Huỷ</string>
+    <string name="s22_apply">Áp dụng</string>
+    <string name="s22_daily">%1$s hằng ngày</string>
+    <string name="s22_reminder_off">Đang tắt · %1$s</string>
+    <string name="s22_reminder_blocked">Thông báo đang bị chặn. Mở Quyền ứng dụng để cấp lại.</string>
+    <string name="s22_reminder_fallback">Lịch gần đúng; toàn màn hình tuỳ quyền hệ thống</string>
+    <string name="s22_reminder_exact">Báo thức chính xác; toàn màn hình tuỳ quyền hệ thống</string>
+    <string name="s22_logout_message">Đăng xuất và dừng phát/ghi/tải lên?</string>
+    <string name="s22_keep_journal">Giữ nhật ký trên máy</string>
+    <string name="s22_delete_confirm">Xoá toàn bộ nhật ký và tệp đính kèm trên máy này? Không thể hoàn tác.</string>
+    <string name="s22_delete_logout">Xoá và đăng xuất</string>
+    <string name="s22_granted">Đã cho phép</string>
+    <string name="s22_denied">Chưa cho phép</string>
+    <string name="s22_partial">Chỉ ảnh/video đã chọn</string>
+    <string name="s22_not_required">Không yêu cầu trên phiên bản Android này</string>
+    <string name="s22_notifications">Thông báo</string>
+    <string name="s22_camera">Camera</string>
+    <string name="s22_microphone">Micro</string>
+    <string name="s22_media">Ảnh và video</string>
+    <string name="s22_exact">Báo thức chính xác</string>
+    <string name="s22_fullscreen">Thông báo toàn màn hình</string>
+    <string name="s22_permission_help">Chạm một mục để mở cài đặt Android. Quyền bị từ chối vẫn có thể dùng các tính năng không cần quyền đó.</string>
+    <string-array name="s22_theme_options">
+        <item>Theo hệ thống</item>
+        <item>Sáng</item>
+        <item>Tối</item>
+    </string-array>
+    <string-array name="s22_autoplay_options">
+        <item>Luôn phát</item>
+        <item>Chỉ Wi-Fi</item>
+        <item>Không bao giờ</item>
+    </string-array>
+    <string name="s22_back">Quay lại</string>
+    <string name="s22_media_mixed">Ảnh: %1$s · Video: %2$s</string>
+    <string name="s22_export_location">Lưu vào thư mục Download</string>
+    <string name="s22_export_preview_truncated">Bản xem trước đã rút gọn. Tệp đầy đủ đã được lưu ở vị trí đã chọn.</string>
+</resources>

@@ -8,14 +8,19 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.data.local.db.JournalEntryWithDetails
 import com.ntq.training.momentbox.databinding.ItemJournalEntryBinding
 import com.ntq.training.momentbox.databinding.ItemJournalHeaderBinding
+import com.ntq.training.momentbox.feature.player.PlayerActivity
+import com.ntq.training.momentbox.MomentBoxApp
+import com.ntq.training.momentbox.R
+import java.time.Clock
+import java.time.format.DateTimeFormatter
 import java.time.Instant
 import java.time.LocalDate
+import java.time.temporal.WeekFields
+import java.time.YearMonth
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 sealed interface JournalListItem {
@@ -59,7 +64,7 @@ class JournalEntriesAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(header: JournalListItem.Header) {
             binding.tvHeaderTitle.text = localizedHeader(binding.root.context, header)
-            binding.tvHeaderCount.text = binding.root.context.getString(R.string.journal_entries_count, header.count)
+            binding.tvHeaderCount.text = binding.root.resources.getQuantityString(R.plurals.journal_entries_count, header.count, header.count)
         }
     }
 
@@ -83,7 +88,7 @@ class JournalEntriesAdapter(
             val date = dateTime.toLocalDate()
 
             // 1. Badge ngày & thứ
-            binding.tvBadgeDay.text = date.dayOfMonth.toString()
+            binding.tvBadgeDay.text = binding.root.resources.getString(R.string.localized_integer, date.dayOfMonth)
             binding.tvBadgeDayOfWeek.text = formatDayOfWeek(date.dayOfWeek.value)
 
             val badgeBgColor = getMoodLightColor(entry.mood)
@@ -121,7 +126,12 @@ class JournalEntriesAdapter(
             val photoCount = entry.photoCount
             if (photoCount > 0) {
                 binding.layoutPhotoCount.visibility = View.VISIBLE
-                binding.tvPhotoCount.text = photoCount.toString()
+                binding.tvPhotoCount.text = binding.root.resources.getString(R.string.localized_integer, photoCount)
+                binding.tvPhotoCount.contentDescription = context.resources.getQuantityString(
+                    R.plurals.journal_attached_photos,
+                    photoCount,
+                    photoCount
+                )
             } else {
                 binding.layoutPhotoCount.visibility = View.GONE
             }
@@ -129,9 +139,19 @@ class JournalEntriesAdapter(
             val audioCount = entry.audioCount
             if (audioCount > 0) {
                 binding.layoutAudioCount.visibility = View.VISIBLE
-                binding.tvAudioCount.text = audioCount.toString()
+                binding.tvAudioCount.text = binding.root.resources.getString(R.string.localized_integer, audioCount)
+                binding.layoutAudioCount.contentDescription = context.resources.getQuantityString(
+                    R.plurals.journal_play_recordings,
+                    audioCount,
+                    audioCount
+                )
             } else {
                 binding.layoutAudioCount.visibility = View.GONE
+            }
+            binding.layoutAudioCount.setOnClickListener {
+                entryDetails.attachments.firstOrNull { it.type == "audio" }?.let { audio ->
+                    context.startActivity(PlayerActivity.intent(context, "journal:${audio.id}"))
+                }
             }
 
             // 6. Xử lý sự kiện click
@@ -200,24 +220,25 @@ class JournalEntriesAdapter(
 
     companion object {
         fun localizedHeader(context: Context, header: JournalListItem.Header): String {
-            val clock = (context.applicationContext as? com.ntq.training.momentbox.MomentBoxApp)?.journalClock ?: java.time.Clock.systemDefaultZone()
-            val today = java.time.LocalDate.now(clock)
+            if (header.id == "header_pinned") return context.getString(R.string.journal_header_pinned)
+            val clock = (context.applicationContext as? MomentBoxApp)?.journalClock ?: Clock.systemDefaultZone()
+            val today = LocalDate.now(clock)
             val locale = context.resources.configuration.locales[0]
             if (header.id.startsWith("header_day_")) {
-                val day = java.time.LocalDate.parse(header.id.removePrefix("header_day_"))
+                val day = LocalDate.parse(header.id.removePrefix("header_day_"))
                 return when (day) {
                     today -> context.getString(R.string.journal_header_today)
                     today.minusDays(1) -> context.getString(R.string.journal_header_yesterday)
                     else -> day.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", locale))
                 }
             }
-            if (header.id.startsWith("header_month_")) return java.time.YearMonth.parse(header.id.removePrefix("header_month_"))
+            if (header.id.startsWith("header_month_")) return YearMonth.parse(header.id.removePrefix("header_month_"))
                 .atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", locale)).uppercase(locale)
             val parts = header.id.removePrefix("header_week_").split("_")
             val year = parts.getOrNull(0)?.toIntOrNull() ?: return header.title
             val week = parts.getOrNull(1)?.toIntOrNull() ?: return header.title
-            val fields = java.time.temporal.WeekFields.ISO
-            fun same(date: java.time.LocalDate) = date.get(fields.weekBasedYear()) == year && date.get(fields.weekOfWeekBasedYear()) == week
+            val fields = WeekFields.ISO
+            fun same(date: LocalDate) = date.get(fields.weekBasedYear()) == year && date.get(fields.weekOfWeekBasedYear()) == week
             return when {
                 same(today) -> context.getString(R.string.journal_header_this_week)
                 same(today.minusWeeks(1)) -> context.getString(R.string.journal_header_previous_week)

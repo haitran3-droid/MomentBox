@@ -35,7 +35,9 @@ class SplashBackdropLayout @JvmOverloads constructor(
     private fun ensureShaders() {
         if (width == shaderWidth && height == shaderHeight && paddingTop == shaderPaddingTop) return
         if (width <= 0 || height <= 0) return
-        shaderWidth = width; shaderHeight = height; shaderPaddingTop = paddingTop
+        shaderWidth = width
+        shaderHeight = height
+        shaderPaddingTop = paddingTop
         val w = width.toFloat()
         val h = height.toFloat()
         val radians = Math.toRadians(165.0)
@@ -57,9 +59,12 @@ class SplashBackdropLayout @JvmOverloads constructor(
         ensureShaders()
         val w = width.toFloat()
         val h = height.toFloat()
-        paint.shader = linear; canvas.drawRect(0f, 0f, w, h, paint)
-        paint.shader = glow; canvas.drawRect(0f, 0f, w, h, paint)
-        paint.shader = warm; canvas.drawRect(0f, 0f, w, h, paint)
+        paint.shader = linear
+        canvas.drawRect(0f, 0f, w, h, paint)
+        paint.shader = glow
+        canvas.drawRect(0f, 0f, w, h, paint)
+        paint.shader = warm
+        canvas.drawRect(0f, 0f, w, h, paint)
         paint.shader = null
         super.onDraw(canvas)
     }

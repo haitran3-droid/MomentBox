@@ -9,7 +9,11 @@ import androidx.lifecycle.viewModelScope
 import com.ntq.training.momentbox.data.local.db.DayMood
 import com.ntq.training.momentbox.data.local.db.JournalEntryWithDetails
 import com.ntq.training.momentbox.data.local.prefs.JournalFilterState
+import com.ntq.training.momentbox.data.repository.JournalDayCount
+import com.ntq.training.momentbox.data.repository.JournalDeletionScheduler
 import com.ntq.training.momentbox.data.repository.JournalRepository
+import java.time.Clock
+import java.time.temporal.TemporalAdjusters
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
@@ -49,13 +53,14 @@ data class JournalUiState(
 
 sealed interface JournalEvent {
     data class ShowUndoSnackbar(val entryId: Long) : JournalEvent
+    data object CalendarEntriesFilteredOut : JournalEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class JournalViewModel(
     private val journalRepository: JournalRepository,
     private val savedState: SavedStateHandle = SavedStateHandle(),
-    private val clock: java.time.Clock = java.time.Clock.systemDefaultZone()
+    private val clock: Clock = Clock.systemDefaultZone()
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow(savedState.get<String>("search").orEmpty())
@@ -80,8 +85,11 @@ class JournalViewModel(
     val selectedCalendarDate = _selectedCalendarDate.asStateFlow()
     val filterStateFlow = journalRepository.observeFilter().onEach { filter ->
         if (filter != previousFilter) {
-            previousFilter = filter; canLoadMore = true; _pageCount.value = 1
-            targetDateJob?.cancel(); _scrollTarget.value = null
+            previousFilter = filter
+            canLoadMore = true
+            _pageCount.value = 1
+            targetDateJob?.cancel()
+            _scrollTarget.value = null
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, JournalFilterState())
 
@@ -92,7 +100,7 @@ class JournalViewModel(
         }.flatMapLatest { (query, filter, pages) ->
             val atomic = journalRepository.observeAtomicPages(query, filter, pages)
             if (atomic != null) return@flatMapLatest atomic.map { snapshot ->
-                canLoadMore = snapshot.entries.size >= pages * 20
+                canLoadMore = snapshot.entries.size < snapshot.dayCounts.sumOf { it.count }
                 groupEntries(snapshot.entries, filter.groupBy, snapshot.dayCounts)
             }
             val windows = (0 until pages).map { page ->
@@ -128,19 +136,23 @@ class JournalViewModel(
         var anchor = dates.maxOrNull()
         var count = 0
         while (anchor != null && anchor in dates) {
-            count++; anchor = anchor.minusDays(1)
+            count++
+            anchor = anchor.minusDays(1)
         }
         count
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     // Repository production sở hữu scheduler ở Application; fake/in-memory dùng scope của VM.
     private val deletionScheduler = if (!journalRepository.handlesDeletionDeadlines)
-        com.ntq.training.momentbox.data.repository.JournalDeletionScheduler(
+        JournalDeletionScheduler(
             journalRepository,
             viewModelScope
         ) else null
 
     fun onSearchQueryChanged(query: String) {
+        if (_searchQuery.value == query) return
+        targetDateJob?.cancel()
+        _scrollTarget.value = null
         _searchQuery.value = query
         savedState["search"] = query
         canLoadMore = true
@@ -157,7 +169,8 @@ class JournalViewModel(
     }
 
     fun onCalendarDateSelected(date: LocalDate) {
-        _selectedCalendarDate.value = date; savedState["selected_date"] = date.toString()
+        _selectedCalendarDate.value = date
+        savedState["selected_date"] = date.toString()
     }
 
     fun togglePin(id: Long) {
@@ -186,6 +199,21 @@ class JournalViewModel(
     fun scrollToDate(date: LocalDate) {
         targetDateJob?.cancel()
         targetDateJob = viewModelScope.launch {
+            val query = _searchQuery.value.trim().ifEmpty { null }
+            val filter = filterStateFlow.value
+            if (query != null || filter.isNonDefault) {
+                val zone = ZoneId.systemDefault()
+                val dayStart = date.atStartOfDay(zone).toInstant().toEpochMilli()
+                val dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+                val dayFilter = filter.copy(
+                    fromDateEpochMs = maxOf(dayStart, filter.fromDateEpochMs ?: dayStart),
+                    toDateEpochMs = minOf(dayEnd, filter.toDateEpochMs ?: dayEnd)
+                )
+                if (journalRepository.countEntries(query, dayFilter).first() == 0) {
+                    _events.emit(JournalEvent.CalendarEntriesFilteredOut)
+                    return@launch
+                }
+            }
             while (true) {
                 val expected = _pageCount.value * 20
                 val items = entriesFlow.first { list ->
@@ -196,7 +224,8 @@ class JournalViewModel(
                         .toLocalDate() == date
                 }
                 if (target != null) {
-                    _scrollTarget.value = target.data.entry.id; break
+                    _scrollTarget.value = target.data.entry.id
+                    break
                 }
                 if (!canLoadMore) break
                 loadNextPage()
@@ -212,25 +241,36 @@ class JournalViewModel(
      * Phân nhóm bài viết theo Ngày, Tuần, hoặc Tháng.
      */
     private fun groupEntries(
-        entries: List<JournalEntryWithDetails>,
+        rows: List<JournalEntryWithDetails>,
         groupBy: String,
-        dayCounts: List<com.ntq.training.momentbox.data.repository.JournalDayCount> = emptyList()
+        dayCounts: List<JournalDayCount> = emptyList()
     ): List<JournalListItem> {
-        if (entries.isEmpty()) return emptyList()
+        if (rows.isEmpty()) return emptyList()
 
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(clock)
         val result = mutableListOf<JournalListItem>()
+        val (pinned, entries) = rows.partition { it.entry.isPinned }
+        if (pinned.isNotEmpty()) {
+            result.add(
+                JournalListItem.Header(
+                    "header_pinned",
+                    "",
+                    if (dayCounts.isEmpty()) pinned.size else dayCounts.sumOf { it.pinnedCount }
+                )
+            )
+            result.addAll(pinned.map { JournalListItem.Entry(it) })
+        }
 
         fun key(date: LocalDate): String = when (groupBy.lowercase(Locale.ROOT)) {
             "day" -> date.toString()
             "month" -> YearMonth.from(date).toString()
-            else -> date.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            else -> date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 .toString()
         }
 
         val counts = dayCounts.groupBy { key(LocalDate.parse(it.day)) }
-            .mapValues { (_, values) -> values.sumOf { it.count } }
+            .mapValues { (_, values) -> values.sumOf { it.count - it.pinnedCount } }
 
         fun total(group: List<JournalEntryWithDetails>) = counts[key(
             Instant.ofEpochMilli(group.first().entry.createdAt).atZone(zone).toLocalDate()
@@ -321,7 +361,7 @@ class JournalViewModel(
     companion object {
         fun provideFactory(
             journalRepository: JournalRepository,
-            clock: java.time.Clock = java.time.Clock.systemDefaultZone()
+            clock: Clock = Clock.systemDefaultZone()
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T =

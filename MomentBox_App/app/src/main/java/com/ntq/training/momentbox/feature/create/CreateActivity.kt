@@ -29,12 +29,14 @@ data class CreateInput(
     val initial: List<SelectedMedia> = emptyList(),
     val start: String = "gallery",
     val maxItems: Int = 10,
+    val purpose: String = "default"
 )
 
 /** Contract nội bộ: chỉ nhận kết quả OK có JSON đọc được, Cancel trả danh sách rỗng. */
 class CreateMediaContract : ActivityResultContract<CreateInput, List<SelectedMedia>>() {
     override fun createIntent(context: Context, input: CreateInput) =
         Intent(context, CreateActivity::class.java)
+            .putExtra("purpose", input.purpose)
             .putExtra("maxItems", input.maxItems)
             .putExtra("imagesOnly", input.imagesOnly)
             .putExtra("initial", Gson().toJson(input.initial))
@@ -44,13 +46,13 @@ class CreateMediaContract : ActivityResultContract<CreateInput, List<SelectedMed
         if (resultCode != Activity.RESULT_OK) emptyList()
         else
             runCatching {
-                    Gson()
-                        .fromJson(
-                            intent?.getStringExtra("media") ?: "[]",
-                            Array<SelectedMedia>::class.java,
-                        )
-                        .toList()
-                }
+                Gson()
+                    .fromJson(
+                        intent?.getStringExtra("media") ?: "[]",
+                        Array<SelectedMedia>::class.java,
+                    )
+                    .toList()
+            }
                 .getOrDefault(emptyList())
 }
 
@@ -85,13 +87,13 @@ class CreateActivity : AppCompatActivity() {
         if (state == null) {
             model.seed(
                 runCatching {
-                        Gson()
-                            .fromJson(
-                                intent.getStringExtra("initial") ?: "[]",
-                                Array<SelectedMedia>::class.java,
-                            )
-                            .toList()
-                    }
+                    Gson()
+                        .fromJson(
+                            intent.getStringExtra("initial") ?: "[]",
+                            Array<SelectedMedia>::class.java,
+                        )
+                        .toList()
+                }
                     .getOrDefault(emptyList())
             )
             supportFragmentManager
@@ -113,9 +115,7 @@ class CreateActivity : AppCompatActivity() {
                 override fun onFragmentResumed(manager: FragmentManager, fragment: Fragment) {
                     navigationPending = false
                     val dark =
-                        fragment is CameraFragment ||
-                            fragment is CropFragment ||
-                            fragment is PhotoEditorFragment
+                        fragment is CameraFragment || fragment is CropFragment || fragment is PhotoEditorFragment
                     binding.root.setBackgroundColor(
                         if (dark) 0xFF0E0E12.toInt() else getColor(R.color.surface)
                     )
@@ -134,7 +134,7 @@ class CreateActivity : AppCompatActivity() {
                 override fun handleOnBackPressed() {
                     if (
                         model.hasAddBackup &&
-                            supportFragmentManager.findFragmentById(binding.root.id) is
+                        supportFragmentManager.findFragmentById(binding.root.id) is
                                 GalleryFragment
                     ) {
                         model.cancelAdd()
@@ -177,10 +177,10 @@ class CreateActivity : AppCompatActivity() {
             if (navigationPending) return@setFragmentResultListener
             if (model.items.value.size >= model.maxItems) {
                 Toast.makeText(
-                        this,
-                        getString(R.string.m4_limit_remaining, model.maxItems),
-                        Toast.LENGTH_SHORT,
-                    )
+                    this,
+                    resources.getQuantityString(R.plurals.m4_limit_remaining, model.maxItems, model.maxItems),
+                    Toast.LENGTH_SHORT,
+                )
                     .show()
                 return@setFragmentResultListener
             }
@@ -219,7 +219,13 @@ class CreateActivity : AppCompatActivity() {
         }
         supportFragmentManager.setFragmentResultListener("create_selection", this) { _, _ ->
             model.submitted()
-            nextPhoto()
+            if (intent.getStringExtra("purpose") == "chat") {
+                setResult(
+                    RESULT_OK,
+                    Intent().putExtra("media", Gson().toJson(model.items.value))
+                )
+                finish()
+            } else nextPhoto()
         }
         supportFragmentManager.setFragmentResultListener("create_cropped", this) { _, result ->
             supportFragmentManager
@@ -242,27 +248,39 @@ class CreateActivity : AppCompatActivity() {
 
     private fun nextPhoto() {
         val item = model.nextPhoto()
-        if (item != null) {
-            openCrop(item)
-        } else if (model.imagesOnly) {
-            setResult(RESULT_OK, Intent().putExtra("media", Gson().toJson(model.items.value)))
+        if (item != null) supportFragmentManager.beginTransaction().replace(
+            R.id.create_host,
+            CropFragment().apply {
+                arguments = Bundle().apply {
+                    putString("uri", item.uri)
+                    putString(
+                    "id",
+                    item.id
+                )
+                putBoolean("squareOnly", intent.getStringExtra("purpose") == "avatar")
+                }
+            }).addToBackStack("crop").commit()
+        else if (model.imagesOnly) {
+            setResult(
+                RESULT_OK,
+                Intent().putExtra("media", Gson().toJson(model.items.value))
+            )
             finish()
-        } else if (
-            (0 until supportFragmentManager.backStackEntryCount).any {
-                supportFragmentManager.getBackStackEntryAt(it).name == "add-media"
-            }
-        ) {
+        } else if ((0 until supportFragmentManager.backStackEntryCount).any {
+                supportFragmentManager.getBackStackEntryAt(
+                    it
+                ).name == "add-media"
+            }) {
             model.completeAdd()
             supportFragmentManager.popBackStack(
                 "add-media",
-                FragmentManager.POP_BACK_STACK_INCLUSIVE,
+                FragmentManager.POP_BACK_STACK_INCLUSIVE
             )
-        } else
-            supportFragmentManager
-                .beginTransaction()
-                .replace(R.id.create_host, ComposeFragment(), "compose")
-                .addToBackStack("compose")
-                .commit()
+        } else supportFragmentManager.beginTransaction().replace(
+            R.id.create_host,
+            ComposeFragment(),
+            "compose"
+        ).addToBackStack("compose").commit()
     }
 
     private fun openCrop(item: SelectedMedia) {

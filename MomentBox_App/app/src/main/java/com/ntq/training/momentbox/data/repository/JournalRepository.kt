@@ -7,17 +7,30 @@ import com.ntq.training.momentbox.data.local.db.JournalEntryWithDetails
 import com.ntq.training.momentbox.data.local.db.TagCount
 import com.ntq.training.momentbox.data.local.prefs.JournalDraft
 import com.ntq.training.momentbox.data.local.prefs.JournalFilterState
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlin.collections.emptyList
 
 interface JournalRepository {
     /** Snapshot nhiều trang trong một transaction. Null cho repository test không có Room. */
-    fun observeAtomicPages(query: String?, filter: JournalFilterState, pages: Int): Flow<JournalPageSnapshot>? = null
-    fun observeDayCounts(query: String?, filter: JournalFilterState): Flow<List<JournalDayCount>> = flowOf(emptyList())
+    fun observeAtomicPages(
+        query: String?,
+        filter: JournalFilterState,
+        pages: Int
+    ): Flow<JournalPageSnapshot>? = null
+
+    fun observeDayCounts(query: String?, filter: JournalFilterState): Flow<List<JournalDayCount>> =
+        flowOf(emptyList())
+
     fun observeWrittenDays(): Flow<List<String>> = kotlinx.coroutines.flow.flow {
-        emit(getEntriesForStats().map { java.time.Instant.ofEpochMilli(it.entry.createdAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString() }.distinct())
+        emit(getEntriesForStats().map {
+            Instant.ofEpochMilli(it.entry.createdAt).atZone(ZoneId.systemDefault()).toLocalDate()
+                .toString()
+        }.distinct())
     }
+
     val handlesDeletionDeadlines: Boolean get() = false
     fun observePendingDeletes(): Flow<List<PendingJournalDelete>> = flowOf(emptyList())
 
@@ -57,10 +70,15 @@ interface JournalRepository {
         to: Long? = null
     ): List<JournalEntryWithDetails>
 
-    fun observeDraft(): Flow<JournalDraft?>
-    suspend fun getDraft(): JournalDraft?
+    suspend fun prepareForLogout() {}
+    suspend fun finishLogout(keepJournal: Boolean) {
+        check(keepJournal) { "JOURNAL_DELETE_UNSUPPORTED" }
+    }
+
+    fun resumeAfterLogin() {}
+    suspend fun getDraft(entryId: Long?): JournalDraft?
     suspend fun saveDraft(draft: JournalDraft)
-    suspend fun clearDraft()
+    suspend fun clearDraft(entryId: Long?)
 
     fun observeFilter(): Flow<JournalFilterState>
     suspend fun getFilter(): JournalFilterState
@@ -72,8 +90,12 @@ interface JournalRepository {
     suspend fun deleteUnreferencedFiles(paths: List<String>) {}
     suspend fun stageAttachmentFile(sourcePathOrUri: String, isAudio: Boolean): Result<String>
 }
-data class JournalDayCount(val day: String, val count: Int)
+
+data class JournalDayCount(val day: String, val count: Int, val pinnedCount: Int = 0)
 
 data class JournalAudioMetadata(val durationMs: Long, val waveform: List<Int>)
 
-data class JournalPageSnapshot(val entries: List<JournalEntryWithDetails>, val dayCounts: List<JournalDayCount>)
+data class JournalPageSnapshot(
+    val entries: List<JournalEntryWithDetails>,
+    val dayCounts: List<JournalDayCount>
+)

@@ -4,13 +4,17 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.util.AttributeSet
+import android.util.TypedValue
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.view.ViewCompat
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.feature.journal.stats.MoodDistributionItem
 import kotlin.math.atan2
@@ -46,8 +50,8 @@ class DonutChartView @JvmOverloads constructor(
     private val centerMainTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
         color = context.getColor(R.color.text_primary)
-        textSize = android.util.TypedValue.applyDimension(
-            android.util.TypedValue.COMPLEX_UNIT_SP,
+        textSize = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
             19.8f,
             resources.displayMetrics
         )
@@ -61,8 +65,8 @@ class DonutChartView @JvmOverloads constructor(
     private val centerSubTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
         color = context.getColor(R.color.text_tertiary)
-        textSize = android.util.TypedValue.applyDimension(
-            android.util.TypedValue.COMPLEX_UNIT_SP,
+        textSize = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
             9.9f,
             resources.displayMetrics
         )
@@ -159,7 +163,7 @@ class DonutChartView @JvmOverloads constructor(
             width - paddingLeft - paddingRight,
             height - paddingTop - paddingBottom
         ) / 2f - strokeWidthDp / 2f - 4.4f * resources.displayMetrics.density
-        val dx = x - cx;
+        val dx = x - cx
         val dy = y - cy
         val distance = sqrt((dx * dx + dy * dy).toDouble()).toFloat()
         if (distance !in (radius - strokeWidthDp * .6f)..(radius + strokeWidthDp * .6f)) return null
@@ -182,7 +186,10 @@ class DonutChartView @JvmOverloads constructor(
         selectedMood = if (selectedMood == mood) null else mood
         centerMainText = if (selectedMood == null) defaultMainText else item.count.toString()
         centerSubText = if (selectedMood == null) defaultSubText else "${item.percentage}%"
-        invalidate(); accessibility.invalidateRoot(); performClick(); onSectorClickListener?.invoke(
+        invalidate()
+        accessibility.invalidateRoot()
+        performClick()
+        onSectorClickListener?.invoke(
             selectedMood
         )
     }
@@ -207,14 +214,15 @@ class DonutChartView @JvmOverloads constructor(
                 )
             }
             angle += sweep
-            val rect = android.graphics.Rect(
+            val rect = Rect(
                 points.minOf { it.first }.toInt(),
                 points.minOf { it.second }.toInt(),
                 points.maxOf { it.first }.toInt().coerceAtLeast(1),
                 points.maxOf { it.second }.toInt().coerceAtLeast(1)
             )
-            val label = context.getString(
-                R.string.journal_sector_description,
+            val label = resources.getQuantityString(
+                R.plurals.journal_sector_description,
+                item.count,
                 resources.getStringArray(R.array.journal_mood_names)[item.mood - 1],
                 item.count,
                 item.percentage
@@ -226,18 +234,20 @@ class DonutChartView @JvmOverloads constructor(
     private val accessibility = CanvasAccessibility(this, ::sectorNodes, ::hitSector, ::selectMood)
 
     init {
-        androidx.core.view.ViewCompat.setAccessibilityDelegate(this, accessibility); isFocusable =
+        ViewCompat.setAccessibilityDelegate(this, accessibility)
+        isFocusable =
             true
     }
 
     override fun dispatchHoverEvent(event: MotionEvent) =
         accessibility.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
 
-    override fun dispatchKeyEvent(event: android.view.KeyEvent) =
+    override fun dispatchKeyEvent(event: KeyEvent) =
         accessibility.dispatchKeyEvent(event) || super.dispatchKeyEvent(event)
 
-    override fun onFocusChanged(gain: Boolean, direction: Int, rect: android.graphics.Rect?) {
-        super.onFocusChanged(gain, direction, rect); accessibility.onFocusChanged(
+    override fun onFocusChanged(gain: Boolean, direction: Int, rect: Rect?) {
+        super.onFocusChanged(gain, direction, rect)
+        accessibility.onFocusChanged(
             gain,
             direction,
             rect
@@ -245,14 +255,16 @@ class DonutChartView @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        animator?.cancel(); super.onDetachedFromWindow()
+        animator?.cancel()
+        super.onDetachedFromWindow()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_UP) hitSector(
             event.x,
             event.y
-        )?.let { selectMood(it); return true }
+        )?.let { selectMood(it)
+        return true }
         return true
     }
 

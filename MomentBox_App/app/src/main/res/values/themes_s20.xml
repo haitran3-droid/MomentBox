@@ -1,0 +1,11 @@
+<resources>
+
+    <style name="Theme.MomentBox.Reminder" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">#1E1B4B</item>
+        <item name="android:fontFamily">@font/be_vietnam_pro</item>
+        <item name="fontFamily">@font/be_vietnam_pro</item>
+        <item name="colorPrimary">#FFFFFF</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

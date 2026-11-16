@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mood_great_emoji" translatable="false">😄</string>
+    <string name="mood_good_emoji" translatable="false">🙂</string>
+    <string name="mood_okay_emoji" translatable="false">😐</string>
+    <string name="mood_sad_emoji" translatable="false">😢</string>
+    <string name="mood_terrible_emoji" translatable="false">😡</string>
+    <string name="recorder_initial_time" translatable="false">00:00.0</string>
+    <string name="crop_initial_angle" translatable="false">0°</string>
+    <string name="camera_default_ratio" translatable="false">4:3</string>
+</resources>

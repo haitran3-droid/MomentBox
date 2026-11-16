@@ -10,11 +10,16 @@ import android.graphics.Path
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.toColorInt
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.feature.journal.stats.TrendPoint
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 class LineChartView @JvmOverloads constructor(
     context: Context,
@@ -24,7 +29,7 @@ class LineChartView @JvmOverloads constructor(
 
     private var points: List<TrendPoint> = emptyList()
     private var totalDaysInPeriod: Int = 31
-    private var periodStart: java.time.LocalDate? = null
+    private var periodStart: LocalDate? = null
 
     private var animationProgress: Float = 1.0f
     private var animator: ValueAnimator? = null
@@ -33,7 +38,7 @@ class LineChartView @JvmOverloads constructor(
     // === CÔNG CỤ VẼ CANVAS ===
     private val gridLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        color = Color.parseColor("#EEEEF4")
+        color = "#EEEEF4".toColorInt()
         strokeWidth = 1f * resources.displayMetrics.density
     }
 
@@ -62,8 +67,8 @@ class LineChartView @JvmOverloads constructor(
     private val labelTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
         color = context.getColor(R.color.text_tertiary)
-        textSize = android.util.TypedValue.applyDimension(
-            android.util.TypedValue.COMPLEX_UNIT_SP,
+        textSize = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
             10f,
             resources.displayMetrics
         )
@@ -80,7 +85,7 @@ class LineChartView @JvmOverloads constructor(
     fun setData(
         trendPoints: List<TrendPoint>,
         daysInPeriod: Int = 31,
-        start: java.time.LocalDate? = null
+        start: LocalDate? = null
     ) {
         if (points == trendPoints && totalDaysInPeriod == daysInPeriod && periodStart == start) return
         periodStart = start
@@ -201,7 +206,7 @@ class LineChartView @JvmOverloads constructor(
         val labelDays = if (totalDaysInPeriod <= 7) (1..totalDaysInPeriod).toList()
         else if (totalDaysInPeriod > 31 && periodStart != null) {
             (0..11).map { month ->
-                java.time.temporal.ChronoUnit.DAYS.between(
+                ChronoUnit.DAYS.between(
                     periodStart,
                     periodStart!!.plusMonths(month.toLong()).withDayOfMonth(1)
                 ).toInt() + 1
@@ -224,14 +229,14 @@ class LineChartView @JvmOverloads constructor(
             val label = when {
                 date == null -> day.toString()
                 totalDaysInPeriod > 31 -> date.format(
-                    java.time.format.DateTimeFormatter.ofPattern(
+                    DateTimeFormatter.ofPattern(
                         "MMM",
                         resources.configuration.locales[0]
                     )
                 )
 
                 totalDaysInPeriod <= 7 -> date.format(
-                    java.time.format.DateTimeFormatter.ofPattern(
+                    DateTimeFormatter.ofPattern(
                         "d/M",
                         resources.configuration.locales[0]
                     )
@@ -244,7 +249,8 @@ class LineChartView @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        animator?.cancel(); super.onDetachedFromWindow()
+        animator?.cancel()
+        super.onDetachedFromWindow()
     }
 
     private fun getMoodColor(mood: Int): Int {

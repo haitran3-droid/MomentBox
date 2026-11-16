@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.journal.editor
 
+import android.R as AndroidR
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.DialogInterface
@@ -34,6 +35,8 @@ import com.google.android.material.snackbar.Snackbar
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.base.BaseActivity
+import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
+import com.ntq.training.momentbox.core.media.AudioPlaybackKind
 import com.ntq.training.momentbox.data.local.db.JournalAttachmentEntity
 import com.ntq.training.momentbox.databinding.ActivityJournalEditorBinding
 import com.ntq.training.momentbox.feature.create.CreateInput
@@ -103,7 +106,7 @@ class JournalEditorActivity :
     private var audioIntentConsumed = false
     private val voiceOwner = Any()
     private val playbackAudio by lazy {
-        com.ntq.training.momentbox.core.media.AndroidPlaybackAudio.get(this)
+        AndroidPlaybackAudio.get(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -145,7 +148,7 @@ class JournalEditorActivity :
         if (remaining == 0)
             Snackbar.make(
                     binding.root,
-                    getString(R.string.m4_limit_remaining, 0),
+                    resources.getQuantityString(R.plurals.m4_limit_remaining, 0, 0),
                     Snackbar.LENGTH_LONG,
                 )
                 .show()
@@ -357,7 +360,7 @@ class JournalEditorActivity :
             input.setAdapter(
                 ArrayAdapter(
                     this@JournalEditorActivity,
-                    android.R.layout.simple_dropdown_item_1line,
+                    AndroidR.layout.simple_dropdown_item_1line,
                     suggestions,
                 )
             )
@@ -406,7 +409,7 @@ class JournalEditorActivity :
         playbackAudio.acquire(
             voiceOwner,
             { runOnUiThread { stopVoiceAttachmentPlayback() } },
-            kind = com.ntq.training.momentbox.core.media.AudioPlaybackKind.VOICE,
+            kind = AudioPlaybackKind.VOICE,
         )
 
     private fun resumeVoiceAttachmentPlayback() {
@@ -755,7 +758,7 @@ class JournalEditorActivity :
 
         // Warnings & Word count
         binding.tvLengthWarning.isVisible = state.isLengthWarning
-        binding.tvWordCount.text = getString(R.string.editor_word_count_format, state.wordCount)
+        binding.tvWordCount.text = resources.getQuantityString(R.plurals.editor_word_count_format, state.wordCount, state.wordCount)
 
         // Attachments
         val photos = state.attachments.filter { it.type.equals("image", ignoreCase = true) }

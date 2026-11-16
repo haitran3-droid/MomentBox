@@ -1,4 +1,5 @@
 package com.ntq.training.momentbox.feature.auth
+
 import android.content.Intent
 import com.ntq.training.momentbox.feature.postdetail.PostDetailActivity
 import android.os.Bundle
@@ -6,7 +7,6 @@ import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
 import android.view.inputmethod.EditorInfo
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isGone
@@ -27,6 +27,8 @@ import com.google.android.material.snackbar.Snackbar
 import com.ntq.training.momentbox.BuildConfig
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.databinding.ActivityAuthBinding
+import com.ntq.training.momentbox.debug.DebugToolsEntry
+import com.ntq.training.momentbox.feature.reminder.ReminderJournalRoute
 import kotlinx.coroutines.launch
 import kotlin.getValue
 
@@ -58,7 +60,12 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         ViewCompat.setOnApplyWindowInsetsListener(binding.authRoot) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val keyboard = insets.getInsets(WindowInsetsCompat.Type.ime())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, maxOf(systemBars.bottom, keyboard.bottom))
+            v.setPadding(
+                systemBars.left,
+                systemBars.top,
+                systemBars.right,
+                maxOf(systemBars.bottom, keyboard.bottom)
+            )
             insets
         }
     }
@@ -67,7 +74,10 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         // Hide API chip in release build
         binding.chipApiSource.isVisible = BuildConfig.DEBUG
 
-        updateApiSourceLabel()
+        if (intent.getBooleanExtra("logoutCleanupFailed", false)) {
+            showSnackbar(getString(R.string.s22_failed))
+            intent.removeExtra("logoutCleanupFailed")
+        }
 
         // Bind initial values from ViewModel
         val form = viewModel.formState.value
@@ -142,7 +152,7 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         }
 
         binding.chipApiSource.setOnClickListener {
-            showDataSourceSelectionDialog()
+            DebugToolsEntry.intent(this, sourceOnly = true)?.let(::startActivity)
         }
     }
 
@@ -204,7 +214,8 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         }
 
         // Login button state: disabled when invalid, with visual feedback
-        binding.btnLogin.isEnabled = form.isFormValid && viewModel.uiState.value !is LoginUiState.Loading
+        binding.btnLogin.isEnabled =
+            form.isFormValid && viewModel.uiState.value !is LoginUiState.Loading
         // Mockup dùng nền tím đầy đủ cả ở form lỗi; isEnabled vẫn chặn submit không hợp lệ.
         binding.btnLogin.alpha = 1.0f
     }
@@ -218,17 +229,19 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
                 binding.tvBtnLogin.isInvisible = false
                 binding.btnLogin.isEnabled = viewModel.formState.value.isFormValid
             }
+
             is LoginUiState.Loading -> {
                 binding.pbLoginLoading.isVisible = true
                 binding.tvBtnLogin.isInvisible = true
                 binding.btnLogin.isEnabled = false
             }
+
             is LoginUiState.Success -> {
                 binding.pbLoginLoading.isGone = true
                 binding.tvBtnLogin.isInvisible = false
 
                 val redirectPostId = intent.getLongExtra("EXTRA_REDIRECT_POST_ID", 0L)
-                if(redirectPostId > 0L){
+                if (redirectPostId > 0L) {
                     val mainIntent = Intent(this, MainActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     }
@@ -237,14 +250,16 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
                     }
                     startActivities(arrayOf(mainIntent, detailIntent))
                     finish()
-                }else{
+                } else {
                     val intent = Intent(this, MainActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     }
+                    ReminderJournalRoute.copy(this@AuthActivity.intent,intent)
                     startActivity(intent)
                     finish()
                 }
             }
+
             is LoginUiState.Error -> {
                 binding.pbLoginLoading.isGone = true
                 binding.tvBtnLogin.isInvisible = false
@@ -287,31 +302,9 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         }
     }
 
-    private fun showDataSourceSelectionDialog() {
-        val sources = arrayOf("MB Server (${BuildConfig.BASE_URL.trimEnd('/')})", "DummyJSON (https://dummyjson.com)", "Offline (Mock)")
-        val keys = arrayOf(
-            SettingsDataStore.SOURCE_MB_SERVER,
-            SettingsDataStore.SOURCE_DUMMY_JSON,
-            SettingsDataStore.SOURCE_OFFLINE
-        )
-
-        AlertDialog.Builder(this)
-            .setTitle("Chọn nguồn dữ liệu (Debug)")
-            .setItems(sources) { _, which ->
-                lifecycleScope.launch {
-                    val app = MomentBoxApp.instance
-                    val selectedKey = keys[which]
-                    viewModel.beginSourceChange()
-                    try {
-                        app.authRepository.changeDataSource(selectedKey)
-                        viewModel.onDataSourceChanged(selectedKey)
-                    } finally { viewModel.resetUiState() }
-                    updateApiSourceLabel()
-                    showSnackbar("Đã chuyển sang nguồn: ${sources[which]}")
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+    override fun onResume() {
+        super.onResume()
+        updateApiSourceLabel()
     }
 
     private fun showSnackbar(message: String) {

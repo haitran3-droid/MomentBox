@@ -1,0 +1,244 @@
+<com.ntq.training.momentbox.feature.reminder.ReminderBackdropLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ScrollView
+        android:id="@+id/reminderScroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="ifContentScrolls"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginTop="14dp"
+                android:alpha="0.7"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_s20_lock" />
+
+            <com.ntq.training.momentbox.feature.reminder.ReminderClockView
+                android:id="@+id/reminderClock"
+                style="@style/TextAppearance.MomentBox.S20.Clock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:fontFamily="@font/be_vietnam_pro_light"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.0277778"
+                android:maxLines="1"
+                android:textColor="#FFFFFF"
+                android:textSize="72sp" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/reminderDate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/be_vietnam_pro_regular"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:textColor="#CCFFFFFF"
+                android:textSize="15sp" />
+
+            <FrameLayout
+                android:layout_width="176dp"
+                android:layout_height="176dp"
+                android:background="@drawable/bg_s20_rings">
+
+                <FrameLayout
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_s20_note">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_gravity="center"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_s20_edit_note" />
+                </FrameLayout>
+            </FrameLayout>
+
+            <androidx.appcompat.widget.AppCompatTextView
+                style="@style/TextAppearance.MomentBox.S20.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:fontFamily="@font/be_vietnam_pro_bold"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:text="@string/s20_title"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/be_vietnam_pro_regular"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:lineSpacingMultiplier="1.15"
+                android:text="@string/s20_subtitle"
+                android:textColor="#CCFFFFFF"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="22dp"
+                android:orientation="horizontal">
+
+                <androidx.appcompat.widget.AppCompatTextView
+                    android:id="@+id/reminderMood1"
+                    android:layout_width="@dimen/s20_mood_size"
+                    android:layout_height="@dimen/s20_mood_size"
+                    android:background="@drawable/bg_s20_mood"
+                    android:clickable="true"
+                    android:contentDescription="@string/s20_mood1"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/s20_emoji1"
+                    android:textSize="26sp" />
+
+                <androidx.appcompat.widget.AppCompatTextView
+                    android:id="@+id/reminderMood2"
+                    android:layout_width="@dimen/s20_mood_size"
+                    android:layout_height="@dimen/s20_mood_size"
+                    android:layout_marginStart="@dimen/s20_mood_gap"
+                    android:background="@drawable/bg_s20_mood"
+                    android:clickable="true"
+                    android:contentDescription="@string/s20_mood2"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/s20_emoji2"
+                    android:textSize="26sp" />
+
+                <androidx.appcompat.widget.AppCompatTextView
+                    android:id="@+id/reminderMood3"
+                    android:layout_width="@dimen/s20_mood_size"
+                    android:layout_height="@dimen/s20_mood_size"
+                    android:layout_marginStart="@dimen/s20_mood_gap"
+                    android:background="@drawable/bg_s20_mood"
+                    android:clickable="true"
+                    android:contentDescription="@string/s20_mood3"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/s20_emoji3"
+                    android:textSize="26sp" />
+
+                <androidx.appcompat.widget.AppCompatTextView
+                    android:id="@+id/reminderMood4"
+                    android:layout_width="@dimen/s20_mood_size"
+                    android:layout_height="@dimen/s20_mood_size"
+                    android:layout_marginStart="@dimen/s20_mood_gap"
+                    android:background="@drawable/bg_s20_mood"
+                    android:clickable="true"
+                    android:contentDescription="@string/s20_mood4"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/s20_emoji4"
+                    android:textSize="26sp" />
+
+                <androidx.appcompat.widget.AppCompatTextView
+                    android:id="@+id/reminderMood5"
+                    android:layout_width="@dimen/s20_mood_size"
+                    android:layout_height="@dimen/s20_mood_size"
+                    android:layout_marginStart="@dimen/s20_mood_gap"
+                    android:background="@drawable/bg_s20_mood"
+                    android:clickable="true"
+                    android:contentDescription="@string/s20_mood5"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/s20_emoji5"
+                    android:textSize="26sp" />
+            </LinearLayout>
+
+            <Space
+                android:layout_width="1dp"
+                android:layout_height="16dp" />
+
+            <Space
+                android:layout_width="1dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/reminderWrite"
+                style="@style/TextAppearance.MomentBox.S20.Action"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minHeight="50dp"
+                android:padding="12dp"
+                android:text="@string/s20_write"
+                android:textAllCaps="false"
+                android:textColor="#2A1E8F"
+                android:textSize="15sp"
+                app:backgroundTint="#FFFFFF"
+                app:cornerRadius="14dp"
+                app:icon="@drawable/ic_s20_edit"
+                app:iconGravity="textStart"
+                app:iconPadding="10dp"
+                app:iconSize="20dp"
+                app:iconTint="#2A1E8F" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/reminderSnooze"
+                style="@style/TextAppearance.MomentBox.S20.Action"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minHeight="50dp"
+                android:padding="12dp"
+                android:text="@string/s20_snooze"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                app:backgroundTint="@android:color/transparent"
+                app:cornerRadius="14dp"
+                app:icon="@drawable/ic_s20_snooze"
+                app:iconGravity="textStart"
+                app:iconPadding="10dp"
+                app:iconSize="20dp"
+                app:iconTint="#FFFFFF"
+                app:strokeColor="#59FFFFFF"
+                app:strokeWidth="1.5dp" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/reminderSkip"
+                style="@style/TextAppearance.MomentBox.S20.Action"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="6dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/be_vietnam_pro_semibold"
+                android:gravity="center"
+                android:minHeight="48dp"
+                android:text="@string/s20_skip"
+                android:textColor="#BFFFFFFF"
+                android:textSize="13.5sp" />
+        </LinearLayout>
+    </ScrollView>
+</com.ntq.training.momentbox.feature.reminder.ReminderBackdropLayout>

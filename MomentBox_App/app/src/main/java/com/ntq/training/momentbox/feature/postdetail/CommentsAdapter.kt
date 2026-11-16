@@ -138,6 +138,9 @@ class CommentsAdapter(
                 btnLikeComment.setOnClickListener { onLikeClick(comment) }
                 btnCommentLikeAction.setOnClickListener { onLikeClick(comment) }
                 btnReplyComment.setOnClickListener { onReplyClick(comment) }
+                btnLikeComment.isEnabled = comment.id > 0
+                btnCommentLikeAction.isEnabled = comment.id > 0
+                btnReplyComment.isEnabled = comment.id > 0
 
                 // Mở rộng phản hồi
                 if (comment.replyCount > 0 || comment.replies.isNotEmpty()) {
@@ -204,6 +207,7 @@ class CommentsAdapter(
                 tvReplyLikeCount.text = root.context.getString(R.string.ui_integer_count, reply.likeCount)
 
                 btnLikeReply.setOnClickListener { onLikeClick(reply) }
+                btnLikeReply.isEnabled = reply.id > 0
             }
         }
     }

@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.databinding.ItemEditorTagBinding
 
 /**
@@ -28,7 +29,7 @@ class JournalTagsAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(tag: String) {
-            binding.tvTagName.text = "#$tag"
+            binding.tvTagName.text = binding.root.resources.getString(R.string.journal_tag_label, tag)
             binding.btnRemoveTag.setOnClickListener {
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) {

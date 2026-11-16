@@ -1,12 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-    activity_main.xml - Layout chính của ứng dụng MomentBox chứa 4 Tab chức năng (Host Activity).
-    - Gồm 2 phần chính:
-      1. `fragment_container`: FrameLayout chứa các Fragment (FeedFragment, JournalFragment, ChatFragment, ProfileFragment).
-         Sử dụng cơ chế add/show/hide của FragmentManager để giữ nguyên vị trí cuộn khi người dùng chuyển đổi qua lại giữa các tab.
-      2. `bottomNav`: Thanh điều hướng đáy (Bottom Navigation) cao 68dp theo đúng thiết kế Figma/mockup .bn,
-         bao gồm 4 tab: Bảng tin, Nhật ký, Tin nhắn (có badge thông báo đỏ) và Cá nhân.
-    - Áp dụng Window Insets: padding bottom tự động thích ứng với thanh điều hướng cử chỉ 3 nút hoặc pill vuốt của Android.
--->
+<?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -183,7 +175,7 @@
                     android:minWidth="18dp"
                     android:paddingStart="4dp"
                     android:paddingEnd="4dp"
-                    android:text="@string/ui_demo_chat_count"
+                    android:visibility="gone"
                     android:textColor="@color/white"
                     android:textSize="11sp"
                     android:textStyle="bold" />

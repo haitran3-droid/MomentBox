@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="journal_clear_date_range">選択した日付範囲を解除</string>
+    <string name="journal_previous_month">前の月</string>
+    <string name="journal_next_month">次の月</string>
+    <plurals name="journal_attached_photos">
+        <item quantity="other">添付写真%d枚</item>
+    </plurals>
+    <plurals name="journal_play_recordings">
+        <item quantity="other">プレーヤーを開く・録音%d件</item>
+    </plurals>
+</resources>

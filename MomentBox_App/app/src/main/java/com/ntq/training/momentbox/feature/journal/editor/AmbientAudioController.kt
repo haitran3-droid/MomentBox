@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.journal.editor
 
+import kotlinx.coroutines.delay
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -14,6 +15,8 @@ import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.ntq.training.momentbox.R
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +51,7 @@ class AmbientAudioController(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val trackMutex = Mutex()
     private var writer: Job? = null
-    internal val completedLoops = java.util.concurrent.atomic.AtomicLong()
+    internal val completedLoops = AtomicLong()
     private var releaseJob: Job? = null
     private var audioTrack: AudioTrack? = null
     private var currentSound = SoundType.RAIN
@@ -85,7 +88,8 @@ class AmbientAudioController(
     fun getVolume() = userVolume
     fun isPlaying() = isPlaying
     fun setVolume(value: Float) {
-        userVolume = value.coerceIn(0f, 1f); notifyState()
+        userVolume = value.coerceIn(0f, 1f)
+        notifyState()
     }
 
     fun setSound(sound: SoundType) {
@@ -106,7 +110,9 @@ class AmbientAudioController(
             ownership.release(this)
             return
         }
-        isUserPaused = false; isPausedByFocus = false; isDucked = false
+        isUserPaused = false
+        isPausedByFocus = false
+        isDucked = false
         if (!noisyReceiverRegistered) {
             ContextCompat.registerReceiver(
                 context,
@@ -121,11 +127,15 @@ class AmbientAudioController(
 
     fun pause() {
         // Không early-return khi isPlaying=false; user Pause luôn vô hiệu hóa callback GAIN cũ.
-        isUserPaused = true; isPausedByFocus = false; isDucked = false
+        isUserPaused = true
+        isPausedByFocus = false
+        isDucked = false
         stopWriter()
-        abandonFocus(); ownership.release(this)
+        abandonFocus()
+        ownership.release(this)
         if (noisyReceiverRegistered) {
-            context.unregisterReceiver(noisyReceiver); noisyReceiverRegistered = false
+            context.unregisterReceiver(noisyReceiver)
+            noisyReceiverRegistered = false
         }
     }
 
@@ -138,7 +148,8 @@ class AmbientAudioController(
             previous?.cancelAndJoin()
             trackMutex.withLock {
                 audioTrack?.takeIf { it.state == AudioTrack.STATE_INITIALIZED }
-                    ?.let { it.pause(); it.flush() }
+                    ?.let { it.pause()
+                    it.flush() }
             }
         }
         notifyState()
@@ -173,7 +184,9 @@ class AmbientAudioController(
                         )
                         .setTransferMode(AudioTrack.MODE_STREAM).build().also { audioTrack = it }
                     check(track.state == AudioTrack.STATE_INITIALIZED)
-                    track.pause(); track.flush(); track.play()
+                    track.pause()
+                    track.flush()
+                    track.play()
                     val info = context.assets.open(path).use { parseWavHeader(it) }
                     check(info.dataLength > 0 && info.dataLength < Long.MAX_VALUE)
                     val buffer = ByteArray(4096)
@@ -181,7 +194,9 @@ class AmbientAudioController(
                         context.assets.open(path).use { input ->
                             var skip = info.dataOffset
                             while (skip > 0) {
-                                val n = input.skip(skip); check(n > 0); skip -= n
+                                val n = input.skip(skip)
+                                check(n > 0)
+                                skip -= n
                             }
                             var remaining = info.dataLength
                             while (isActive && remaining > 0) {
@@ -190,7 +205,8 @@ class AmbientAudioController(
                                     0,
                                     minOf(remaining, buffer.size.toLong()).toInt()
                                 )
-                                check(count > 0); remaining -= count
+                                check(count > 0)
+                                remaining -= count
                                 var offset = 0
                                 while (isActive && offset < count) {
                                     track.setVolume(if (isDucked) userVolume * 0.30f else userVolume)
@@ -202,7 +218,7 @@ class AmbientAudioController(
                                         AudioTrack.WRITE_NON_BLOCKING
                                     )
                                     check(n >= 0) { "AudioTrack write error $n" }
-                                    if (n == 0) kotlinx.coroutines.delay(5) else offset += n
+                                    if (n == 0) delay(5) else offset += n
                                 }
                             }
                             if (remaining == 0L) completedLoops.incrementAndGet()
@@ -210,10 +226,11 @@ class AmbientAudioController(
                     }
                 }
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is CancellationException) throw e
                 withContext(Dispatchers.Main) {
                     if (generation == expected && !released) {
-                        pause(); onPlaybackError?.invoke()
+                        pause()
+                        onPlaybackError?.invoke()
                     }
                 }
             }
@@ -224,12 +241,14 @@ class AmbientAudioController(
         if (released) return
         released = true
         pause()
-        onPlaybackStateChanged = null; onPlaybackError = null
+        onPlaybackStateChanged = null
+        onPlaybackError = null
         val previous = writer
         releaseJob = scope.launch(dispatcher) {
             previous?.cancelAndJoin()
             try {
-                trackMutex.withLock { audioTrack?.release(); audioTrack = null }
+                trackMutex.withLock { audioTrack?.release()
+                audioTrack = null }
             } finally {
                 scope.cancel()
             }
@@ -251,14 +270,16 @@ class AmbientAudioController(
             when (change) {
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> isDucked = true
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> if (isPlaying) {
-                    isPausedByFocus = true; stopWriter()
+                    isPausedByFocus = true
+                    stopWriter()
                 }
 
                 AudioManager.AUDIOFOCUS_LOSS -> pause()
                 AudioManager.AUDIOFOCUS_GAIN -> {
                     isDucked = false
                     if (isPausedByFocus && !isUserPaused) {
-                        isPausedByFocus = false; startWriter()
+                        isPausedByFocus = false
+                        startWriter()
                     }
                 }
             }
@@ -294,7 +315,8 @@ class AmbientAudioController(
             @Suppress("DEPRECATION")
             legacyFocusListener?.let { audioManager.abandonAudioFocus(it) }
         }
-        focusRequest = null; legacyFocusListener = null
+        focusRequest = null
+        legacyFocusListener = null
     }
 
     /**

@@ -127,14 +127,14 @@ class JournalEditorViewModel(
                 }
                 nextAttachmentOrder =
                     (_uiState.value.attachments.maxOfOrNull { it.sortOrder } ?: -1) + 1
-                val draft = journalRepository.getDraft()
-                if (draft != null && (initialEntryId <= 0 || draft.entryId == initialEntryId)) {
+                val draft = journalRepository.getDraft(initialEntryId.takeIf { it > 0 })
+                if (draft != null) {
                     val committed =
                         draft.pendingCommitId?.let { journalRepository.getEntryById(it) }
                     if (committed != null && matchesCommittedDraft(draft, committed)) {
                         // Room đã commit nhưng lần Clear trước lỗi I/O: không mời khôi phục tạo bài trùng.
                         runCatching {
-                            journalRepository.clearDraft()
+                            journalRepository.clearDraft(draft.entryId)
                             journalRepository.deleteUnreferencedFiles(draft.cleanupPaths.orEmpty())
                         }.onFailure { if (it is CancellationException) throw it }
                     } else if (draft.title.isNotBlank() || draft.content.isNotBlank() || draft.attachments.isNotEmpty() || draft.tags.isNotEmpty()) {
@@ -210,9 +210,10 @@ class JournalEditorViewModel(
     }
 
     fun dismissRestoreDraftDialog() {
+        val draft = _uiState.value.restoredDraft ?: return
         viewModelScope.launch {
             try {
-                draftMutex.withLock { journalRepository.clearDraft() }
+                draftMutex.withLock { journalRepository.clearDraft(draft.entryId) }
                 _uiState.update { it.copy(showRestoreDraftDialog = false, restoredDraft = null) }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -226,7 +227,8 @@ class JournalEditorViewModel(
 
     fun onTitleChanged(value: String) {
         if (!editable() || _uiState.value.title == value) return
-        _uiState.update { it.copy(title = value.take(100), isDirty = true) }; triggerAutosave()
+        _uiState.update { it.copy(title = value.take(100), isDirty = true) }
+        triggerAutosave()
     }
 
     fun onContentChanged(value: String) {
@@ -236,12 +238,14 @@ class JournalEditorViewModel(
                 content = value, wordCount = calculateWordCount(value),
                 isLengthWarning = value.length > 5000, isDirty = true
             )
-        }; triggerAutosave()
+        }
+        triggerAutosave()
     }
 
     fun onMoodChanged(value: Int) {
         if (!editable() || value !in 1..5 || value == _uiState.value.mood) return
-        _uiState.update { it.copy(mood = value, isDirty = true) }; triggerAutosave()
+        _uiState.update { it.copy(mood = value, isDirty = true) }
+        triggerAutosave()
     }
 
     fun onDateChanged(value: Long) {
@@ -251,7 +255,8 @@ class JournalEditorViewModel(
                 dateEpochMs = value.coerceAtMost(System.currentTimeMillis()),
                 isDirty = true
             )
-        }; triggerAutosave()
+        }
+        triggerAutosave()
     }
 
     fun addPhotoAttachment(sourceUriOrPath: String) {
@@ -323,7 +328,8 @@ class JournalEditorViewModel(
     fun removePhotoAttachment(attachment: JournalAttachmentEntity) {
         if (!editable()) return
         _uiState.update { it.copy(attachments = it.attachments - attachment, isDirty = true) }
-        oldFilesToDeleteAfterCommit += attachment.localPath; triggerAutosave()
+        oldFilesToDeleteAfterCommit += attachment.localPath
+        triggerAutosave()
     }
 
     fun removeAudioAttachment() {
@@ -333,12 +339,14 @@ class JournalEditorViewModel(
     fun addTag(rawTag: String) {
         val clean = rawTag.trim().removePrefix("#").trim()
         if (!editable() || clean.isBlank() || clean in _uiState.value.tags) return
-        _uiState.update { it.copy(tags = it.tags + clean, isDirty = true) }; triggerAutosave()
+        _uiState.update { it.copy(tags = it.tags + clean, isDirty = true) }
+        triggerAutosave()
     }
 
     fun removeTag(tag: String) {
         if (!editable()) return
-        _uiState.update { it.copy(tags = it.tags - tag, isDirty = true) }; triggerAutosave()
+        _uiState.update { it.copy(tags = it.tags - tag, isDirty = true) }
+        triggerAutosave()
     }
 
     private fun snapshotDraft(commitId: Long? = pendingCommitId): JournalDraft {
@@ -428,7 +436,7 @@ class JournalEditorViewModel(
                     if (result.isSuccess) {
                         _uiState.update { it.copy(entryId = result.getOrThrow(), isDirty = false) }
                         try {
-                            journalRepository.clearDraft()
+                            journalRepository.clearDraft(s.entryId)
                             journalRepository.deleteUnreferencedFiles(oldFilesToDeleteAfterCommit.toList())
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -476,7 +484,7 @@ class JournalEditorViewModel(
             try {
                 autosaveJob?.cancelAndJoin()
                 imports.toList().forEach { it.cancelAndJoin() }
-                draftMutex.withLock { journalRepository.clearDraft() }
+                draftMutex.withLock { journalRepository.clearDraft(_uiState.value.entryId) }
                 journalRepository.deleteUnreferencedFiles(stagedFilesToKeep.toList())
                 _flushDraftEvents.emit(FlushDraftResult.Success)
             } catch (e: Exception) {

@@ -1,0 +1,7 @@
+<resources>
+
+    <style name="ShapeAppearance.MomentBox.ChatImage" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">18dp</item>
+    </style>
+</resources>

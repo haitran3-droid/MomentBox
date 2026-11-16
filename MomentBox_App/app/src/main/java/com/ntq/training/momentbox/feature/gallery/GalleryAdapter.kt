@@ -5,7 +5,9 @@ import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.view.isVisible
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.RequestManager
 import com.bumptech.glide.signature.ObjectKey
 import com.ntq.training.momentbox.databinding.ItemGalleryMediaBinding
 import com.ntq.training.momentbox.feature.create.SelectedMedia
@@ -13,7 +15,7 @@ import java.util.Locale
 
 /** Chỉ tải thumbnail đang hiển thị, lựa chọn đánh số từ model chung của Activity. */
 class GalleryAdapter(
-    private val requests: com.bumptech.glide.RequestManager,
+    private val requests: RequestManager,
     private val camera: () -> Unit,
     private val choose: (SelectedMedia) -> Unit,
 ) : RecyclerView.Adapter<GalleryAdapter.Holder>() {
@@ -26,8 +28,8 @@ class GalleryAdapter(
         val old = this.items
         if (old == items) return
         val difference =
-            androidx.recyclerview.widget.DiffUtil.calculateDiff(
-                object : androidx.recyclerview.widget.DiffUtil.Callback() {
+            DiffUtil.calculateDiff(
+                object : DiffUtil.Callback() {
                     override fun getOldListSize() = old.size + 1
 
                     override fun getNewListSize() = items.size + 1

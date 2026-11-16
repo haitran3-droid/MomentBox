@@ -1,0 +1,18 @@
+<resources>
+    <string name="s20_title">Đến giờ viết nhật ký rồi ✍️</string>
+    <string name="s20_subtitle">Hôm nay của bạn thế nào?\nChọn cảm xúc để bắt đầu nhanh.</string>
+    <string name="s20_write">Viết ngay</string>
+    <string name="s20_snooze">Nhắc lại sau 10 phút</string>
+    <string name="s20_skip">Bỏ qua hôm nay</string>
+    <string name="s20_mood1">Tuyệt vời</string>
+    <string name="s20_mood2">Vui</string>
+    <string name="s20_mood3">Bình thường</string>
+    <string name="s20_mood4">Buồn</string>
+    <string name="s20_mood5">Tệ</string>
+    <string name="s20_action_error">Không thể cập nhật lời nhắc. Hãy thử lại.</string>
+    <string name="s20_emoji1" translatable="false">😄</string>
+    <string name="s20_emoji2" translatable="false">🙂</string>
+    <string name="s20_emoji3" translatable="false">😐</string>
+    <string name="s20_emoji4" translatable="false">😢</string>
+    <string name="s20_emoji5" translatable="false">😡</string>
+</resources>

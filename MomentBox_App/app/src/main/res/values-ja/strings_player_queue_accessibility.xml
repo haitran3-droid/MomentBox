@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="player_queue_move_up">録音を上へ移動</string>
+    <string name="player_queue_move_down">録音を下へ移動</string>
+</resources>

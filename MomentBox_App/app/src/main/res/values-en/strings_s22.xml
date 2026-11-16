@@ -1,0 +1,60 @@
+<resources>
+    <string name="s22_title">Settings</string>
+    <string name="s22_section_general">General</string>
+    <string name="s22_section_data">Data &amp; storage</string>
+    <string name="s22_section_other">Other</string>
+    <string name="s22_language">Language</string>
+    <string name="s22_theme">Appearance</string>
+    <string name="s22_reminder">Journal reminder</string>
+    <string name="s22_cache">Image cache</string>
+    <string name="s22_clear">Clear</string>
+    <string name="s22_export">Export journal (JSON)</string>
+    <string name="s22_export_hint">Text and attachment metadata; excludes image/audio files</string>
+    <string name="s22_permissions">App permissions</string>
+    <string name="s22_permission_hint">Notifications, camera, microphone, photos</string>
+    <string name="s22_autoplay">Autoplay videos</string>
+    <string name="s22_developer">Developer tools</string>
+    <string name="s22_debug_version">Debug builds only · %1$s</string>
+    <string name="s22_logout">Log out</string>
+    <string name="s22_working">Working…</string>
+    <string name="s22_failed">Could not complete. Please try again.</string>
+    <string name="s22_cache_cleared">Image cache cleared</string>
+    <string name="s22_exported">Journal JSON exported</string>
+    <string name="s22_open">Open</string>
+    <string name="s22_cancel">Cancel</string>
+    <string name="s22_apply">Apply</string>
+    <string name="s22_daily">Every day at %1$s</string>
+    <string name="s22_reminder_off">Off · %1$s</string>
+    <string name="s22_reminder_blocked">Notifications blocked. Open App permissions to enable.</string>
+    <string name="s22_reminder_fallback">Approximate alarm; full screen depends on system access</string>
+    <string name="s22_reminder_exact">Exact alarm; full screen depends on system access</string>
+    <string name="s22_logout_message">Log out and stop playback, recording and uploads?</string>
+    <string name="s22_keep_journal">Keep journal on this device</string>
+    <string name="s22_delete_confirm">Delete all journal entries and attachments on this device? This cannot be undone.</string>
+    <string name="s22_delete_logout">Delete and log out</string>
+    <string name="s22_granted">Allowed</string>
+    <string name="s22_denied">Not allowed</string>
+    <string name="s22_partial">Selected photos/videos only</string>
+    <string name="s22_not_required">Not required on this Android version</string>
+    <string name="s22_notifications">Notifications</string>
+    <string name="s22_camera">Camera</string>
+    <string name="s22_microphone">Microphone</string>
+    <string name="s22_media">Photos and videos</string>
+    <string name="s22_exact">Exact alarms</string>
+    <string name="s22_fullscreen">Full-screen notifications</string>
+    <string name="s22_permission_help">Tap an item to open Android settings. Other features remain available when access is denied.</string>
+    <string-array name="s22_theme_options">
+        <item>System default</item>
+        <item>Light</item>
+        <item>Dark</item>
+    </string-array>
+    <string-array name="s22_autoplay_options">
+        <item>Always</item>
+        <item>Wi-Fi only</item>
+        <item>Never</item>
+    </string-array>
+    <string name="s22_back">Back</string>
+    <string name="s22_media_mixed">Photos: %1$s · Videos: %2$s</string>
+    <string name="s22_export_location">Save to Downloads</string>
+    <string name="s22_export_preview_truncated">Preview shortened. The full file is at the selected location.</string>
+</resources>

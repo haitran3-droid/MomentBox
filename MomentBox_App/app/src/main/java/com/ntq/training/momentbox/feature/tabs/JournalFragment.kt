@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.tabs
 
+import kotlinx.coroutines.flow.combine
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -50,7 +51,10 @@ class JournalFragment : Fragment() {
     private lateinit var overview: ItemJournalOverviewBinding
     private lateinit var swipeCallback: JournalSwipeCallback
     private lateinit var adapter: JournalEntriesAdapter
-    private val monthFormatter = DateTimeFormatter.ofPattern(if (Locale.getDefault().language == "vi") "LLLL, yyyy" else "LLLL yyyy", Locale.getDefault())
+    private val monthFormatter = DateTimeFormatter.ofPattern(
+        if (Locale.getDefault().language == "vi") "LLLL, yyyy" else "LLLL yyyy",
+        Locale.getDefault()
+    )
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -90,10 +94,13 @@ class JournalFragment : Fragment() {
         )
 
         binding.rvJournalEntries.layoutManager = LinearLayoutManager(requireContext())
-        overview = ItemJournalOverviewBinding.inflate(layoutInflater, binding.rvJournalEntries, false)
+        overview =
+            ItemJournalOverviewBinding.inflate(layoutInflater, binding.rvJournalEntries, false)
         val overviewAdapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             override fun getItemCount() = 1
-            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = object : RecyclerView.ViewHolder(overview.root) {}
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+                object : RecyclerView.ViewHolder(overview.root) {}
+
             override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) = Unit
         }
         binding.rvJournalEntries.adapter = ConcatAdapter(overviewAdapter, adapter)
@@ -143,20 +150,27 @@ class JournalFragment : Fragment() {
 
     private fun updateCalendarHeader(yearMonth: YearMonth) {
         val date = yearMonth.atDay(1)
-        overview.tvCalendarMonth.text = date.format(monthFormatter).replaceFirstChar { it.titlecase(Locale.getDefault()) }
+        overview.tvCalendarMonth.text =
+            date.format(monthFormatter).replaceFirstChar { it.titlecase(Locale.getDefault()) }
 
         val canNext = overview.moodCalendarView.canGoToNextMonth()
         overview.btnNextMonth.isEnabled = canNext
         overview.btnNextMonth.alpha = if (canNext) 1.0f else 0.35f
     }
 
-    private fun scrollToDate(date: LocalDate) { viewModel.scrollToDate(date) }
+    private fun scrollToDate(date: LocalDate) {
+        viewModel.scrollToDate(date)
+    }
 
     private fun applyScrollTarget() {
         val id = viewModel.scrollTarget.value ?: return
-        val position = adapter.currentList.indexOfFirst { it is JournalListItem.Entry && it.data.entry.id == id }
+        val position =
+            adapter.currentList.indexOfFirst { it is JournalListItem.Entry && it.data.entry.id == id }
         if (position >= 0) {
-            (binding.rvJournalEntries.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(position + 1, 48)
+            (binding.rvJournalEntries.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(
+                position + 1,
+                48
+            )
             viewModel.consumeScrollTarget()
         }
     }
@@ -172,7 +186,8 @@ class JournalFragment : Fragment() {
             binding.layoutNormalToolbar.visibility = View.GONE
             binding.layoutSearchInput.visibility = View.VISIBLE
             binding.etSearchQuery.requestFocus()
-            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            val imm =
+                requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
             imm?.showSoftInput(binding.etSearchQuery, InputMethodManager.SHOW_IMPLICIT)
         }
 
@@ -181,7 +196,8 @@ class JournalFragment : Fragment() {
             binding.etSearchQuery.setText("")
             binding.layoutSearchInput.visibility = View.GONE
             binding.layoutNormalToolbar.visibility = View.VISIBLE
-            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            val imm =
+                requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
             imm?.hideSoftInputFromWindow(binding.etSearchQuery.windowToken, 0)
         }
 
@@ -199,7 +215,10 @@ class JournalFragment : Fragment() {
         binding.btnFilter.setOnClickListener {
             val currentQuery = viewModel.searchQuery.value.trim().ifEmpty { null }
             val filterBottomSheet = JournalFilterBottomSheetDialogFragment.newInstance(currentQuery)
-            filterBottomSheet.show(parentFragmentManager, JournalFilterBottomSheetDialogFragment.TAG)
+            filterBottomSheet.show(
+                parentFragmentManager,
+                JournalFilterBottomSheetDialogFragment.TAG
+            )
         }
     }
 
@@ -226,13 +245,17 @@ class JournalFragment : Fragment() {
                     viewModel.entriesFlow.collect { items ->
                         adapter.submitList(items) { applyScrollTarget() }
                         val isEmpty = items.isEmpty()
-                        overview.layoutEmptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                        overview.layoutEmptyState.visibility =
+                            if (isEmpty) View.VISIBLE else View.GONE
 
                     }
                 }
 
                 launch {
-                    kotlinx.coroutines.flow.combine(viewModel.calendarYearMonth, viewModel.selectedCalendarDate) { month, selected -> month to selected }.collect { (month, selected) ->
+                    combine(
+                        viewModel.calendarYearMonth,
+                        viewModel.selectedCalendarDate
+                    ) { month, selected -> month to selected }.collect { (month, selected) ->
                         overview.moodCalendarView.restoreCalendarState(month, selected)
                         updateCalendarHeader(month)
                     }
@@ -246,20 +269,28 @@ class JournalFragment : Fragment() {
 
                 launch {
                     viewModel.streakDaysFlow.collect { streakDays ->
-                        overview.tvCalendarStreak.text = getString(R.string.journal_streak_days, streakDays)
-                        overview.tvCalendarStreak.visibility = if (streakDays > 0) View.VISIBLE else View.GONE
+                        overview.tvCalendarStreak.text =
+                            resources.getQuantityString(R.plurals.journal_streak_days, streakDays, streakDays)
+                        overview.tvCalendarStreak.visibility =
+                            if (streakDays > 0) View.VISIBLE else View.GONE
                     }
                 }
 
                 launch {
                     viewModel.filterStateFlow.collect { filter ->
-                        binding.viewFilterActiveDot.visibility = if (filter.isNonDefault) View.VISIBLE else View.GONE
+                        binding.viewFilterActiveDot.visibility =
+                            if (filter.isNonDefault) View.VISIBLE else View.GONE
                     }
                 }
 
                 launch {
                     viewModel.events.collect { event ->
                         when (event) {
+                            JournalEvent.CalendarEntriesFilteredOut -> Snackbar.make(
+                                binding.root,
+                                R.string.journal_calendar_entries_filtered_out,
+                                Snackbar.LENGTH_SHORT
+                            ).show()
                             is JournalEvent.ShowUndoSnackbar -> {
                                 Snackbar.make(
                                     binding.root,

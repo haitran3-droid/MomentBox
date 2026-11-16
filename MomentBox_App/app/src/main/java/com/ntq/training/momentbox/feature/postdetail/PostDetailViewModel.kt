@@ -7,6 +7,7 @@ import com.ntq.training.momentbox.data.repository.FeedRepository
 import com.ntq.training.momentbox.domain.model.Author
 import com.ntq.training.momentbox.domain.model.Comment
 import com.ntq.training.momentbox.domain.model.Post
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -17,6 +18,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -86,8 +89,13 @@ class PostDetailViewModel(
     private val _replyingTo = MutableStateFlow<Comment?>(null)
     val replyingTo: StateFlow<Comment?> = _replyingTo.asStateFlow()
 
-    private var currentCommentPage = 1
+    private var currentCommentPage = 0
     private val retryingCommentIds = mutableSetOf<Long>()
+    private val likingCommentIds = mutableSetOf<Long>()
+    private val loadingReplyIds = mutableSetOf<Long>()
+    private var nextTemporaryId = -1L
+    private val _commentLoadFailed = MutableStateFlow(false)
+    val commentLoadFailed = _commentLoadFailed.asStateFlow()
 
     init {
         loadPostDetail()
@@ -110,7 +118,7 @@ class PostDetailViewModel(
         }
     }
 
-    private var loadCommentsJob: kotlinx.coroutines.Job? = null
+    private var loadCommentsJob: Job? = null
 
     /**
      * Tải danh sách bình luận (có hỗ trợ phân trang và hủy tác vụ cũ khi đổi chế độ sắp xếp).
@@ -120,40 +128,46 @@ class PostDetailViewModel(
      *   đang gửi, [loadCommentsJob]?.cancel() sẽ hủy ngay request cũ để dữ liệu cũ không ghi đè vào kết quả mới.
      * - Tôn trọng [_hasMoreComments]: Khi đã hết bình luận trên máy chủ, không bắn thêm request rỗng.
      */
-    fun loadComments(refresh: Boolean = false) {
-        if (!refresh && !_hasMoreComments.value) return
-        if (_isLoadingComments.value && !refresh) return
-
+    fun loadComments(refresh: Boolean = false, retry: Boolean = false) {
+        if (!refresh && (!_hasMoreComments.value || _isLoadingComments.value)) return
+        if (!refresh && !retry && _commentLoadFailed.value) return
         if (refresh) {
             loadCommentsJob?.cancel()
+            currentCommentPage = 0
         }
-
+        val pageToLoad = currentCommentPage + 1
+        val sort = _sortMode.value
+        _isLoadingComments.value = true
+        _commentLoadFailed.value = false
         loadCommentsJob = viewModelScope.launch {
-            _isLoadingComments.value = true
-            val pageToLoad = if (refresh) 1 else currentCommentPage + 1
-
             try {
                 val result = feedRepository.getComments(
                     postId = postId,
                     page = pageToLoad,
                     pageSize = 20,
-                    sort = _sortMode.value
+                    sort = sort
                 )
-                _isLoadingComments.value = false
-
+                coroutineContext.ensureActive()
                 if (result.isSuccess) {
                     val newComments = result.getOrThrow()
-                    if (refresh) {
+                    if (pageToLoad == 1) {
                         _comments.value = newComments
-                        currentCommentPage = 1
                     } else {
-                        _comments.value = _comments.value + newComments
-                        currentCommentPage = pageToLoad
+                        _comments.value = (_comments.value + newComments).distinctBy { it.id }
                     }
+                    currentCommentPage = pageToLoad
                     _hasMoreComments.value = newComments.size >= 20
+                } else {
+                    _commentLoadFailed.value = true
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
-                _isLoadingComments.value = false
+                _commentLoadFailed.value = true
+            } finally {
+                if (coroutineContext[Job]?.isActive == true) {
+                    _isLoadingComments.value = false
+                }
             }
         }
     }
@@ -174,9 +188,7 @@ class PostDetailViewModel(
      */
     fun retryComment(comment: Comment) {
         // Adapter có thể còn giữ row cũ trong lúc DiffUtil đang chạy; luôn kiểm tra state hiện tại.
-        val current = _comments.value.firstOrNull { it.id == comment.id }
-            ?: _comments.value.asSequence().flatMap { it.replies.asSequence() }.firstOrNull { it.id == comment.id }
-            ?: return
+        val current = findComment(comment.id) ?: return
         if (!current.sendFailed || current.isSending || !retryingCommentIds.add(current.id)) return
 
         updateCommentInList(current.id) {
@@ -219,53 +231,56 @@ class PostDetailViewModel(
     }
 
     fun toggleLikeComment(comment: Comment) {
+        val current = findComment(comment.id) ?: return
+        if (current.id <= 0 || !likingCommentIds.add(current.id)) return
+        setCommentLiked(current.id, !current.isLiked)
         viewModelScope.launch {
-            val nextLiked = !comment.isLiked
-            val delta = if (nextLiked) 1 else -1
-
-            // Cập nhật lạc quan
-            updateCommentInList(comment.id) {
-                it.copy(
-                    isLiked = nextLiked,
-                    likeCount = (it.likeCount + delta).coerceAtLeast(0)
-                )
+            try {
+                val result = feedRepository.toggleLikeComment(current.id, current.isLiked)
+                setCommentLiked(current.id, result.getOrDefault(current.isLiked))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                setCommentLiked(current.id, current.isLiked)
+            } finally {
+                likingCommentIds.remove(current.id)
             }
+        }
+    }
 
-            val result = feedRepository.toggleLikeComment(comment.id, comment.isLiked)
-            if (result.isFailure) {
-                // Rollback nếu thất bại
-                updateCommentInList(comment.id) {
-                    it.copy(
-                        isLiked = comment.isLiked,
-                        likeCount = comment.likeCount
-                    )
-                }
+    private fun setCommentLiked(id: Long, liked: Boolean) {
+        updateCommentInList(id) {
+            if (it.isLiked == liked) it else {
+                val delta = if (liked) 1 else -1
+                it.copy(isLiked = liked, likeCount = (it.likeCount + delta).coerceAtLeast(0))
             }
         }
     }
 
     fun expandReplies(parentComment: Comment) {
+        val current = findComment(parentComment.id) ?: return
+        val expand = !current.isRepliesExpanded
+        updateCommentInList(current.id) { it.copy(isRepliesExpanded = expand) }
+        if (!expand || current.replies.isNotEmpty() || !loadingReplyIds.add(current.id)) return
         viewModelScope.launch {
-            // Đánh dấu mở rộng câu trả lời
-            updateCommentInList(parentComment.id) {
-                it.copy(isRepliesExpanded = !it.isRepliesExpanded)
-            }
-
-            // Nếu chưa có danh sách phản hồi, tải phản hồi con từ server
-            if (parentComment.replies.isEmpty()) {
+            try {
                 val result = feedRepository.getComments(
                     postId = postId,
                     page = 1,
                     pageSize = 10,
                     sort = "top",
-                    parentId = parentComment.id
+                    parentId = current.id
                 )
-                if (result.isSuccess) {
-                    val replies = result.getOrThrow()
-                    updateCommentInList(parentComment.id) {
-                        it.copy(replies = replies, isRepliesExpanded = true)
-                    }
+                updateCommentInList(current.id) { parent ->
+                    result.fold(
+                        onSuccess = { replies ->
+                            parent.copy(replies = (parent.replies + replies).distinctBy { it.id })
+                        },
+                        onFailure = { parent.copy(isRepliesExpanded = false) }
+                    )
                 }
+            } finally {
+                loadingReplyIds.remove(current.id)
             }
         }
     }
@@ -274,7 +289,7 @@ class PostDetailViewModel(
         if (content.isBlank()) return
 
         val targetParent = _replyingTo.value
-        val tempId = -System.currentTimeMillis() // ID âm tạm thời cho optimistic update
+        val tempId = nextTemporaryId--
 
         val tempComment = Comment(
             id = tempId,
@@ -348,6 +363,10 @@ class PostDetailViewModel(
             }
         }
     }
+
+    private fun findComment(id: Long): Comment? =
+        _comments.value.firstOrNull { it.id == id }
+            ?: _comments.value.asSequence().flatMap { it.replies.asSequence() }.firstOrNull { it.id == id }
 
     private fun updateCommentInList(commentId: Long, transform: (Comment) -> Comment) {
         _comments.value = _comments.value.map { root ->

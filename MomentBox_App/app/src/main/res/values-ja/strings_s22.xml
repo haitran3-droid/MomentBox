@@ -1,0 +1,60 @@
+<resources>
+    <string name="s22_title">設定</string>
+    <string name="s22_section_general">一般</string>
+    <string name="s22_section_data">データとストレージ</string>
+    <string name="s22_section_other">その他</string>
+    <string name="s22_language">言語</string>
+    <string name="s22_theme">テーマ</string>
+    <string name="s22_reminder">日記のリマインダー</string>
+    <string name="s22_cache">画像キャッシュ</string>
+    <string name="s22_clear">削除</string>
+    <string name="s22_export">日記をエクスポート（JSON）</string>
+    <string name="s22_export_hint">本文と添付情報のみ。画像・音声ファイルは含みません</string>
+    <string name="s22_permissions">アプリの権限</string>
+    <string name="s22_permission_hint">通知・カメラ・マイク・写真</string>
+    <string name="s22_autoplay">動画の自動再生</string>
+    <string name="s22_developer">開発者ツール</string>
+    <string name="s22_debug_version">デバッグ版のみ · %1$s</string>
+    <string name="s22_logout">ログアウト</string>
+    <string name="s22_working">処理中…</string>
+    <string name="s22_failed">完了できませんでした。再試行してください。</string>
+    <string name="s22_cache_cleared">画像キャッシュを削除しました</string>
+    <string name="s22_exported">日記のJSONを書き出しました</string>
+    <string name="s22_open">開く</string>
+    <string name="s22_cancel">キャンセル</string>
+    <string name="s22_apply">適用</string>
+    <string name="s22_daily">毎日 %1$s</string>
+    <string name="s22_reminder_off">オフ · %1$s</string>
+    <string name="s22_reminder_blocked">通知がブロックされています。アプリの権限で許可してください。</string>
+    <string name="s22_reminder_fallback">おおよその時刻に通知。全画面はシステムの許可によります</string>
+    <string name="s22_reminder_exact">正確なアラーム。全画面はシステムの許可によります</string>
+    <string name="s22_logout_message">ログアウトして再生・録音・アップロードを停止しますか？</string>
+    <string name="s22_keep_journal">この端末に日記を残す</string>
+    <string name="s22_delete_confirm">この端末の日記と添付ファイルをすべて削除しますか？元に戻せません。</string>
+    <string name="s22_delete_logout">削除してログアウト</string>
+    <string name="s22_granted">許可済み</string>
+    <string name="s22_denied">未許可</string>
+    <string name="s22_partial">選択した写真・動画のみ</string>
+    <string name="s22_not_required">このAndroidバージョンでは不要</string>
+    <string name="s22_notifications">通知</string>
+    <string name="s22_camera">カメラ</string>
+    <string name="s22_microphone">マイク</string>
+    <string name="s22_media">写真と動画</string>
+    <string name="s22_exact">正確なアラーム</string>
+    <string name="s22_fullscreen">全画面通知</string>
+    <string name="s22_permission_help">項目をタップするとAndroid設定を開きます。権限がなくても他の機能は利用できます。</string>
+    <string-array name="s22_theme_options">
+        <item>システム設定</item>
+        <item>ライト</item>
+        <item>ダーク</item>
+    </string-array>
+    <string-array name="s22_autoplay_options">
+        <item>常に再生</item>
+        <item>Wi-Fiのみ</item>
+        <item>再生しない</item>
+    </string-array>
+    <string name="s22_back">戻る</string>
+    <string name="s22_media_mixed">写真: %1$s · 動画: %2$s</string>
+    <string name="s22_export_location">ダウンロードに保存</string>
+    <string name="s22_export_preview_truncated">プレビューは一部のみです。完全なファイルは保存先にあります。</string>
+</resources>

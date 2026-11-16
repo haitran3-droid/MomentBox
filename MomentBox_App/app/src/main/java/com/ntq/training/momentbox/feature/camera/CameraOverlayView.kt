@@ -7,9 +7,13 @@ import android.graphics.Color
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.PointF
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
+import com.ntq.training.momentbox.R
 
 /** Khóa tampon khi vẽ: analyzer không ghi đè bitmap UI đang đọc. Đếm xử lý/vẽ riêng. */
 class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
@@ -45,12 +49,24 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
     var focusX = -1f
 
     var focusY = -1f
+    var focusTap: PointF? = null
+    var onFocusClick: ((Float, Float) -> Unit)? = null
+
+    override fun performClick(): Boolean {
+        val tap = focusTap
+        focusTap = null
+        val focus = onFocusClick ?: return super.performClick()
+        super.performClick()
+        focus(tap?.x ?: width / 2f, tap?.y ?: height / 2f)
+        return true
+    }
+
     var exposureAvailable = false
     var exposureFraction = .5f
     private val sun by lazy {
-        androidx.core.content.ContextCompat.getDrawable(
+        ContextCompat.getDrawable(
             context,
-            com.ntq.training.momentbox.R.drawable.ic_m4_camera_sun,
+            R.drawable.ic_m4_camera_sun,
         )
     }
     var processedFrames = 0L
@@ -64,7 +80,7 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
         synchronized(lock) {
             if (frame?.width != bitmap.width || frame?.height != bitmap.height) {
                 frame?.recycle()
-                frame = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+                frame = createBitmap(bitmap.width, bitmap.height)
                 copyCanvas.setBitmap(frame)
             }
             copyCanvas.drawBitmap(bitmap, 0f, 0f, null)
@@ -107,7 +123,7 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
                         if (onThumbnail != null) {
                             val small =
                                 thumbnail
-                                    ?: Bitmap.createBitmap(108, 108, Bitmap.Config.ARGB_8888).also {
+                                    ?: createBitmap(108, 108).also {
                                         thumbnail = it
                                         thumbnailCanvas.setBitmap(it)
                                     }
@@ -180,6 +196,7 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
 
     fun release() {
         onThumbnail = null
+        onFocusClick = null
         synchronized(lock) {
             frame?.recycle()
             frame = null

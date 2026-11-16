@@ -20,7 +20,10 @@
         <com.ntq.training.momentbox.feature.camera.CameraOverlayView
             android:id="@+id/camera_overlay"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:contentDescription="@string/m4_camera_focus"
+            android:focusable="true" />
 
         <View
             android:layout_width="match_parent"
@@ -96,7 +99,7 @@
                     android:background="@drawable/bg_m4_camera_ratio"
                     android:fontFamily="@font/be_vietnam_pro_bold"
                     android:includeFontPadding="false"
-                    android:text="4:3"
+                    android:text="@string/camera_default_ratio"
                     android:textSize="13sp" />
             </LinearLayout>
 
@@ -170,7 +173,7 @@
             android:fillViewport="true"
             android:scrollbars="none">
 
-            <LinearLayout
+            <com.ntq.training.momentbox.feature.camera.CameraModeStrip
                 android:id="@+id/camera_modes"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
@@ -219,7 +222,7 @@
                     android:text="@string/m4_portrait"
                     android:textAllCaps="true"
                     android:textSize="13sp" />
-            </LinearLayout>
+            </com.ntq.training.momentbox.feature.camera.CameraModeStrip>
         </HorizontalScrollView>
 
         <FrameLayout
@@ -240,7 +243,7 @@
                 app:strokeColor="#FFFFFF"
                 app:strokeWidth="2dp" />
 
-            <androidx.appcompat.widget.AppCompatImageButton
+            <com.ntq.training.momentbox.feature.camera.CameraShutterButton
                 android:id="@+id/camera_shutter"
                 android:layout_width="76dp"
                 android:layout_height="76dp"

@@ -1,25 +1,33 @@
 package com.ntq.training.momentbox.data.repository
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
+import androidx.core.net.toUri
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.OwnedImageFiles
 import com.ntq.training.momentbox.core.network.ProgressRequestBody
 import com.ntq.training.momentbox.data.local.db.JournalAttachmentEntity
 import com.ntq.training.momentbox.data.local.db.JournalEntryEntity
+import com.ntq.training.momentbox.data.local.prefs.PendingJournalReceipt
+import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.feature.compose.ComposeDraft
 import com.ntq.training.momentbox.feature.compose.UploadProgress
+import com.ntq.training.momentbox.feature.postdetail.PostDetailActivity
 import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +80,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private val mutable = MutableStateFlow(UploadState())
 
     val state = mutable.asStateFlow()
-    @Volatile private var job: Job? = null
+    @Volatile
+    private var job: Job? = null
     private var snapshot: ComposeDraft? = null
 
     private var generation = 0L
@@ -81,7 +90,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private var lastNotice = 0L
     private var uploadId = ""
     private var journalEntryId = 0L
-    private var receipt: com.ntq.training.momentbox.data.local.prefs.PendingJournalReceipt? = null
+    private var receipt: PendingJournalReceipt? = null
     private var loadingReceipt: Job? = null
     private var recoveryEpoch = 0L
     private val subscription =
@@ -129,8 +138,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
             // Đọc đĩa có suspend: một lượt khôi phục cũ không được ghi đè chủ/backend mới.
             if (
                 epoch != recoveryEpoch ||
-                    app.settingsDataStore.getDataSource() != backend ||
-                    app.authRepository.getSavedUser()?.id != user?.id
+                app.settingsDataStore.getDataSource() != backend ||
+                app.authRepository.getSavedUser()?.id != user?.id
             )
                 return
             app.tokenStore.runIfGenerationMatches(expectedGeneration) {
@@ -163,12 +172,12 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private suspend fun boundaryMatches() =
         withContext(NonCancellable) {
             app.tokenStore.getSessionGeneration() == generation &&
-                app.settingsDataStore.getDataSource() == source
+                    app.settingsDataStore.getDataSource() == source
         }
 
     private suspend fun sameOwner(post: Post) =
         app.authRepository.getSavedUser()?.id == post.author.id &&
-            app.settingsDataStore.getDataSource() == source
+                app.settingsDataStore.getDataSource() == source
 
     override fun close() {
         subscription.close()
@@ -180,10 +189,10 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
         val input = draft.snapshot()
         if (!input.canPost) return
         snapshot = input
-        uploadId = java.util.UUID.randomUUID().toString()
+        uploadId = UUID.randomUUID().toString()
         lastNotice = -1000L
         journalEntryId =
-            (java.util.UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE).coerceAtLeast(1L)
+            (UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE).coerceAtLeast(1L)
         job =
             scope.launch {
                 val temporary = mutableListOf<File>()
@@ -198,8 +207,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     source = app.settingsDataStore.getDataSource()
                     check(
                         source ==
-                            com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
-                                .SOURCE_MB_SERVER
+                                SettingsDataStore
+                                    .SOURCE_MB_SERVER
                     ) {
                         "Posting requires MomentBox server"
                     }
@@ -207,7 +216,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     val prepared = mutableListOf<Pair<File, String>>()
                     for (media in input.media) {
                         currentCoroutineContext().ensureActive()
-                        val original = File(Uri.parse(media.uri).path ?: "")
+                        val original = File(media.uri.toUri().path ?: "")
                         check(original.isFile && original.length() in 1..50L * 1024 * 1024)
                         if (media.isVideo) {
                             val duration =
@@ -216,8 +225,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                                         try {
                                             setDataSource(original.absolutePath)
                                             extractMetadata(
-                                                    MediaMetadataRetriever.METADATA_KEY_DURATION
-                                                )
+                                                MediaMetadataRetriever.METADATA_KEY_DURATION
+                                            )
                                                 ?.toLongOrNull() ?: 0
                                         } finally {
                                             release()
@@ -238,7 +247,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                             prepared.add(compressed to "image/jpeg")
                         }
                     }
-                    val voice = input.voice?.let { File(Uri.parse(it.uri).path ?: "") }
+                    val voice = input.voice?.let { File(it.uri.toUri().path ?: "") }
                     if (voice != null) check(voice.isFile && voice.length() in 1..50L * 1024 * 1024)
                     val all = prepared + listOfNotNull(voice?.let { it to "audio/mp4" })
                     val progress = UploadProgress(all.map { it.first.length() })
@@ -250,8 +259,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     val progressJob = launch {
                         for (update in updates) if (
                             uploadJob.isActive &&
-                                state.value.phase in
-                                    listOf(UploadPhase.UPLOADING, UploadPhase.AWAITING_SERVER)
+                            state.value.phase in
+                            listOf(UploadPhase.UPLOADING, UploadPhase.AWAITING_SERVER)
                         ) {
                             mutable.value = update
                             notifyProgress()
@@ -291,12 +300,12 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     val voicePart = voice?.let { part(all.lastIndex, "voice") }
                     val fields =
                         mapOf(
-                                "caption" to input.caption,
-                                "privacy" to input.privacy,
-                                "allowComments" to input.allowComments.toString(),
-                                "location" to input.location,
-                                "voiceDurationMs" to (input.voice?.durationMs ?: 0).toString(),
-                            )
+                            "caption" to input.caption,
+                            "privacy" to input.privacy,
+                            "allowComments" to input.allowComments.toString(),
+                            "location" to input.location,
+                            "voiceDurationMs" to (input.voice?.durationMs ?: 0).toString(),
+                        )
                             .mapValues { it.value.toRequestBody("text/plain".toMediaType()) }
                     mutable.value =
                         UploadState(
@@ -323,7 +332,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     withContext(NonCancellable) {
                         if (input.saveToJournal) {
                             val record =
-                                com.ntq.training.momentbox.data.local.prefs.PendingJournalReceipt(
+                                PendingJournalReceipt(
                                     input,
                                     post,
                                     journalEntryId,
@@ -336,7 +345,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                     }
                     check(
                         app.tokenStore.getSessionGeneration() == generation &&
-                            app.settingsDataStore.getDataSource() == source
+                                app.settingsDataStore.getDataSource() == source
                     )
                     mutable.value =
                         UploadState(
@@ -385,6 +394,21 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                             .cancel(15001)
                 }
             }
+    }
+
+    suspend fun cancelForLogout() {
+        recoveryEpoch++
+        loadingReceipt?.cancelAndJoin()
+        loadingReceipt = null
+        job?.cancelAndJoin()
+        job = null
+        mutable.value = UploadState()
+        snapshot = null
+        withContext(Dispatchers.Main.immediate) {
+            (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(
+                15001
+            )
+        }
     }
 
     fun cancel(expectedId: String? = null) {
@@ -438,7 +462,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                 .filterNot { it in retained }
                 .forEach { path ->
                     runCatching {
-                        val uri = Uri.parse(path)
+                        val uri = path.toUri()
                         if (uri.scheme == "file")
                             File(uri.path!!)
                                 .canonicalFile
@@ -508,11 +532,11 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private fun notifyProgress() {
         if (
             Build.VERSION.SDK_INT >= 33 &&
-                app.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
-                    android.content.pm.PackageManager.PERMISSION_GRANTED
+            app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
         )
             return
-        val now = android.os.SystemClock.elapsedRealtime()
+        val now = SystemClock.elapsedRealtime()
         if (now - lastNotice < 1000) return
         lastNotice = now
         val s = mutable.value
@@ -530,7 +554,7 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                 app,
                 15001,
                 Intent(app, UploadCancelReceiver::class.java)
-                    .setData(Uri.parse("momentbox://upload/$uploadId/cancel"))
+                    .setData("momentbox://upload/$uploadId/cancel".toUri())
                     .putExtra("uploadId", uploadId),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
@@ -553,8 +577,8 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
     private fun notifySuccess(id: Long) {
         if (
             Build.VERSION.SDK_INT >= 33 &&
-                app.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
-                    android.content.pm.PackageManager.PERMISSION_GRANTED
+            app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
         )
             return
         val manager = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -563,11 +587,11 @@ class UploadRepository(private val app: MomentBoxApp) : AutoCloseable {
                 app,
                 id.hashCode(),
                 Intent(
-                        app,
-                        com.ntq.training.momentbox.feature.postdetail.PostDetailActivity::class.java,
-                    )
+                    app,
+                    PostDetailActivity::class.java,
+                )
                     .setAction(Intent.ACTION_VIEW)
-                    .setData(Uri.parse("momentbox://post/$id")),
+                    .setData("momentbox://post/$id".toUri()),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         manager.notify(

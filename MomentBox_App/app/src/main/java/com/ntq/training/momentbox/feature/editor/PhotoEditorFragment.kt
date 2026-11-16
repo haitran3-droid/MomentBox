@@ -1,10 +1,13 @@
 package com.ntq.training.momentbox.feature.editor
 
+import kotlin.math.ceil
 import android.Manifest
 import android.content.ClipData
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.net.Uri
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
@@ -17,6 +20,9 @@ import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -116,7 +122,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                     textSize = 11.5f
                     gravity = Gravity.CENTER
                     typeface =
-                        androidx.core.content.res.ResourcesCompat.getFont(
+                        ResourcesCompat.getFont(
                             requireContext(),
                             R.font.be_vietnam_pro_regular,
                         )
@@ -130,7 +136,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                     minimumWidth =
                         maxOf(
                             (64 * dp).toInt(),
-                            kotlin.math.ceil(paint.measureText(text.toString())).toInt() +
+                            ceil(paint.measureText(text.toString())).toInt() +
                                 (12 * dp).toInt(),
                         )
                     // Trong HorizontalScrollView cần chiều rộng nội dung thật, weight có thể làm
@@ -198,7 +204,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                 val bm =
                     OwnedImageFiles.decode(
                         requireContext(),
-                        Uri.parse(requireArguments().getString("uri")),
+                        requireNotNull(requireArguments().getString("uri")).toUri(),
                     )
                 b.editorCanvas.setImage(bm)
                 b.editorSave.isEnabled = true
@@ -210,7 +216,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
         }
         val prefs = requireContext().getSharedPreferences("m4-editor-hints", 0)
         b.editorHint.isVisible = !prefs.getBoolean("gesture", false)
-        if (b.editorHint.isVisible) prefs.edit().putBoolean("gesture", true).apply()
+        if (b.editorHint.isVisible) prefs.edit { putBoolean("gesture", true) }
         stickerCategory = state?.getInt("category") ?: 0
         showTool(state?.getString("tool") ?: "sticker")
     }
@@ -237,12 +243,12 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
             child.alpha = if (selected) 1f else .75f
             child.setTextColor(if (selected) 0xFFC4BCFF.toInt() else Color.WHITE)
             child.typeface =
-                androidx.core.content.res.ResourcesCompat.getFont(
+                ResourcesCompat.getFont(
                     requireContext(),
                     if (selected) R.font.be_vietnam_pro_bold else R.font.be_vietnam_pro_regular,
                 )
             val pill =
-                android.graphics.drawable.GradientDrawable().apply {
+                GradientDrawable().apply {
                     setColor(if (selected) 0x4D8B7CF6 else Color.TRANSPARENT)
                     cornerRadius = 16 * density
                 }
@@ -254,19 +260,18 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                     .mutate()
             icon.setTint(if (selected) 0xFFC4BCFF.toInt() else Color.WHITE)
             val compound =
-                android.graphics.drawable
-                    .LayerDrawable(
-                        arrayOf(
-                            pill,
-                            android.graphics.drawable.InsetDrawable(
-                                icon,
-                                (12 * density).toInt(),
-                                (6 * density).toInt(),
-                                (12 * density).toInt(),
-                                (6 * density).toInt(),
-                            ),
-                        )
+                LayerDrawable(
+                    arrayOf(
+                        pill,
+                        InsetDrawable(
+                            icon,
+                            (12 * density).toInt(),
+                            (6 * density).toInt(),
+                            (12 * density).toInt(),
+                            (6 * density).toInt(),
+                        ),
                     )
+                )
                     .apply { setBounds(0, 0, (44 * density).toInt(), (32 * density).toInt()) }
             child.setCompoundDrawables(null, compound, null, null)
         }
@@ -310,7 +315,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                         label.setTextColor(if (i == index) 0xFF111111.toInt() else Color.WHITE)
                         label.isSelected = i == index
                         label.background =
-                            android.graphics.drawable.GradientDrawable().apply {
+                            GradientDrawable().apply {
                                 setColor(if (i == index) Color.WHITE else 0x24FFFFFF)
                                 cornerRadius = 13 * dp
                             }
@@ -343,7 +348,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                             setTextColor(Color.WHITE)
                             textSize = 12f
                             typeface =
-                                androidx.core.content.res.ResourcesCompat.getFont(
+                                ResourcesCompat.getFont(
                                     context,
                                     R.font.be_vietnam_pro_medium,
                                 )

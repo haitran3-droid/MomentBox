@@ -15,26 +15,27 @@ import com.ntq.training.momentbox.databinding.ItemSuggestionCardBinding
 
 class SuggestionsAdapter(
     private val onFollowClick: (User) -> Unit,
-    private val onDismissClick: (User) -> Unit
+    private val onDismissClick: (User) -> Unit,
+    private val onProfileClick: (User) -> Unit = {}
 ) : ListAdapter<User, SuggestionsAdapter.SuggestionViewHolder>(SuggestionDiffCallback) {
     override fun getItemViewType(position: Int): Int = R.layout.item_suggestion_card
     inner class SuggestionViewHolder(val binding: ItemSuggestionCardBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        init {
-            binding.btnSuggestionFollow.setOnClickListener {
+            init {
+                binding.btnSuggestionFollow.setOnClickListener {
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) {
                     onFollowClick(getItem(pos))
                 }
             }
-            binding.btnCloseSuggestion.setOnClickListener {
+                binding.btnCloseSuggestion.setOnClickListener {
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) {
                     onDismissClick(getItem(pos))
                 }
             }
+            }
         }
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SuggestionViewHolder {
         val binding = ItemSuggestionCardBinding.inflate(
@@ -49,6 +50,8 @@ class SuggestionsAdapter(
         val user = getItem(position)
         with(holder.binding) {
             tvSuggestionName.text = user.displayName
+            tvSuggestionName.setOnClickListener { onProfileClick(user) }
+            ivSuggestionAvatar.setOnClickListener { onProfileClick(user) }
             tvSuggestionMutual.text = if (user.mutualCount > 0) {
                 root.context.resources.getQuantityString(R.plurals.feed_mutual_count, user.mutualCount, user.mutualCount)
             } else {

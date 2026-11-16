@@ -1,0 +1,31 @@
+<resources>
+    <string name="s21_posts">Posts</string>
+    <string name="s21_videos">Videos</string>
+    <string name="s21_saved">Saved</string>
+    <string name="s21_followers">Followers</string>
+    <string name="s21_following">Following</string>
+    <string name="s21_edit">Edit profile</string>
+    <string name="s21_share">Share profile</string>
+    <string name="s21_people">Find people</string>
+    <string name="s21_settings">Settings</string>
+    <string name="s21_block_unavailable">Block · Unavailable</string>
+    <string name="s21_report_unavailable">Report · Unavailable</string>
+    <string name="s21_avatar">Change avatar</string>
+    <string name="s21_retry">Retry</string>
+    <string name="s21_error">Could not load data. Please retry.</string>
+    <string name="s21_empty">No posts yet</string>
+    <string name="s21_follow">Follow</string>
+    <string name="s21_unfollow">Following</string>
+    <string name="s21_message">Message</string>
+    <string name="s21_name">Display name</string>
+    <string name="s21_bio">Bio</string>
+    <string name="s21_location">Location</string>
+    <string name="s21_save">Save</string>
+    <string name="s21_cancel">Cancel</string>
+    <string name="s21_name_required">Please enter a display name</string>
+    <string name="s21_update_error">Could not update profile. Please retry.</string>
+    <string name="s21_source_unsupported">The current server does not support this action.</string>
+    <string name="s21_more">Profile options</string>
+    <string name="s21_share_text">%1$s’s profile: %2$s</string>
+    <string name="s21_unknown_count">—</string>
+</resources>

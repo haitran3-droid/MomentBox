@@ -12,10 +12,8 @@
     <string name="m4_take_photo">Chụp ảnh</string>
     <string name="m4_empty">Chưa có ảnh hoặc video trong phạm vi quyền hiện tại.</string>
     <string name="m4_library_error">Không đọc được thư viện. Chạm để thử lại.</string>
-    <string name="m4_limit">Bạn có thể chọn tối đa 10 mục.</string>
     <string name="m4_video_invalid">Chỉ hỗ trợ video có thời lượng hợp lệ tối đa 60 giây.</string>
     <string name="m4_unsupported">Không hỗ trợ mục này.</string>
-    <string name="m4_settings">Mở Cài đặt</string>
     <string name="m4_loading">Đang tải…</string>
     <string name="m4_camera">Máy ảnh</string>
     <string name="m4_select">Chọn media</string>
@@ -93,7 +91,9 @@
     <string name="m4_see_all">Xem tất cả</string>
     <string name="m4_no_recent">Chưa có bản ghi</string>
     <string name="m4_recent_record_title">Ghi âm %1$s</string>
-    <string name="m4_limit_remaining">Lượt này có thể chọn tối đa %1$d mục.</string>
+    <plurals name="m4_limit_remaining">
+        <item quantity="other">Lượt này có thể chọn tối đa %1$d mục.</item>
+    </plurals>
     <string name="m4_reorder_hint">Giữ và kéo để sắp xếp thứ tự</string>
     <string name="m4_audio_busy">Âm thanh đang bận. Hãy thử lại sau khi bản ghi đã tạm dừng.</string>
     <string name="m4_editor_restore_error">Không thể khôi phục phiên chỉnh sửa trước. Ảnh gốc vẫn được giữ.</string>

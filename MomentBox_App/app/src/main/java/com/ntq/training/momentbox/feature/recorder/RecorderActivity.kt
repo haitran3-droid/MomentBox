@@ -7,10 +7,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.text.SpannableString
+import android.text.format.Formatter
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +32,10 @@ import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.core.media.AudioPlaybackKind
 import com.ntq.training.momentbox.databinding.ActivityRecorderBinding
 import java.io.File
+import java.lang.String as JavaString
+import java.text.DateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -200,18 +209,18 @@ class RecorderActivity : AppCompatActivity() {
         binding.recordButton.isEnabled =
             !recoveryLoading && s.phase !in listOf(RecordPhase.PREPARING, RecordPhase.STOPPING)
         val text =
-            java.lang.String.format(
-                java.util.Locale.ROOT,
+            JavaString.format(
+                Locale.ROOT,
                 "%02d:%02d.%d",
                 s.elapsedMs / 60000,
                 s.elapsedMs / 1000 % 60,
                 s.elapsedMs / 100 % 10,
             )
         binding.recordTime.text =
-            android.text.SpannableString(text).apply {
-                setSpan(android.text.style.RelativeSizeSpan(.65f), text.length - 2, text.length, 0)
+            SpannableString(text).apply {
+                setSpan(RelativeSizeSpan(.65f), text.length - 2, text.length, 0)
                 setSpan(
-                    android.text.style.ForegroundColorSpan(0xFF9A9AAA.toInt()),
+                    ForegroundColorSpan(0xFF9A9AAA.toInt()),
                     text.length - 2,
                     text.length,
                     0,
@@ -262,14 +271,14 @@ class RecorderActivity : AppCompatActivity() {
             val item =
                 withContext(Dispatchers.IO) {
                     recentFiles().firstOrNull()?.let { file ->
-                        val reader = android.media.MediaMetadataRetriever()
+                        val reader = MediaMetadataRetriever()
 
                         val duration =
                             try {
                                 reader.setDataSource(file.absolutePath)
                                 reader
                                     .extractMetadata(
-                                        android.media.MediaMetadataRetriever.METADATA_KEY_DURATION
+                                        MediaMetadataRetriever.METADATA_KEY_DURATION
                                     )
                                     ?.toLongOrNull() ?: 0L
                             } catch (_: Exception) {
@@ -286,22 +295,22 @@ class RecorderActivity : AppCompatActivity() {
                 item?.let {
                     getString(
                         R.string.m4_recent_record_title,
-                        java.text.DateFormat.getDateTimeInstance(
-                                java.text.DateFormat.SHORT,
-                                java.text.DateFormat.SHORT,
+                        DateFormat.getDateTimeInstance(
+                                DateFormat.SHORT,
+                                DateFormat.SHORT,
                             )
-                            .format(java.util.Date(it.first.lastModified())),
+                            .format(Date(it.first.lastModified())),
                     )
                 } ?: getString(R.string.m4_no_recent)
             binding.recordRecentDetails.text =
                 item
                     ?.let {
                         String.format(
-                            java.util.Locale.getDefault(),
+                            Locale.getDefault(),
                             "%d:%02d · %s",
                             it.second / 60000,
                             it.second / 1000 % 60,
-                            android.text.format.Formatter.formatShortFileSize(
+                            Formatter.formatShortFileSize(
                                 this@RecorderActivity,
                                 it.first.length(),
                             ),

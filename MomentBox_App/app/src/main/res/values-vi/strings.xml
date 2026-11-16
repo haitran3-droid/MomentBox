@@ -45,7 +45,6 @@
     <string name="login_no_account">Chưa có tài khoản?</string>
     <string name="login_register_action">Đăng ký</string>
     <string name="feature_in_development">Tính năng đang phát triển</string>
-    <string name="network_error_retry">Lỗi kết nối mạng, vui lòng thử lại</string>
     <string name="retry">Thử lại</string>
 
     <!-- S22b Language Dialog -->
@@ -58,19 +57,10 @@
     <string name="apply">Áp dụng</string>
 
     <!-- Main Host -->
-    <string name="main_title">MomentBox Home</string>
-    <string name="main_welcome_user">Xin chào, %1$s!</string>
-    <string name="main_user_email">%1$s</string>
-    <string name="main_logout">Đăng xuất</string>
-    <string name="main_trigger_401">Giả lập lỗi 401 (Test Refresh Token)</string>
-    <string name="main_refresh_success">Refresh token và gọi lại API thành công!</string>
     <string name="main_session_expired">Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.</string>
-    <string name="main_session_valid">Phiên đăng nhập hợp lệ (Token OK)</string>
-    <string name="main_session_refreshed">Đã tự động làm mới token sau lỗi 401</string>
     <string name="onboarding_art_journal_date">26 Tháng 10, 2026</string>
     <string name="onboarding_art_chat_incoming">Hôm nay trời đẹp quá! ☀️</string>
     <string name="onboarding_art_chat_outgoing">Đi cafe chụp ảnh nhé? 📸</string>
-    <string name="main_debug_refresh_request">Đang kiểm tra 401 → refresh → thử lại…</string>
 
     <!-- M2 Navigation -->
     <string name="nav_feed">Bảng tin</string>
@@ -92,7 +82,6 @@
         <item quantity="other">%1$d bài viết mới</item>
     </plurals>
     <string name="suggestions_title">Gợi ý cho bạn</string>
-    <string name="see_all">Xem tất cả</string>
     <string name="follow">Theo dõi</string>
     <string name="following">Đang theo dõi</string>
     <string name="feed_error">Lỗi tải bảng tin</string>
@@ -129,20 +118,12 @@
     <string name="screen_unlocked">Đã mở khóa</string>
     <string name="sound_muted">Đã tắt tiếng</string>
     <string name="sound_unmuted">Đã bật tiếng</string>
-    <string name="create_post_coming_soon">Tính năng tạo bài viết đang được phát triển (Milestone M4)</string>
 
     <!-- M3 Strings (VI) -->
     <string name="common_back">Quay lại</string>
     <string name="common_search">Tìm kiếm</string>
     <string name="journal_title">Nhật ký</string>
     <string name="journal_search_hint">Tìm theo tiêu đề, nội dung, thẻ…</string>
-    <string name="journal_filter_desc">Lọc &amp; sắp xếp</string>
-    <string name="journal_stats_desc">Thống kê</string>
-    <string name="journal_streak_format">🔥 %1$d ngày</string>
-    <string name="journal_this_week">TUẦN NÀY</string>
-    <string name="journal_posts_count_format">%1$d bài viết</string>
-    <string name="journal_pin">Ghim</string>
-    <string name="journal_unpin">Bỏ ghim</string>
     <string name="journal_delete">Xóa</string>
     <string name="journal_empty_title">Chưa có dòng nhật ký nào</string>
     <string name="journal_empty_desc">Hãy bắt đầu ghi lại những suy nghĩ và cảm xúc của bạn hôm nay</string>
@@ -152,8 +133,12 @@
     <string name="journal_action_pin">Ghim</string>
     <string name="journal_action_unpin">Bỏ ghim</string>
     <string name="journal_action_delete">Xoá</string>
-    <string name="journal_streak_days">🔥 %1$d ngày</string>
-    <string name="journal_entries_count">%1$d bài viết</string>
+    <plurals name="journal_streak_days">
+        <item quantity="other">🔥 %1$d ngày</item>
+    </plurals>
+    <plurals name="journal_entries_count">
+        <item quantity="other">%1$d bài viết</item>
+    </plurals>
     <string name="filter_title">Sắp xếp &amp; lọc</string>
     <string name="filter_reset">Đặt lại</string>
     <string name="filter_sort_by">Sắp xếp theo</string>
@@ -169,7 +154,9 @@
     <string name="filter_has_photo">Có ảnh</string>
     <string name="filter_has_audio">Có ghi âm</string>
     <string name="filter_date_range_title">Khoảng thời gian</string>
-    <string name="filter_apply_count_format">Áp dụng · %1$d kết quả</string>
+    <plurals name="filter_apply_count_format">
+        <item quantity="other">Áp dụng · %1$d kết quả</item>
+    </plurals>
     <string name="filter_apply_no_count">Áp dụng</string>
     <string name="filter_all_time">Tất cả thời gian</string>
     <string name="editor_title_new">Nhật ký mới</string>
@@ -201,7 +188,9 @@
     <string name="editor_restore_draft_desc">Bạn có một bản nháp nhật ký chưa hoàn thành. Bạn có muốn khôi phục không?</string>
     <string name="editor_restore_action">Khôi phục</string>
     <string name="editor_restore_discard">Bỏ qua</string>
-    <string name="editor_word_count_format">%1$d từ</string>
+    <plurals name="editor_word_count_format">
+        <item quantity="other">%1$d từ</item>
+    </plurals>
     <string name="editor_ambient_picker_title">Chọn âm thanh nền</string>
     <string name="editor_ambient_rain">Âm thanh nền: Tiếng mưa</string>
     <string name="editor_ambient_ocean">Âm thanh nền: Tiếng biển</string>
@@ -227,19 +216,20 @@
     <string name="stats_delta_down">▼ %1$d</string>
     <string name="stats_percentage_format">%1$d%%</string>
     <string name="stats_share_subject">Báo cáo thống kê nhật ký</string>
-    <string name="stats_share_summary_format">Báo cáo Thống kê Nhật ký - MomentBox\nKỳ: %1$s\nBài viết: %2$d bài\nChuỗi hiện tại: %3$d ngày\nTổng số từ: %4$s từ\nGhi âm: %5$d phút\nĐúc kết: %6$s</string>
+    <string name="stats_share_summary_format">Báo cáo Thống kê Nhật ký - MomentBox\nKỳ: %1$s\nBài viết: %2$d\nChuỗi hiện tại (ngày): %3$d\nTổng số từ: %4$s\nGhi âm (phút): %5$d\nĐúc kết: %6$s</string>
 
     <string name="journal_period_previous">Kỳ trước</string>
     <string name="journal_period_next">Kỳ tiếp theo</string>
     <string name="journal_insight_empty">Hãy tiếp tục viết nhật ký để khám phá các quy luật cảm xúc thú vị của bạn.</string>
     <string name="journal_insight_weekend">Bạn thường vui hơn vào cuối tuần (+%1$d%%) và viết nhiều nhất vào %2$s.</string>
-    <string name="journal_insight_habit">Bạn duy trì thói quen viết tốt nhất vào %1$s với %2$d bài viết.</string>
+    <plurals name="journal_insight_habit">
+        <item quantity="other">Bạn duy trì thói quen viết tốt nhất vào %1$s với %2$d bài viết.</item>
+    </plurals>
     <string name="journal_header_today">HÔM NAY</string>
     <string name="journal_header_yesterday">HÔM QUA</string>
     <string name="journal_header_this_week">TUẦN NÀY</string>
     <string name="journal_header_previous_week">TUẦN TRƯỚC</string>
     <string name="journal_header_week_format">TUẦN %1$d (%2$d)</string>
-    <string name="journal_camera_next_milestone">Camera sẽ được tích hợp ở giai đoạn M4.</string>
     <string name="editor_word_count_zero">0 từ</string>
     <string name="journal_storage_error">Không thể đọc hoặc lưu dữ liệu. Vui lòng thử lại.</string>
     <string name="journal_retry">Thử lại</string>
@@ -249,9 +239,13 @@
     <string name="journal_mood_chip_4">😢 Buồn</string>
     <string name="journal_mood_chip_5">😡 Tệ</string>
     <string name="journal_day_mood_description">%1$s, %2$s</string>
-    <string name="journal_sector_description">%1$s, %2$d bài viết, %3$d%%</string>
+    <plurals name="journal_sector_description">
+        <item quantity="other">%1$s, %2$d bài viết, %3$d%%</item>
+    </plurals>
     <string name="journal_audio_play">Phát âm thanh</string><string name="journal_audio_pause">Tạm dừng âm thanh</string>
     <string name="editor_ambient_volume">Âm lượng âm thanh nền</string>
     <string name="journal_insight_weekend_styled">Bạn thường <b>vui hơn vào cuối tuần</b> (+^1%) và viết nhiều nhất vào <b>^2</b>.</string>
     <string name="journal_insight_habit_styled">Bạn duy trì thói quen viết tốt nhất vào <b>^1</b> với ^2 bài viết.</string>
+    <string name="journal_header_pinned">ĐÃ GHIM</string>
+    <string name="journal_calendar_entries_filtered_out">Không có bài viết ngày này khớp tìm kiếm hoặc bộ lọc.</string>
 </resources>

@@ -96,6 +96,7 @@ android:paddingBottom="10dp">
 <!-- Khung phát Video Media3 -->
 <FrameLayout
     android:id="@+id/videoContainer"
+    android:contentDescription="@string/media_toggle_fullscreen"
     android:layout_width="match_parent"
     android:layout_height="196dp"
     android:background="@color/black">
@@ -108,6 +109,7 @@ android:paddingBottom="10dp">
     <!-- Thumbnail ảnh tĩnh khi chưa autoplay -->
     <ImageView
         android:id="@+id/ivVideoThumbnail"
+        android:importantForAccessibility="no"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop" />

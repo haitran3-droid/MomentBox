@@ -1,0 +1,3 @@
+<resources>
+    <string name="m5_socket_waiting_unknown">Waiting to reconnect (attempt %1$d)…</string>
+</resources>

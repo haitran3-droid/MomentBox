@@ -25,7 +25,10 @@ internal class OfflineFeedState(
 
     @Synchronized
     fun clear() {
-        posts.clear(); users.clear(); following.clear(); comments.clear()
+        posts.clear()
+        users.clear()
+        following.clear()
+        comments.clear()
         seeded = false
         nextCommentId = 10000L
     }
@@ -48,7 +51,8 @@ internal class OfflineFeedState(
     }
 
     private fun success(data: JsonElement? = null): Pair<Int, String> = 200 to JsonObject().apply {
-        addProperty("success", true); add("data", data ?: JsonNull.INSTANCE)
+        addProperty("success", true)
+        add("data", data ?: JsonNull.INSTANCE)
     }.toString()
 
     private fun missing(): Pair<Int, String> =
@@ -112,7 +116,8 @@ internal class OfflineFeedState(
                     (post.get("likeCount").asInt + if (now) 1 else -1).coerceAtLeast(0)
                 )
                 return success(JsonObject().apply {
-                    addProperty("postId", id); addProperty(field, now)
+                    addProperty("postId", id)
+                    addProperty(field, now)
                     if (like) addProperty("likeCount", post.get("likeCount").asInt)
                 })
             }
@@ -132,7 +137,8 @@ internal class OfflineFeedState(
                         base.take(count).forEach { templateRow ->
                             add(templateRow.deepCopy().asJsonObject.apply {
                                 // Comment-like API nhận commentId toàn cục, không kèm postId: không được tái dùng1/2 giữa các bài.
-                                addProperty("id", ++nextCommentId); addProperty("postId", id)
+                                addProperty("id", ++nextCommentId)
+                                addProperty("postId", id)
                                 if (parent != null) addProperty("parentId", parent)
                             })
                         }
@@ -141,7 +147,8 @@ internal class OfflineFeedState(
                 if (method == "POST") {
                     val row = JsonParser.parseString(template).asJsonObject.getAsJsonObject("data")
                         .deepCopy().apply {
-                        addProperty("id", ++nextCommentId); addProperty("postId", id)
+                        addProperty("id", ++nextCommentId)
+                        addProperty("postId", id)
                         addProperty("content", body.get("content")?.asString.orEmpty())
                         addProperty(
                             "createdAt",
@@ -177,7 +184,8 @@ internal class OfflineFeedState(
                 })
             }
             if (method == "DELETE") {
-                posts.remove(id); return success()
+                posts.remove(id)
+                return success()
             }
             if (method == "GET") return success(post.deepCopy())
         }
@@ -216,10 +224,12 @@ internal class OfflineFeedState(
             )
             row.addProperty("isLiked", now)
             return success(JsonObject().apply {
-                addProperty("commentId", id); addProperty(
+                addProperty("commentId", id)
+                addProperty(
                 "isLiked",
                 now
-            ); addProperty("likeCount", row.get("likeCount").asInt)
+            )
+            addProperty("likeCount", row.get("likeCount").asInt)
             })
         }
         return missing()

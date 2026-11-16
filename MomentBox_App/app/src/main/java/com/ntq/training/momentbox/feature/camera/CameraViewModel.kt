@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.camera
 
+import androidx.camera.core.ImageCapture
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 
@@ -29,7 +30,7 @@ class CameraViewModel(private val state: SavedStateHandle) : ViewModel() {
         }
 
     var flash: Int
-        get() = state["flash"] ?: androidx.camera.core.ImageCapture.FLASH_MODE_AUTO
+        get() = state["flash"] ?: ImageCapture.FLASH_MODE_AUTO
         set(value) {
             state["flash"] = value
         }

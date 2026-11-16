@@ -9,10 +9,4 @@
     <string name="media_toggle_sound">Mute or unmute</string>
     <string name="media_toggle_fullscreen">Toggle fullscreen</string>
     <string name="media_unlock_controls">Unlock controls</string>
-    <string name="feature_coming_soon">This feature is coming soon.</string>
-    <string name="profile_account_title">Your account</string>
-    <string name="journal_placeholder_title">Mood journal</string>
-    <string name="journal_placeholder_desc">Explore and keep your memorable moments.</string>
-    <string name="chat_placeholder_title">Direct messages</string>
-    <string name="chat_placeholder_desc">Chat and connect with your friends.</string>
 </resources>

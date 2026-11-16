@@ -5,10 +5,13 @@ import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
+import android.os.Bundle
+import android.os.Parcelable
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import androidx.core.os.BundleCompat
 import kotlin.math.roundToInt
 
 class AngleRulerView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
@@ -93,19 +96,19 @@ class AngleRulerView @JvmOverloads constructor(context: Context, attrs: Attribut
         invalidate()
     }
 
-    override fun onSaveInstanceState(): android.os.Parcelable =
-        android.os.Bundle().apply {
+    override fun onSaveInstanceState(): Parcelable =
+        Bundle().apply {
             putParcelable("parent", super.onSaveInstanceState())
             putInt("degrees", degrees)
         }
 
-    override fun onRestoreInstanceState(state: android.os.Parcelable?) {
-        if (state is android.os.Bundle) {
+    override fun onRestoreInstanceState(state: Parcelable?) {
+        if (state is Bundle) {
             super.onRestoreInstanceState(
-                androidx.core.os.BundleCompat.getParcelable(
+                BundleCompat.getParcelable(
                     state,
                     "parent",
-                    android.os.Parcelable::class.java,
+                    Parcelable::class.java,
                 )
             )
             setDegrees(state.getInt("degrees"))

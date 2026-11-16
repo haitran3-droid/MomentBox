@@ -196,11 +196,6 @@ class LoginViewModel(
         _uiState.value = LoginUiState.Idle
     }
 
-    fun beginSourceChange() {
-        resetUiState()
-        _uiState.value = LoginUiState.Loading
-    }
-
     class Factory(
         private val authRepository: AuthRepository,
         private val settingsDataStore: SettingsStorage,

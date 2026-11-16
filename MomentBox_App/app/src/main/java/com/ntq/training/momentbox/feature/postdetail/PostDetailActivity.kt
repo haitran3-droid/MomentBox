@@ -225,7 +225,7 @@ class PostDetailActivity : AppCompatActivity() {
         )
 
         commentsFooterAdapter = CommentsFooterAdapter {
-            viewModel.loadComments()
+            viewModel.loadComments(retry = true)
         }
 
         // Bật setIsolateViewTypes(true) kết hợp với các hằng số VIEW_TYPE độc lập (1001, 1002, 1003, 1004)
@@ -412,11 +412,15 @@ class PostDetailActivity : AppCompatActivity() {
 
                 // Quan sát trạng thái đang tải thêm
                 launch {
-                    viewModel.isLoadingComments.collectLatest { loading ->
-                        if (!isVersionA) {
-                            commentsFooterAdapter.setLoading(loading)
+                    combine(viewModel.isLoadingComments, viewModel.commentLoadFailed, ::Pair)
+                        .collectLatest { (loading, failed) ->
+                            if (!isVersionA) {
+                                commentsFooterAdapter.setLoading(
+                                    loading,
+                                    if (failed) getString(R.string.comments_error) else null
+                                )
+                            }
                         }
-                    }
                 }
 
                 // Quan sát trạng thái đang trả lời bình luận

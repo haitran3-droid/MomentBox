@@ -76,6 +76,16 @@ class ProfileViewModel(
                         refreshHeader()
                     }
 
+                    is FeedProfileUpdate.Change.PostDeleted -> if (current.isMe) {
+                        mutable.update { state ->
+                            state.copy(pages = state.pages.mapValues { (_, page) ->
+                                page.copy(items = page.items.filterNot { it.id == change.postId })
+                            })
+                        }
+                        current.tabs.forEach(::refresh)
+                        refreshHeader()
+                    }
+
                     is FeedProfileUpdate.Change.Follow -> if (!current.isMe && current.userId == change.userId) {
                         val user = current.user
                         if (user != null && user.isFollowing != change.following) {

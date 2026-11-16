@@ -115,6 +115,8 @@ class FeedRepositoryImpl(
     private val fieldVersions = mutableMapOf<Pair<Long, String>, Long>()
     private val activeMutations = mutableSetOf<Pair<Long, String>>()
     private val deletedVersions = mutableMapOf<Long, Long>()
+    private val _deletedPostIds = MutableStateFlow<Set<Long>>(emptySet())
+    override val deletedPostIds = _deletedPostIds.asStateFlow()
     private val mutationLocks = ConcurrentHashMap<String, Mutex>()
 
     private data class Scope(
@@ -151,6 +153,7 @@ class FeedRepositoryImpl(
         fieldVersions.clear()
         activeMutations.clear()
         deletedVersions.clear()
+        _deletedPostIds.value = emptySet()
     }
 
     private suspend fun beginScope(page: Int?): Scope {
@@ -630,10 +633,12 @@ class FeedRepositoryImpl(
         // Xóa khỏi cache tập trung
         commit(scope) {
             deletedVersions[postId] = ++cacheVersion
+            _deletedPostIds.update { it + postId }
             _createdPosts.value = _createdPosts.value.filterNot { it.id == postId }
             feedEpoch++
             _postsMap.update { it - postId }
         }
+        publishProfileUpdate(scope, FeedProfileUpdate.Change.PostDeleted(postId))
 
         Result.success(Unit)
     }

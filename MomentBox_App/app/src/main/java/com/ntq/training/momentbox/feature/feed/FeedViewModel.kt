@@ -95,7 +95,7 @@ class FeedViewModel(
             .debounce { if (it.isEmpty()) 0L else 300L }
             .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
-    private var currentPage = 1
+    private var currentPage = 0
     private var hasMorePages = true
 
     /** Thế hệ tải dữ liệu bảng tin để bảo vệ chống race condition phân trang và refresh (F05) */
@@ -123,16 +123,17 @@ class FeedViewModel(
     private val loadedFeedItems =
         combine(
             _rawFeedItems,
-            feedRepository.postsMapFlow,
+            combine(feedRepository.postsMapFlow, feedRepository.deletedPostIds, ::Pair),
             _isLoadingMore,
             _footerError,
             feedRepository.followingMapFlow,
-        ) { rawItems, postsMap, loadingMore, footerErr, followingMap ->
+        ) { rawItems, (postsMap, deletedIds), loadingMore, footerErr, followingMap ->
             val result = mutableListOf<FeedItem>()
 
             for (item in rawItems) {
                 when (item) {
                     is FeedItem.PostItem -> {
+                        if (item.post.id in deletedIds) continue
                         // Nếu bài viết đã có bản cập nhật mới nhất trong postsMap (like, bookmark,
                         // commentCount), lấy bản mới nhất
                         val updatedPost = postsMap[item.post.id] ?: item.post
@@ -231,8 +232,6 @@ class FeedViewModel(
         _isRefreshing.value = true
         loadJob =
             viewModelScope.launch {
-                currentPage = 1
-                hasMorePages = true
                 _footerError.value = null
                 footerFallbackResource = null
 
@@ -267,6 +266,10 @@ class FeedViewModel(
         loadInitialData()
     }
 
+    fun retryFeed() {
+        if (currentPage == 0) loadInitialData() else loadNextPage()
+    }
+
     /**
      * Tải trang bài viết tiếp theo khi người dùng cuộn xuống đáy danh sách. Khử trùng lặp bài viết
      * (Deduplication) và bảo vệ thế hệ phân trang (F05).
@@ -275,7 +278,7 @@ class FeedViewModel(
         // Danh sách lọc ngắn có thể phát onScrolled ngay khi submitList, chặn cả thời gian
         // debounce.
         if (_searchQuery.value.isNotBlank() || appliedSearchQuery.value.isNotEmpty()) return
-        if (_isLoadingMore.value || !hasMorePages || _isRefreshing.value) return
+        if (currentPage == 0 || _isLoadingMore.value || !hasMorePages || _isRefreshing.value) return
 
         val gen = feedGeneration
         val readFollowRevision = followRevision

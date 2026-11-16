@@ -260,7 +260,7 @@ class FeedFragment : Fragment() {
                         .show()
                 },
                 onVideoFullscreenClick = { post -> openVideoFullscreen(post) },
-                onFooterRetryClick = { viewModel.loadNextPage() },
+                onFooterRetryClick = viewModel::retryFeed,
                 onVideoHolderRecycled = { playerView ->
                     videoPlayerManager.detachPlayer(playerView)
                 },

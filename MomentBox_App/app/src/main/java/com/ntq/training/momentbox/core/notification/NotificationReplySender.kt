@@ -34,7 +34,16 @@ interface ChatActionApi {
         @Path("id") conversation: Long, @Body body: NotificationReplyBody,
         @Tag session: SessionRequest
     ): ApiResponse<ChatMessageDto>
+
+    @POST("v1/conversations/{id}/seen")
+    suspend fun seen(
+        @Path("id") conversation: Long,
+        @Body body: NotificationSeenBody,
+        @Tag session: SessionRequest
+    ): ApiResponse<Unit>
 }
+
+data class NotificationSeenBody(@SerializedName("messageId") val messageId: Long)
 
 data class NotificationReplyBody(
     @SerializedName("clientId") val clientId: String,
@@ -133,12 +142,15 @@ class NotificationReplySender(
         val target = database.chatDao().matching(expected.ownerId, expected.source, null, through)
             .singleOrNull() ?: return false
         if (target.conversationId != room || target.senderId.toString() == expected.ownerId || runtime.current() != expected) return false
-        if (!socket.emitForSession(
-                expected,
-                "message:seen",
-                JSONObject().put("conversationId", room).put("messageId", through)
-            )
-        ) return false
+        val emitted = socket.emitForSession(
+            expected,
+            "message:seen",
+            JSONObject().put("conversationId", room).put("messageId", through)
+        )
+        if (!emitted) {
+            val response = api.seen(room, NotificationSeenBody(through), SessionRequest(expected.generation))
+            if (!response.success || runtime.current() != expected) return false
+        }
         runtime.repository.read(expected, room, through)
         return runtime.current() == expected
     }

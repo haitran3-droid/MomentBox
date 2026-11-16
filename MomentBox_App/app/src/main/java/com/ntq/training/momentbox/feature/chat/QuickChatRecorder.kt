@@ -47,6 +47,7 @@ class QuickChatRecorder(context: Context, private val result: (RecordedAudio) ->
     @Volatile
     private var cancelRequested = false
     private var ticker: Job? = null
+    @Volatile
     private var closed = false
     private val amplitude = mutableListOf<Int>()
     private val audio = AndroidPlaybackAudio.get(context)
@@ -78,10 +79,15 @@ class QuickChatRecorder(context: Context, private val result: (RecordedAudio) ->
         scope.launch {
             mutex.withLock {
                 try {
+                    if (cancelRequested || closed) {
+                        cleanup()
+                        if (!closed) _state.value = QuickRecordState()
+                        return@withLock
+                    }
                     val folder = File(context.filesDir, "chat-quick").apply { mkdirs() }
                     file =
                         File(folder, UUID.randomUUID().toString() + ".m4a")
-                        amplitude.clear()
+                    amplitude.clear()
                     @Suppress("DEPRECATION") val engine =
                         if (Build.VERSION.SDK_INT >= 31) MediaRecorder(context) else MediaRecorder()
                     recorder = engine
@@ -126,15 +132,20 @@ class QuickChatRecorder(context: Context, private val result: (RecordedAudio) ->
                     }
                 } catch (_: Exception) {
                     cleanup()
-                    _state.value = QuickRecordState(QuickRecordPhase.ERROR)
+                    if (!closed) {
+                        _state.value = if (cancelRequested) QuickRecordState()
+                        else QuickRecordState(QuickRecordPhase.ERROR)
+                    }
                 }
             }
         }
     }
 
     fun finish(cancel: Boolean) {
-        if (cancel) cancelRequested = true
-        if (_state.value.phase in setOf(QuickRecordPhase.IDLE, QuickRecordPhase.ERROR)) return
+        val phase = _state.value.phase
+        if (phase in setOf(QuickRecordPhase.IDLE, QuickRecordPhase.ERROR)) return
+        // A released gesture that never started recording should not arm the microphone later.
+        if (cancel || phase == QuickRecordPhase.PREPARING) cancelRequested = true
         scope.launch {
             mutex.withLock {
                 val engine = recorder ?: return@withLock

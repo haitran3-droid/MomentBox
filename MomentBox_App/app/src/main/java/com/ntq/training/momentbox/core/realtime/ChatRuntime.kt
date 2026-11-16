@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -51,6 +52,7 @@ class ChatRuntime(
     val typing = _typing.asStateFlow()
     val repository = ChatRepository(database, api) { current() }
     private var workers: Job? = null
+    private val activationMutex = Mutex()
     private val syncMutex = Mutex()
     private var backgroundTimer: Job? = null
     private var foreground = false
@@ -84,7 +86,9 @@ class ChatRuntime(
         }
     }
 
-    suspend fun activate() {
+    suspend fun activate() = activationMutex.withLock { activateSession() }
+
+    private suspend fun activateSession() {
         val snapshot = tokens.snapshot()
         val source = settings.getDataSource()
         if (snapshot.accessToken.isNullOrBlank() || source != SettingsDataStore.SOURCE_MB_SERVER) return
@@ -100,13 +104,27 @@ class ChatRuntime(
             snapshot.generation
         )
         synchronized(gate) {
-            if (tokens.getSessionGeneration() != snapshot.generation) return
             if (_session.value == next) {
                 if (foreground) socket.connect()
                 return
             }
+        }
+        // Before publishing the session, recover rows whose in-memory send/timeout job is gone.
+        // Retain the client ID so retry and reconnect can reconcile a previously accepted send.
+        val recoveryFailed = try {
+            database.chatDao().failInterruptedSends(next.ownerId, next.source)
+            false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            true
+        }
+        if (settings.getDataSource() != source) return
+        synchronized(gate) {
+            if (tokens.getSessionGeneration() != snapshot.generation) return
             invalidateLocked()
             _session.value = next
+            if (recoveryFailed) _error.value = "CHAT_RESYNC_REQUIRED"
             workers = scope.launch {
                 supervisorScope {
                     launch { sync(next) }

@@ -73,6 +73,9 @@ abstract class ChatDao {
     @Query("SELECT * FROM messages WHERE owner_id=:owner AND source=:source AND local_id=:id")
     abstract suspend fun findLocal(owner: String, source: String, id: String): MessageEntity?
 
+    @Query("UPDATE messages SET status='FAILED' WHERE owner_id=:owner AND source=:source AND sender_id=CAST(:owner AS INTEGER) AND server_id IS NULL AND status='SENDING'")
+    abstract suspend fun failInterruptedSends(owner: String, source: String): Int
+
     @Query("UPDATE messages SET status='SEEN' WHERE owner_id=:owner AND source=:source AND conversation_id=:conversation AND CAST(sender_id AS TEXT)!=:owner AND server_id<=:through")
     abstract suspend fun markIncomingSeen(
         owner: String,

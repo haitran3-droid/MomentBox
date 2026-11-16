@@ -15,13 +15,20 @@ class PlayerQueue {
             field = value
         }
     var shuffle: Boolean = false
+        set(value) {
+            if (field != value) resetShuffleCycle()
+            field = value
+        }
     private val history = ArrayDeque<String>()
+    private val playedInShuffleCycle = mutableSetOf<String>()
+
     fun replace(values: List<Track>, start: Int) {
         PlayerProtocol.validate(values, start)
         tracks = values.map { it.copy(waveform = it.waveform.toList()) }
         index =
             if (values.isEmpty()) -1 else start
         history.clear()
+        resetShuffleCycle()
     }
 
     fun next(
@@ -32,21 +39,36 @@ class PlayerQueue {
         if (automatic && repeatMode == 2) return index
         if (automatic && !shuffle && index == tracks.lastIndex && repeatMode == 0) return null
         if (tracks.size == 1) return if (!automatic || repeatMode != 0) index else null
+        val nextIndex = if (shuffle) {
+            var candidates = tracks.indices.filter { tracks[it].id !in playedInShuffleCycle }
+            if (candidates.isEmpty()) {
+                if (automatic && repeatMode == 0) return null
+                playedInShuffleCycle.clear()
+                candidates = tracks.indices.filter { it != index }
+            }
+            candidates[choose(candidates.size).coerceIn(candidates.indices)].also {
+                playedInShuffleCycle.add(tracks[it].id)
+            }
+        } else (index + 1) % tracks.size
         history.addLast(tracks[index].id)
         if (history.size > 100) history.removeFirst()
-        index =
-            if (shuffle) (tracks.indices.filter { it != index })[choose(tracks.size - 1).coerceIn(
-                0,
-                tracks.size - 2
-            )] else (index + 1) % tracks.size
+        index = nextIndex
         return index
+    }
+
+    private fun resetShuffleCycle() {
+        playedInShuffleCycle.clear()
+        tracks.getOrNull(index)?.let { playedInShuffleCycle.add(it.id) }
     }
 
     fun previous(): Int? {
         if (index !in tracks.indices) return null
         val previous =
             if (shuffle && history.isNotEmpty()) tracks.indexOfFirst { it.id == history.removeLast() } else (index - 1 + tracks.size) % tracks.size
-        if (previous >= 0) index = previous
+        if (previous >= 0) {
+            index = previous
+            if (shuffle) playedInShuffleCycle.add(tracks[index].id)
+        }
         return index
     }
 

@@ -9,13 +9,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.ntq.training.momentbox.R
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class PlayerChoiceDialog : DialogFragment() {
     private val rates = floatArrayOf(.75f, 1f, 1.25f, 1.5f, 2f)
     private val timers = longArrayOf(0, 5 * 60000, 15 * 60000, 30 * 60000, -1)
-    private var renderJob: Job? = null
     private val speed get() = arguments?.getString("kind") == "speed"
     private fun checked(state: PlayerState) = if (speed) rates.indexOfFirst { it == state.speed }
         .coerceAtLeast(0) else if (state.sleepEndTrack) 4 else timers.indexOfFirst { it == state.sleepDurationMs }
@@ -38,10 +36,9 @@ class PlayerChoiceDialog : DialogFragment() {
             }.setNegativeButton(R.string.cancel, null).create()
     }
 
-    override fun onStart() {
-        super.onStart()
-        renderJob?.cancel()
-        renderJob = lifecycleScope.launch {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 (requireActivity() as PlayerActivity).client.state.collect { state ->
                     (dialog as? AlertDialog)?.listView?.setItemChecked(
@@ -53,9 +50,4 @@ class PlayerChoiceDialog : DialogFragment() {
         }
     }
 
-    override fun onStop() {
-        renderJob?.cancel()
-        renderJob = null
-        super.onStop()
-    }
 }

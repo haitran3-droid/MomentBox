@@ -11,7 +11,7 @@ const { Server } = require('socket.io');
 const seed = require('./seed');
 const { ensureAudio } = require('./audio');
 
-const PORT = +process.env.PORT || 3000;
+const PORT = process.env.PORT === '0' ? 0 : +process.env.PORT || 3000;
 const HOST = process.env.HOST || undefined;
 const ACCESS_TTL = +process.env.ACCESS_TOKEN_TTL || 900;            // seconds
 const REFRESH_TTL = +process.env.REFRESH_TOKEN_TTL || 7 * 24 * 3600; // seconds
@@ -19,6 +19,8 @@ const AUDIO_DIR = path.join(__dirname, 'public', 'audio');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 
 const db = seed.create();
+let nextPostId = Math.max(0, ...db.posts.map(post => post.id)) + 1;
+let nextCommentId = Math.max(0, ...db.comments.map(comment => comment.id)) + 1;
 let outageUntil = 0; // set by /v1/debug/socket/drop?outageSeconds=N
 const audioFiles = ensureAudio(AUDIO_DIR);
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -78,6 +80,7 @@ const findUser = id => db.users.find(u => u.id === +id);
 const findPost = id => db.posts.find(p => p.id === +id);
 const online = new Map(db.users.filter(u => u.bot).map(u => [u.id, 1])); // userId -> socket count (bots always online)
 const lastSeen = new Map();
+const readCursors = new Map(); // conversationId -> (readerId -> newest read message ID)
 
 function authorDto(base, u) {
   return { id: u.id, username: u.username, displayName: u.displayName, avatarUrl: absUrl(base, u.avatar), verified: !!u.verified };
@@ -89,7 +92,7 @@ function userDto(base, u, viewer) {
     ...authorDto(base, u), bio: u.bio, location: u.location,
     // S21/S22: email chỉ thuộc hồ sơ chính chủ, không xuất hiện ở suggestions/hồ sơ người khác.
     ...(viewer && viewer.id === u.id ? { email: u.email } : {}),
-    postCount: db.posts.filter(p => p.authorId === u.id).length, followerCount: followers, followingCount: following,
+    postCount: visiblePosts(viewer).filter(p => p.authorId === u.id).length, followerCount: followers, followingCount: following,
     isFollowing: viewer ? db.follows.has(`${viewer.id}:${u.id}`) : false, isMe: viewer ? viewer.id === u.id : false,
     online: online.has(u.id), lastSeenAt: lastSeen.get(u.id) || null,
   };
@@ -112,8 +115,32 @@ function commentDto(base, c, viewer) {
     replyCount: db.comments.filter(x => x.parentId === c.id).length, createdAt: c.createdAt,
   };
 }
-function messageDto(base, m) {
-  return { ...m, mediaUrl: absUrl(base, m.mediaUrl) };
+function messageStatus(message, viewerId) {
+  const cursors = readCursors.get(message.conversationId);
+  if (!cursors || viewerId == null || message.status === 'seen') return message.status;
+  if (viewerId !== message.senderId) {
+    return (cursors.get(viewerId) || 0) >= message.id ? 'seen' : message.status;
+  }
+  for (const [readerId, through] of cursors) {
+    if (readerId !== viewerId && through >= message.id) return 'seen';
+  }
+  return message.status;
+}
+function recordRead(conversationId, readerId, through) {
+  let cursors = readCursors.get(conversationId);
+  if (!cursors) readCursors.set(conversationId, cursors = new Map());
+  cursors.set(readerId, Math.max(cursors.get(readerId) || 0, through));
+}
+function markConversationSeen(conversationId, readerId, messageId) {
+  const conversation = db.conversations.find(c => c.id === +conversationId);
+  if (!conversation || !conversation.memberIds.includes(readerId)) return null;
+  const message = db.messages.find(m => m.conversationId === conversation.id && m.id === +messageId);
+  if (!message) return null;
+  recordRead(conversation.id, readerId, message.id);
+  return { conversationId: conversation.id, messageId: message.id, status: 'seen', userId: readerId };
+}
+function messageDto(base, m, viewerId) {
+  return { ...m, status: messageStatus(m, viewerId), mediaUrl: absUrl(base, m.mediaUrl) };
 }
 function conversationDto(base, c, viewer) {
   const msgs = db.messages.filter(m => m.conversationId === c.id).sort(byNewest);
@@ -123,12 +150,23 @@ function conversationDto(base, c, viewer) {
     title: c.title || others[0].displayName,
     avatarUrl: c.type === 'direct' ? absUrl(base, others[0].avatar) : null,
     members: c.memberIds.map(id => ({ ...authorDto(base, findUser(id)), online: online.has(id), lastSeenAt: lastSeen.get(id) || null })),
-    lastMessage: msgs[0] ? messageDto(base, msgs[0]) : null,
-    unreadCount: msgs.filter(m => m.senderId !== viewer.id && m.status !== 'seen').length,
+    lastMessage: msgs[0] ? messageDto(base, msgs[0], viewer.id) : null,
+    unreadCount: msgs.filter(m => m.senderId !== viewer.id && messageStatus(m, viewer.id) !== 'seen').length,
     updatedAt: msgs[0] ? msgs[0].createdAt : null,
   };
 }
-const visiblePosts = viewer => db.posts.filter(p => p.privacy === 'public' || p.authorId === viewer.id || db.follows.has(`${viewer.id}:${p.authorId}`));
+function canViewPost(viewer, post) {
+  return post.privacy === 'public' || viewer?.id === post.authorId ||
+    (post.privacy === 'friends' && viewer != null && db.follows.has(`${viewer.id}:${post.authorId}`));
+}
+
+const visiblePosts = viewer => db.posts.filter(post => canViewPost(viewer, post));
+function requireVisiblePost(req, res, next) {
+  const post = findPost(req.params.id);
+  if (!post || !canViewPost(req.user, post)) return fail(req, res, 404, 'NOT_FOUND');
+  req.post = post;
+  next();
+}
 
 // ---------------------------------------------------------------- middlewares
 // Request log + debug headers: X-Simulate-Delay: <ms>, X-Simulate-Error: 401 | 500
@@ -163,6 +201,17 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 },
 });
 const mediaType = mime => (mime.startsWith('video') ? 'video' : mime.startsWith('audio') ? 'audio' : 'image');
+
+async function removePostUploads(filenames) {
+  await Promise.all(filenames.map(async filename => {
+    if (!filename || path.basename(filename) !== filename) return;
+    try {
+      await fs.promises.unlink(path.join(UPLOAD_DIR, filename));
+    } catch (error) {
+      if (error.code !== 'ENOENT') console.warn('Unable to remove post upload:', error.code);
+    }
+  }));
+}
 
 // ---------------------------------------------------------------- config & auth
 app.get('/v1/config', (req, res) => ok(res, {
@@ -239,7 +288,7 @@ app.get('/v1/users/:id/posts', auth, (req, res) => {
 });
 
 app.get('/v1/me/bookmarks', auth, (req, res) => {
-  const list = db.posts.filter(p => db.bookmarks.has(`${req.user.id}:${p.id}`)).sort(byNewest);
+  const list = visiblePosts(req.user).filter(p => db.bookmarks.has(`${req.user.id}:${p.id}`)).sort(byNewest);
   const { items, meta } = paginate(list, req.query);
   ok(res, items.map(p => postDto(baseOf(req), p, req.user)), meta);
 });
@@ -273,47 +322,57 @@ app.get('/v1/feed', auth, (req, res) => {
   ok(res, out, meta);
 });
 
-app.get('/v1/posts/:id', auth, (req, res) => {
-  const p = findPost(req.params.id);
-  if (!p) return fail(req, res, 404, 'NOT_FOUND');
-  ok(res, postDto(baseOf(req), p, req.user));
+app.get('/v1/posts/:id', auth, requireVisiblePost, (req, res) => {
+  ok(res, postDto(baseOf(req), req.post, req.user));
 });
 
-app.post('/v1/posts', auth, upload.fields([{ name: 'media', maxCount: 10 }, { name: 'voice', maxCount: 1 }]), (req, res) => {
+app.post('/v1/posts', auth, upload.fields([{ name: 'media', maxCount: 10 }, { name: 'voice', maxCount: 1 }]), (req, res, next) => {
   const caption = String(req.body.caption || '').trim();
   const files = (req.files && req.files.media) || [];
   const voice = req.files && req.files.voice && req.files.voice[0];
-  if (caption.length > 2200) return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['caption'], max: 2200 });
+  if (caption.length > 2200) {
+    const filenames = [...files, ...(voice ? [voice] : [])].map(file => file.filename);
+    return removePostUploads(filenames).then(
+      () => fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['caption'], max: 2200 }), next);
+  }
   if (!caption && !files.length && !voice) return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['caption', 'media', 'voice'] });
   const media = files.map(f => ({ type: mediaType(f.mimetype), url: '/uploads/' + f.filename }));
   if (voice) media.push({ type: 'audio', url: '/uploads/' + voice.filename, durationMs: parseInt(req.body.voiceDurationMs) || null });
   const type = voice ? 'VOICE' : media.some(m => m.type === 'video') ? 'VIDEO' : media.length ? 'PHOTO' : 'TEXT';
   const p = {
-    id: nextId(db.posts), authorId: req.user.id, type, caption, media,
+    id: nextPostId++, authorId: req.user.id, type, caption, media,
     tags: (caption.match(/#[\p{L}\p{N}_]+/gu) || []).map(t => t.slice(1).toLowerCase()),
     location: req.body.location || null, privacy: ['public', 'friends', 'private'].includes(req.body.privacy) ? req.body.privacy : 'public',
     allowComments: req.body.allowComments !== 'false', createdAt: new Date().toISOString(),
   };
   db.posts.push(p);
-  io.except('user:' + req.user.id).emit('feed:new', { count: 1, postId: p.id });
+  const recipients = db.users.filter(user => user.id !== req.user.id && canViewPost(user, p));
+  for (const user of recipients) io.to('user:' + user.id).emit('feed:new', { count: 1, postId: p.id });
   res.status(201);
   ok(res, postDto(baseOf(req), p, req.user));
 });
 
-app.delete('/v1/posts/:id', auth, (req, res) => {
+app.delete('/v1/posts/:id', auth, (req, res, next) => {
   const p = findPost(req.params.id);
   if (!p) return fail(req, res, 404, 'NOT_FOUND');
   if (p.authorId !== req.user.id) return fail(req, res, 403, 'FORBIDDEN');
   db.posts.splice(db.posts.indexOf(p), 1);
-  ok(res, null);
+  const commentIds = new Set(db.comments.filter(comment => comment.postId === p.id).map(comment => comment.id));
+  db.comments = db.comments.filter(comment => comment.postId !== p.id);
+  for (const key of db.likes) if (key.endsWith(':' + p.id)) db.likes.delete(key);
+  for (const key of db.bookmarks) if (key.endsWith(':' + p.id)) db.bookmarks.delete(key);
+  for (const key of db.commentLikes) if (commentIds.has(Number(key.split(':')[1]))) db.commentLikes.delete(key);
+  const uploadPrefix = '/uploads/';
+  const filenames = p.media.filter(item => item.url.startsWith(uploadPrefix))
+    .map(item => item.url.slice(uploadPrefix.length));
+  removePostUploads(filenames).then(() => ok(res, null), next);
 });
 
 function toggle(set, key, on) { on ? set.add(key) : set.delete(key); }
 for (const [route, set] of [['like', db.likes], ['bookmark', db.bookmarks]]) {
   for (const method of ['post', 'delete']) {
-    app[method](`/v1/posts/:id/${route}`, auth, (req, res) => {
-      const p = findPost(req.params.id);
-      if (!p) return fail(req, res, 404, 'NOT_FOUND');
+    app[method](`/v1/posts/:id/${route}`, auth, requireVisiblePost, (req, res) => {
+      const p = req.post;
       toggle(set, `${req.user.id}:${p.id}`, method === 'post');
       const dto = postDto(baseOf(req), p, req.user);
       ok(res, { postId: p.id, isLiked: dto.isLiked, likeCount: dto.likeCount, isBookmarked: dto.isBookmarked });
@@ -321,9 +380,8 @@ for (const [route, set] of [['like', db.likes], ['bookmark', db.bookmarks]]) {
   }
 }
 
-app.get('/v1/posts/:id/comments', auth, (req, res) => {
-  const p = findPost(req.params.id);
-  if (!p) return fail(req, res, 404, 'NOT_FOUND');
+app.get('/v1/posts/:id/comments', auth, requireVisiblePost, (req, res) => {
+  const p = req.post;
   const parentId = req.query.parentId ? +req.query.parentId : null;
   let list = db.comments.filter(c => c.postId === p.id && c.parentId === parentId);
   list = req.query.sort === 'top'
@@ -333,20 +391,34 @@ app.get('/v1/posts/:id/comments', auth, (req, res) => {
   ok(res, items.map(c => commentDto(baseOf(req), c, req.user)), meta);
 });
 
-app.post('/v1/posts/:id/comments', auth, (req, res) => {
-  const p = findPost(req.params.id);
-  if (!p) return fail(req, res, 404, 'NOT_FOUND');
+app.post('/v1/posts/:id/comments', auth, requireVisiblePost, (req, res) => {
+  const p = req.post;
   const content = String(req.body?.content || '').trim();
   if (!content || content.length > 500) return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['content'], max: 500 });
   if (!p.allowComments) return fail(req, res, 403, 'FORBIDDEN');
-  const c = { id: nextId(db.comments), postId: p.id, parentId: req.body.parentId || null, authorId: req.user.id, content, createdAt: new Date().toISOString() };
+  let parentId = null;
+  if (req.body.parentId != null) {
+    const value = req.body.parentId;
+    parentId = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
+    if (!Number.isSafeInteger(parentId) || !db.comments.some(parent =>
+      parent.id === parentId && parent.postId === p.id && parent.parentId == null
+    )) return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['parentId'] });
+  }
+  const c = { id: nextCommentId++, postId: p.id, parentId, authorId: req.user.id, content, createdAt: new Date().toISOString() };
   db.comments.push(c);
   res.status(201);
   ok(res, commentDto(baseOf(req), c, req.user));
 });
 
-app.post('/v1/comments/:id/like', auth, (req, res) => { db.commentLikes.add(`${req.user.id}:${+req.params.id}`); ok(res, null); });
-app.delete('/v1/comments/:id/like', auth, (req, res) => { db.commentLikes.delete(`${req.user.id}:${+req.params.id}`); ok(res, null); });
+for (const method of ['post', 'delete']) {
+  app[method]('/v1/comments/:id/like', auth, (req, res) => {
+    const comment = db.comments.find(item => item.id === +req.params.id);
+    const post = comment && findPost(comment.postId);
+    if (!post || !canViewPost(req.user, post)) return fail(req, res, 404, 'NOT_FOUND');
+    toggle(db.commentLikes, `${req.user.id}:${comment.id}`, method === 'post');
+    ok(res, null);
+  });
+}
 
 // ---------------------------------------------------------------- chat (REST part)
 app.get('/v1/conversations', auth, (req, res) => {
@@ -376,7 +448,7 @@ app.get('/v1/conversations/:id/messages', auth, (req, res) => {
   let list = db.messages.filter(m => m.conversationId === c.id).sort((a, b) => b.id - a.id);
   if (req.query.before) list = list.filter(m => m.id < +req.query.before);
   const items = list.slice(0, limit);
-  ok(res, items.map(m => messageDto(baseOf(req), m)), { limit, hasMore: list.length > limit, nextBefore: items.length ? items[items.length - 1].id : null });
+  ok(res, items.map(m => messageDto(baseOf(req), m, req.user.id)), { limit, hasMore: list.length > limit, nextBefore: items.length ? items[items.length - 1].id : null });
 });
 
 // S17/S19: một nghiệp vụ ghi tin cho cả Socket lẫn REST. Dedupe ở server,
@@ -415,8 +487,15 @@ function publishMessage(result, uid, base, senderSocket) {
 app.post('/v1/conversations/:id/messages', auth, (req, res) => {
   const result = acceptMessage(req.user.id, req.params.id, req.body || {});
   if (result.code) return fail(req, res, result.status, result.code);
-  const deliver = () => { publishMessage(result, req.user.id, baseOf(req)); ok(res, messageDto(baseOf(req), result.message)); };
+  const deliver = () => { publishMessage(result, req.user.id, baseOf(req)); ok(res, messageDto(baseOf(req), result.message, req.user.id)); };
   result.slow ? setTimeout(deliver, 8000) : deliver();
+});
+
+app.post('/v1/conversations/:id/seen', auth, (req, res) => {
+  const seen = markConversationSeen(req.params.id, req.user.id, req.body?.messageId);
+  if (!seen) return fail(req, res, 404, 'NOT_FOUND');
+  io.to('conv:' + seen.conversationId).except('user:' + req.user.id).emit('message:status', seen);
+  ok(res, null);
 });
 
 app.post('/v1/uploads', auth, upload.single('file'), (req, res) => {
@@ -496,7 +575,7 @@ function botReply(conv, senderId, msg, base) {
   const text = msg.type === 'image' ? 'Ảnh đẹp quá 😍' : msg.type === 'voice' ? 'Để tối mình nghe nha 🎧'
     : msg.content.includes('?') ? 'Câu hỏi hay đó 🤔 để mình nghĩ chút' : BOT_REPLIES[msg.id % BOT_REPLIES.length];
   setTimeout(() => {
-    msg.status = 'seen';
+    recordRead(conv.id, bot.id, msg.id);
     io.to('conv:' + conv.id).emit('message:status', { conversationId: conv.id, messageId: msg.id, clientId: msg.clientId, status: 'seen', userId: bot.id });
     io.to('conv:' + conv.id).emit('typing', { conversationId: conv.id, userId: bot.id, isTyping: true });
   }, 700);
@@ -529,15 +608,14 @@ io.on('connection', socket => {
     if (result.code) return reply({ ok: false, error: { code: result.code } });
     const deliver = () => {
       publishMessage(result, uid, base, socket);
-      reply({ ok: true, message: messageDto(base, result.message) });
+      reply({ ok: true, message: messageDto(base, result.message, uid) });
     };
     result.slow ? setTimeout(deliver, 8000) : deliver();
   });
 
   socket.on('message:seen', ({ conversationId, messageId } = {}) => {
-    if (!member(conversationId)) return;
-    db.messages.filter(m => m.conversationId === +conversationId && m.id <= +messageId && m.senderId !== uid).forEach(m => { m.status = 'seen'; });
-    socket.to('conv:' + conversationId).emit('message:status', { conversationId: +conversationId, messageId: +messageId, status: 'seen', userId: uid });
+    const seen = markConversationSeen(conversationId, uid, messageId);
+    if (seen) socket.to('conv:' + seen.conversationId).emit('message:status', seen);
   });
 
   socket.on('disconnect', reason => {
@@ -547,10 +625,12 @@ io.on('connection', socket => {
 });
 
 server.listen(PORT, HOST, () => {
+  const port = server.address().port;
+  process.send?.({ port });
   const nets = Object.values(require('os').networkInterfaces()).flat().filter(n => n && n.family === 'IPv4' && !n.internal);
   console.log(`MomentBox mock server đang chạy:`);
-  console.log(`  • Máy tính      : http://localhost:${PORT}`);
-  console.log(`  • Android Emulator: http://10.0.2.2:${PORT}`);
-  if (!HOST) nets.forEach(n => console.log(`  • Máy thật (LAN): http://${n.address}:${PORT}`));
+  console.log(`  • Máy tính      : http://localhost:${port}`);
+  console.log(`  • Android Emulator: http://10.0.2.2:${port}`);
+  if (!HOST) nets.forEach(n => console.log(`  • Máy thật (LAN): http://${n.address}:${port}`));
   console.log(`  Access token TTL = ${ACCESS_TTL}s`);
 });

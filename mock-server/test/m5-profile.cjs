@@ -1,14 +1,12 @@
 const {test,before,after}=require('node:test');
 const assert=require('node:assert/strict');
-const {spawn}=require('node:child_process');
-const path=require('node:path');const fs=require('node:fs');const net=require('node:net');
-const origin='http://127.0.0.1:3111';const root=path.join(__dirname,'..');let child;
+const { startServer } = require('./fixtures/start-server.cjs');
+const path=require('node:path');const fs=require('node:fs');
+const root=path.join(__dirname,'..');
+let origin, child;
 const uploaded=[];
 before(async()=>{
- await new Promise((resolve,reject)=>{const check=net.createServer();check.once('error',reject);check.listen(3111,'127.0.0.1',()=>check.close(resolve));});
- child=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,PORT:'3111'},windowsHide:true,stdio:'ignore'});
- let ready=false;for(let i=0;i<80;i++){try{if((await fetch(origin+'/v1/config')).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}
- assert.ok(ready,'Isolated profile server must start');
+ ({ origin, child } = await startServer());
 });
 after(()=>{
  child?.kill();

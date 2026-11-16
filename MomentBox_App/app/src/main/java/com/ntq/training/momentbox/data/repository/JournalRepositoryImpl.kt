@@ -62,11 +62,12 @@ class JournalRepositoryImpl(
             if (!keepJournal) {
                 // Giữ metadata tới khi file cleanup thành công để lỗi I/O còn retry được.
                 // Canonical roots chặn Gallery/cache/post/avatar và mọi file ngoài nhật ký.
-                val draft = journalDataStore.getDraft()
-                val paths = (journalDao.attachmentPathsForLogout() + draft?.attachments.orEmpty()
-                    .map { it.localPath } + draft?.cleanupPaths.orEmpty() + pendingStagedFiles).toSet()
+                val draftPaths = journalDataStore.getAllDrafts().flatMap { draft ->
+                    draft.attachments.map { it.localPath } + draft.cleanupPaths.orEmpty()
+                }
+                val paths = (journalDao.attachmentPathsForLogout() + draftPaths + pendingStagedFiles).toSet()
                 paths.forEach(::safelyDeleteAppOwnedFile)
-                journalDataStore.clearDraft()
+                journalDataStore.clearAllDrafts()
                 journalDao.deleteAllForLogout()
                 pendingStagedFiles.clear()
             }
@@ -268,8 +269,7 @@ class JournalRepositoryImpl(
                 )
                 // Cùng khóa với Undo: job cũ không thể xóa bài vừa được phục hồi.
                 // Giữ metadata tới khi dọn file xong để lỗi I/O còn có thể retry.
-                val draftPaths =
-                    journalDataStore.getDraft()?.attachments.orEmpty().map { it.localPath }.toSet()
+                val draftPaths = draftAttachmentPaths()
                 row.attachments.forEach { att ->
                     if (att.localPath !in draftPaths && journalDao.countAttachmentReferences(att.localPath) <= 1) {
                         safelyDeleteAppOwnedFile(att.localPath)
@@ -308,10 +308,8 @@ class JournalRepositoryImpl(
             }
         }
 
-    override fun observeDraft(): Flow<JournalDraft?> = journalDataStore.draftFlow
-
-    override suspend fun getDraft(): JournalDraft? = withContext(dispatcher) {
-        journalDataStore.getDraft()
+    override suspend fun getDraft(entryId: Long?): JournalDraft? = withContext(dispatcher) {
+        journalDataStore.getDraft(entryId)
     }
 
     override suspend fun saveDraft(draft: JournalDraft) = withContext(dispatcher) {
@@ -325,9 +323,11 @@ class JournalRepositoryImpl(
         }
     }
 
-    override suspend fun clearDraft() = withContext(dispatcher) {
-        deletionMutex.withLock { checkWriter()
-        journalDataStore.clearDraft() }
+    override suspend fun clearDraft(entryId: Long?) = withContext(dispatcher) {
+        deletionMutex.withLock {
+            checkWriter()
+            journalDataStore.clearDraft(entryId)
+        }
     }
 
     override fun observeFilter(): Flow<JournalFilterState> = journalDataStore.filterFlow
@@ -345,8 +345,7 @@ class JournalRepositoryImpl(
     }
 
     override suspend fun deleteUnreferencedFiles(paths: List<String>) = withContext(dispatcher) {
-        val draftPaths =
-            journalDataStore.getDraft()?.attachments.orEmpty().map { it.localPath }.toSet()
+        val draftPaths = draftAttachmentPaths()
         for (path in paths.distinct()) {
             if (path !in draftPaths && journalDao.countAttachmentReferences(path) == 0) {
                 safelyDeleteAppOwnedFile(path)
@@ -354,6 +353,11 @@ class JournalRepositoryImpl(
             }
         }
     }
+
+    private suspend fun draftAttachmentPaths(): Set<String> =
+        journalDataStore.getAllDrafts().flatMap { draft ->
+            draft.attachments.map { it.localPath }
+        }.toSet()
 
     override suspend fun readAudioMetadata(path: String) =
         withContext(dispatcher) { JournalAudioMetadataReader.read(path) }

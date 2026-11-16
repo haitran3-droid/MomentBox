@@ -286,6 +286,11 @@ class JournalFragment : Fragment() {
                 launch {
                     viewModel.events.collect { event ->
                         when (event) {
+                            JournalEvent.CalendarEntriesFilteredOut -> Snackbar.make(
+                                binding.root,
+                                R.string.journal_calendar_entries_filtered_out,
+                                Snackbar.LENGTH_SHORT
+                            ).show()
                             is JournalEvent.ShowUndoSnackbar -> {
                                 Snackbar.make(
                                     binding.root,

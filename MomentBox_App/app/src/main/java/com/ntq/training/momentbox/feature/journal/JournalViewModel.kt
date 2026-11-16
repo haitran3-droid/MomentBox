@@ -53,6 +53,7 @@ data class JournalUiState(
 
 sealed interface JournalEvent {
     data class ShowUndoSnackbar(val entryId: Long) : JournalEvent
+    data object CalendarEntriesFilteredOut : JournalEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -99,7 +100,7 @@ class JournalViewModel(
         }.flatMapLatest { (query, filter, pages) ->
             val atomic = journalRepository.observeAtomicPages(query, filter, pages)
             if (atomic != null) return@flatMapLatest atomic.map { snapshot ->
-                canLoadMore = snapshot.entries.size >= pages * 20
+                canLoadMore = snapshot.entries.size < snapshot.dayCounts.sumOf { it.count }
                 groupEntries(snapshot.entries, filter.groupBy, snapshot.dayCounts)
             }
             val windows = (0 until pages).map { page ->
@@ -149,6 +150,9 @@ class JournalViewModel(
         ) else null
 
     fun onSearchQueryChanged(query: String) {
+        if (_searchQuery.value == query) return
+        targetDateJob?.cancel()
+        _scrollTarget.value = null
         _searchQuery.value = query
         savedState["search"] = query
         canLoadMore = true
@@ -195,6 +199,21 @@ class JournalViewModel(
     fun scrollToDate(date: LocalDate) {
         targetDateJob?.cancel()
         targetDateJob = viewModelScope.launch {
+            val query = _searchQuery.value.trim().ifEmpty { null }
+            val filter = filterStateFlow.value
+            if (query != null || filter.isNonDefault) {
+                val zone = ZoneId.systemDefault()
+                val dayStart = date.atStartOfDay(zone).toInstant().toEpochMilli()
+                val dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+                val dayFilter = filter.copy(
+                    fromDateEpochMs = maxOf(dayStart, filter.fromDateEpochMs ?: dayStart),
+                    toDateEpochMs = minOf(dayEnd, filter.toDateEpochMs ?: dayEnd)
+                )
+                if (journalRepository.countEntries(query, dayFilter).first() == 0) {
+                    _events.emit(JournalEvent.CalendarEntriesFilteredOut)
+                    return@launch
+                }
+            }
             while (true) {
                 val expected = _pageCount.value * 20
                 val items = entriesFlow.first { list ->
@@ -222,15 +241,26 @@ class JournalViewModel(
      * Phân nhóm bài viết theo Ngày, Tuần, hoặc Tháng.
      */
     private fun groupEntries(
-        entries: List<JournalEntryWithDetails>,
+        rows: List<JournalEntryWithDetails>,
         groupBy: String,
         dayCounts: List<JournalDayCount> = emptyList()
     ): List<JournalListItem> {
-        if (entries.isEmpty()) return emptyList()
+        if (rows.isEmpty()) return emptyList()
 
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(clock)
         val result = mutableListOf<JournalListItem>()
+        val (pinned, entries) = rows.partition { it.entry.isPinned }
+        if (pinned.isNotEmpty()) {
+            result.add(
+                JournalListItem.Header(
+                    "header_pinned",
+                    "",
+                    if (dayCounts.isEmpty()) pinned.size else dayCounts.sumOf { it.pinnedCount }
+                )
+            )
+            result.addAll(pinned.map { JournalListItem.Entry(it) })
+        }
 
         fun key(date: LocalDate): String = when (groupBy.lowercase(Locale.ROOT)) {
             "day" -> date.toString()
@@ -240,7 +270,7 @@ class JournalViewModel(
         }
 
         val counts = dayCounts.groupBy { key(LocalDate.parse(it.day)) }
-            .mapValues { (_, values) -> values.sumOf { it.count } }
+            .mapValues { (_, values) -> values.sumOf { it.count - it.pinnedCount } }
 
         fun total(group: List<JournalEntryWithDetails>) = counts[key(
             Instant.ofEpochMilli(group.first().entry.createdAt).atZone(zone).toLocalDate()

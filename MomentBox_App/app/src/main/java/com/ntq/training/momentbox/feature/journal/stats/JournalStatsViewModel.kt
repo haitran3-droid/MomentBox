@@ -104,16 +104,15 @@ class JournalStatsViewModel(
     private fun loadStatsForPeriod(period: StatsPeriod, anchor: LocalDate) {
         loadJob?.cancel()
         val currentRev = ++requestRevision
-        currentAnchorDate = anchor
-        savedState["anchor"] = anchor.toString()
+        val today = LocalDate.now(clock)
+        val safeAnchor = minOf(anchor, today)
+        currentAnchorDate = safeAnchor
+        savedState["anchor"] = safeAnchor.toString()
         savedState["period"] = period.name
         _uiState.update {
             it.copy(
-                isLoading = true, period = period, anchorDate = anchor, error = false,
-                canNavigateNext = startOfPeriod(period, anchor) < startOfPeriod(
-                    period,
-                    LocalDate.now(clock)
-                )
+                isLoading = true, period = period, anchorDate = safeAnchor, error = false,
+                canNavigateNext = startOfPeriod(period, safeAnchor) < startOfPeriod(period, today)
             )
         }
         loadJob = viewModelScope.launch {
@@ -123,8 +122,8 @@ class JournalStatsViewModel(
                     calculator.calculateStats(
                         entries,
                         period,
-                        anchor,
-                        LocalDate.now(clock)
+                        safeAnchor,
+                        today
                     )
                 }
                 if (currentRev == requestRevision) _uiState.update {

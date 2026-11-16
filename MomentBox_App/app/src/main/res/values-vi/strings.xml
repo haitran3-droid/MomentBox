@@ -254,4 +254,6 @@
     <string name="editor_ambient_volume">Âm lượng âm thanh nền</string>
     <string name="journal_insight_weekend_styled">Bạn thường <b>vui hơn vào cuối tuần</b> (+^1%) và viết nhiều nhất vào <b>^2</b>.</string>
     <string name="journal_insight_habit_styled">Bạn duy trì thói quen viết tốt nhất vào <b>^1</b> với ^2 bài viết.</string>
+    <string name="journal_header_pinned">ĐÃ GHIM</string>
+    <string name="journal_calendar_entries_filtered_out">Không có bài viết ngày này khớp tìm kiếm hoặc bộ lọc.</string>
 </resources>

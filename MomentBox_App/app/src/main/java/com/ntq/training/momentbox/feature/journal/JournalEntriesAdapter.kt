@@ -210,6 +210,7 @@ class JournalEntriesAdapter(
 
     companion object {
         fun localizedHeader(context: Context, header: JournalListItem.Header): String {
+            if (header.id == "header_pinned") return context.getString(R.string.journal_header_pinned)
             val clock = (context.applicationContext as? MomentBoxApp)?.journalClock ?: Clock.systemDefaultZone()
             val today = LocalDate.now(clock)
             val locale = context.resources.configuration.locales[0]

@@ -254,4 +254,6 @@
     <string name="editor_ambient_volume">環境音の音量</string>
     <string name="journal_insight_weekend_styled"><b>週末は気分が良く</b>（+^1%）、<b>^2</b>に最も多く書いています。</string>
     <string name="journal_insight_habit_styled"><b>^1</b>に最も多く書いており、^2件の日記があります。</string>
+    <string name="journal_header_pinned">固定済み</string>
+    <string name="journal_calendar_entries_filtered_out">この日には検索条件に一致する日記がありません。</string>
 </resources>

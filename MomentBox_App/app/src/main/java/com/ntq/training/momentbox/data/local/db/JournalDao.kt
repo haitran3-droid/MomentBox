@@ -286,7 +286,8 @@ interface JournalDao {
 
     @Query(
         """
-        SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch', 'localtime') AS day, COUNT(*) AS count
+        SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch', 'localtime') AS day,
+               COUNT(*) AS count, SUM(is_pinned) AS pinnedCount
         FROM journal_entries
         WHERE deleted_at IS NULL
           AND (:query IS NULL OR :query = '' OR title LIKE '%' || :query || '%' ESCAPE '\'
@@ -337,7 +338,8 @@ interface JournalDao {
 
     @Query(
         """
-        SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch', 'localtime') AS day, COUNT(*) AS count
+        SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch', 'localtime') AS day,
+               COUNT(*) AS count, SUM(is_pinned) AS pinnedCount
         FROM journal_entries
         WHERE deleted_at IS NULL
           AND (:query IS NULL OR :query = '' OR title LIKE '%' || :query || '%' ESCAPE '\'

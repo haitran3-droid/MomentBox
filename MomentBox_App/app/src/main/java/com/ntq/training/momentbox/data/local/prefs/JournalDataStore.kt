@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -93,21 +94,24 @@ class JournalDataStore(
     private val store: DataStore<Preferences> = context.dataStore
 ) {
     private val gson = Gson()
+    private val draftMapType = object : TypeToken<Map<String, JournalDraft>>() {}.type
 
     companion object {
-        val KEY_JOURNAL_DRAFT = stringPreferencesKey("journal_draft")
+        private val KEY_LEGACY_JOURNAL_DRAFT = stringPreferencesKey("journal_draft")
+        private val KEY_JOURNAL_DRAFTS = stringPreferencesKey("journal_drafts")
         val KEY_JOURNAL_FILTER = stringPreferencesKey("journal_filter")
     }
 
-    val draftFlow: Flow<JournalDraft?> = store.data.map { prefs ->
-        val json = prefs[KEY_JOURNAL_DRAFT]
-        if (json.isNullOrBlank()) null else {
-            try {
-                gson.fromJson(json, JournalDraft::class.java)
-            } catch (_: Exception) {
-                null
-            }
-        }
+    private fun draftKey(entryId: Long?): String = entryId?.toString() ?: "new"
+
+    private fun readDrafts(prefs: Preferences): Map<String, JournalDraft> {
+        val drafts = runCatching {
+            gson.fromJson<Map<String, JournalDraft>>(prefs[KEY_JOURNAL_DRAFTS], draftMapType)
+        }.getOrNull().orEmpty()
+        val legacy = runCatching {
+            gson.fromJson(prefs[KEY_LEGACY_JOURNAL_DRAFT], JournalDraft::class.java)
+        }.getOrNull() ?: return drafts
+        return mapOf(draftKey(legacy.entryId) to legacy) + drafts
     }
     val filterFlow: Flow<JournalFilterState> = store.data.map { prefs ->
         val json = prefs[KEY_JOURNAL_FILTER]
@@ -121,19 +125,35 @@ class JournalDataStore(
     }
 
     suspend fun saveDraft(draft: JournalDraft) {
-        val json = gson.toJson(draft)
         store.edit { prefs ->
-            prefs[KEY_JOURNAL_DRAFT] = json
+            val drafts = readDrafts(prefs) + (draftKey(draft.entryId) to draft)
+            prefs[KEY_JOURNAL_DRAFTS] = gson.toJson(drafts)
+            prefs.remove(KEY_LEGACY_JOURNAL_DRAFT)
         }
     }
 
-    suspend fun getDraft(): JournalDraft? {
-        return draftFlow.first()
+    suspend fun getDraft(entryId: Long?): JournalDraft? {
+        val drafts = readDrafts(store.data.first())
+        return if (entryId != null) drafts[draftKey(entryId)]
+        else drafts[draftKey(null)] ?: drafts.values.maxByOrNull { it.savedAtEpochMs }
     }
 
-    suspend fun clearDraft() {
+    suspend fun getAllDrafts(): Collection<JournalDraft> =
+        readDrafts(store.data.first()).values
+
+    suspend fun clearDraft(entryId: Long?) {
         store.edit { prefs ->
-            prefs.remove(KEY_JOURNAL_DRAFT)
+            val drafts = readDrafts(prefs) - draftKey(entryId)
+            if (drafts.isEmpty()) prefs.remove(KEY_JOURNAL_DRAFTS)
+            else prefs[KEY_JOURNAL_DRAFTS] = gson.toJson(drafts)
+            prefs.remove(KEY_LEGACY_JOURNAL_DRAFT)
+        }
+    }
+
+    suspend fun clearAllDrafts() {
+        store.edit { prefs ->
+            prefs.remove(KEY_JOURNAL_DRAFTS)
+            prefs.remove(KEY_LEGACY_JOURNAL_DRAFT)
         }
     }
 

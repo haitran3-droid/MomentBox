@@ -127,14 +127,14 @@ class JournalEditorViewModel(
                 }
                 nextAttachmentOrder =
                     (_uiState.value.attachments.maxOfOrNull { it.sortOrder } ?: -1) + 1
-                val draft = journalRepository.getDraft()
-                if (draft != null && (initialEntryId <= 0 || draft.entryId == initialEntryId)) {
+                val draft = journalRepository.getDraft(initialEntryId.takeIf { it > 0 })
+                if (draft != null) {
                     val committed =
                         draft.pendingCommitId?.let { journalRepository.getEntryById(it) }
                     if (committed != null && matchesCommittedDraft(draft, committed)) {
                         // Room đã commit nhưng lần Clear trước lỗi I/O: không mời khôi phục tạo bài trùng.
                         runCatching {
-                            journalRepository.clearDraft()
+                            journalRepository.clearDraft(draft.entryId)
                             journalRepository.deleteUnreferencedFiles(draft.cleanupPaths.orEmpty())
                         }.onFailure { if (it is CancellationException) throw it }
                     } else if (draft.title.isNotBlank() || draft.content.isNotBlank() || draft.attachments.isNotEmpty() || draft.tags.isNotEmpty()) {
@@ -210,9 +210,10 @@ class JournalEditorViewModel(
     }
 
     fun dismissRestoreDraftDialog() {
+        val draft = _uiState.value.restoredDraft ?: return
         viewModelScope.launch {
             try {
-                draftMutex.withLock { journalRepository.clearDraft() }
+                draftMutex.withLock { journalRepository.clearDraft(draft.entryId) }
                 _uiState.update { it.copy(showRestoreDraftDialog = false, restoredDraft = null) }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -435,7 +436,7 @@ class JournalEditorViewModel(
                     if (result.isSuccess) {
                         _uiState.update { it.copy(entryId = result.getOrThrow(), isDirty = false) }
                         try {
-                            journalRepository.clearDraft()
+                            journalRepository.clearDraft(s.entryId)
                             journalRepository.deleteUnreferencedFiles(oldFilesToDeleteAfterCommit.toList())
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -483,7 +484,7 @@ class JournalEditorViewModel(
             try {
                 autosaveJob?.cancelAndJoin()
                 imports.toList().forEach { it.cancelAndJoin() }
-                draftMutex.withLock { journalRepository.clearDraft() }
+                draftMutex.withLock { journalRepository.clearDraft(_uiState.value.entryId) }
                 journalRepository.deleteUnreferencedFiles(stagedFilesToKeep.toList())
                 _flushDraftEvents.emit(FlushDraftResult.Success)
             } catch (e: Exception) {

@@ -76,10 +76,9 @@ interface JournalRepository {
     }
 
     fun resumeAfterLogin() {}
-    fun observeDraft(): Flow<JournalDraft?>
-    suspend fun getDraft(): JournalDraft?
+    suspend fun getDraft(entryId: Long?): JournalDraft?
     suspend fun saveDraft(draft: JournalDraft)
-    suspend fun clearDraft()
+    suspend fun clearDraft(entryId: Long?)
 
     fun observeFilter(): Flow<JournalFilterState>
     suspend fun getFilter(): JournalFilterState
@@ -92,7 +91,7 @@ interface JournalRepository {
     suspend fun stageAttachmentFile(sourcePathOrUri: String, isAudio: Boolean): Result<String>
 }
 
-data class JournalDayCount(val day: String, val count: Int)
+data class JournalDayCount(val day: String, val count: Int, val pinnedCount: Int = 0)
 
 data class JournalAudioMetadata(val durationMs: Long, val waveform: List<Int>)
 

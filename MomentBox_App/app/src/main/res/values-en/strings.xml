@@ -258,4 +258,6 @@
     <string name="editor_ambient_volume">Ambient volume</string>
     <string name="journal_insight_weekend_styled">You feel <b>happier on weekends</b> (+^1%) and write most often on <b>^2</b>.</string>
     <string name="journal_insight_habit_styled">You write most often on <b>^1</b> with ^2 entries.</string>
+    <string name="journal_header_pinned">PINNED</string>
+    <string name="journal_calendar_entries_filtered_out">No journal entries on this day match the search or filters.</string>
 </resources>

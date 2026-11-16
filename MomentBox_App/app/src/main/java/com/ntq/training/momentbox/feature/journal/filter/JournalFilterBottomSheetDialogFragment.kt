@@ -9,12 +9,14 @@ import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.os.bundleOf
+import androidx.core.util.Pair as DateRangePair
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.datepicker.MaterialDatePicker
+import com.google.android.material.datepicker.MaterialPickerOnPositiveButtonClickListener
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.ntq.training.momentbox.MomentBoxApp
@@ -44,11 +46,14 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
     private var countJob: Job? = null
     private var initJob: Job? = null
     private var inputReady = false
+    private var bindingMoodChips = false
     private var resizeListener: ViewTreeObserver.OnPreDrawListener? = null
     private var resizeObservedView: View? = null
     private val searchQuery: String?
         get() = arguments?.getString(ARG_SEARCH_QUERY)
     private val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.getDefault())
+    private val dateRangeListener =
+        MaterialPickerOnPositiveButtonClickListener<DateRangePair<Long, Long>>(::applyDateRange)
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -61,6 +66,11 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        @Suppress("UNCHECKED_CAST")
+        val restoredPicker = childFragmentManager.findFragmentByTag(DATE_RANGE_PICKER_TAG)
+            as? MaterialDatePicker<DateRangePair<Long, Long>>
+        restoredPicker?.addOnPositiveButtonClickListener(dateRangeListener)
+
         // DataStore đọc bất đồng bộ: khóa các control tới khi bind/listener sẵn sàng,
         // tránh thao tác sớm bị giá trị lưu cũ ghi đè (tái hiện trên Realme).
         setInputReady(false)
@@ -182,11 +192,16 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
         }
 
         // 3. Cảm xúc (Multi-select)
-        binding.chipMood1.isChecked = pendingFilter.moods.contains(1)
-        binding.chipMood2.isChecked = pendingFilter.moods.contains(2)
-        binding.chipMood3.isChecked = pendingFilter.moods.contains(3)
-        binding.chipMood4.isChecked = pendingFilter.moods.contains(4)
-        binding.chipMood5.isChecked = pendingFilter.moods.contains(5)
+        bindingMoodChips = true
+        try {
+            binding.chipMood1.isChecked = pendingFilter.moods.contains(1)
+            binding.chipMood2.isChecked = pendingFilter.moods.contains(2)
+            binding.chipMood3.isChecked = pendingFilter.moods.contains(3)
+            binding.chipMood4.isChecked = pendingFilter.moods.contains(4)
+            binding.chipMood5.isChecked = pendingFilter.moods.contains(5)
+        } finally {
+            bindingMoodChips = false
+        }
 
         // 4. Đính kèm
         binding.cbHasPhoto.isChecked = pendingFilter.hasPhoto
@@ -254,6 +269,7 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
         )
         for ((chip, _) in moodChips) {
             chip.setOnCheckedChangeListener { _, _ ->
+                if (bindingMoodChips) return@setOnCheckedChangeListener
                 val selectedMoods =
                     moodChips.filter { it.first.isChecked }.map { it.second }.toSet()
                 pendingFilter = pendingFilter.copyWith(moods = selectedMoods)
@@ -319,32 +335,23 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
             .setTitleText(R.string.filter_date_range_title)
             .build()
 
-        picker.addOnPositiveButtonClickListener { selection ->
-            if (selection != null) {
-                val zone = ZoneId.systemDefault()
-                // Selection trả về UTC millis cho ngày bắt đầu và ngày kết thúc
-                val startUtc = selection.first
-                val endUtc = selection.second
+        picker.addOnPositiveButtonClickListener(dateRangeListener)
+        picker.show(childFragmentManager, DATE_RANGE_PICKER_TAG)
+    }
 
-                val startDate =
-                    Instant.ofEpochMilli(startUtc).atZone(ZoneId.of("UTC")).toLocalDate()
-                val endDate = Instant.ofEpochMilli(endUtc).atZone(ZoneId.of("UTC")).toLocalDate()
-
-                val startEpochMs = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
-                // [Intern]: Sử dụng 999_999_999 nanoseconds để bao trọn 999ms cuối cùng của ngày (F14)
-                val endEpochMs =
-                    endDate.atTime(23, 59, 59, 999_999_999).atZone(zone).toInstant().toEpochMilli()
-
-                pendingFilter = pendingFilter.copy(
-                    fromDateEpochMs = startEpochMs,
-                    toDateEpochMs = endEpochMs
-                )
-                updateDateRangeDisplay()
-                updateRealtimeCount()
-            }
-        }
-
-        picker.show(childFragmentManager, "DATE_RANGE_PICKER")
+    private fun applyDateRange(selection: DateRangePair<Long, Long>?) {
+        val startUtc = selection?.first ?: return
+        val endUtc = selection.second ?: return
+        val utc = ZoneId.of("UTC")
+        val zone = ZoneId.systemDefault()
+        val startDate = Instant.ofEpochMilli(startUtc).atZone(utc).toLocalDate()
+        val endDate = Instant.ofEpochMilli(endUtc).atZone(utc).toLocalDate()
+        pendingFilter = pendingFilter.copy(
+            fromDateEpochMs = startDate.atStartOfDay(zone).toInstant().toEpochMilli(),
+            toDateEpochMs = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+        )
+        updateDateRangeDisplay()
+        updateRealtimeCount()
     }
 
     private fun updateDateRangeDisplay() {
@@ -403,6 +410,7 @@ class JournalFilterBottomSheetDialogFragment : BottomSheetDialogFragment() {
     }
 
     companion object {
+        private const val DATE_RANGE_PICKER_TAG = "DATE_RANGE_PICKER"
         const val TAG = "JournalFilterBottomSheet"
         const val REQUEST_KEY = "journal_filter"
         const val RESULT_FILTER_APPLIED = "result_filter_applied"

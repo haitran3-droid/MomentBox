@@ -1,8 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-    Giao diện Trang Onboarding 1 (item_onboarding_page1):
-    - ScrollView với android:fillViewport="true": Chống vỡ layout trên các thiết bị màn hình ngắn hoặc khi xoay ngang.
-    - artContainer: Khung hình minh họa native 330dp gồm thẻ ảnh Polaroid xoay nghiêng, sóng âm audio (pillAudio) và ảnh vẽ vector Đà Lạt (art_onboarding_dalat).
--->
+<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"

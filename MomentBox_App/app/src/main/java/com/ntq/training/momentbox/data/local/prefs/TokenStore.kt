@@ -101,25 +101,6 @@ interface TokenStorage {
     }
 }
 
-/**
- * [TokenStore] - Triển khai chính của [TokenStorage] kết hợp Bộ nhớ đệm RAM và Lưu đĩa Jetpack DataStore.
- *
- * **Các cơ chế kỹ thuật cốt lõi (Intern cần hiểu sâu):**
- * 1. **RAM Cache vs Disk Persistence:**
- *    - `@Volatile private var state`: Lưu snapshot ngay trong RAM để [AuthInterceptor]
- *      đọc token đồng bộ cực nhanh (Microsecond) mà không phải chờ I/O đĩa bất đồng bộ ở mỗi request.
- *    - Khi khởi động app, dữ liệu được tải từ DataStore lên RAM một lần duy nhất qua [loadLocked].
- * 2. **Cơ chế "Ghi nhớ đăng nhập" (Remember Me):**
- *    - Nếu `rememberMe == true`: Cặp token được ghi xuống Jetpack DataStore trên đĩa. Khi tắt app hoặc
- *      bị hệ điều hành kill process (Process Death), mở lại app vẫn giữ được phiên đăng nhập.
- *    - Nếu `rememberMe == false`: Token CHỈ nằm trong RAM. Trên đĩa ghi `null`. Khi process bị tạo lại,
- *      app sẽ bắt người dùng đăng nhập lại từ đầu.
- * 3. **Phạm vi Mutex và tính toàn vẹn (Atomic Operations):**
- *    - Toàn bộ thao tác kiểm tra generation, ghi đĩa DataStore và cập nhật RAM đều nằm trọn trong CÙNG MỘT
- *      vùng khóa [mutex.withLock].
- *    - Nếu tách kiểm tra generation ở một bước và ghi đĩa ở bước sau mà không giữ Mutex, Thread khác có thể
- *      nhảy vào giữa và làm sai lệch trạng thái phiên (Race Condition).
- */
 class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
     constructor(context: Context) : this(DataStoreTokenPersistence(context))
 
@@ -140,8 +121,12 @@ class TokenStore(private val persistence: TokenPersistence) : TokenStorage {
             snapshotListeners.add(listener)
             runCatching { listener(state) }
         }
-        return AutoCloseable { synchronized(snapshotListeners) { snapshotListeners.remove(listener)
-        Unit } }
+        return AutoCloseable {
+            synchronized(snapshotListeners) {
+                snapshotListeners.remove(listener)
+                Unit
+            }
+        }
     }
 
     private fun publishSnapshot(next: TokenSnapshot) = synchronized(snapshotListeners) {

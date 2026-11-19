@@ -1,8 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-    Giao diện Trang Onboarding 3 (item_onboarding_page3):
-    - Tính năng: Chia sẻ album khoảnh khắc với gia đình và bạn bè.
-    - artContainer3: Bong bóng hội thoại tương tác (Chat Bubble), biểu tượng trái tim (bg_heart) và album chung.
--->
+<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"

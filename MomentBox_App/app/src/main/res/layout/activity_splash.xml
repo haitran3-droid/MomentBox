@@ -1,8 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-    Giao diện màn hình khởi động tùy chỉnh (Custom Splash S01):
-    - Root View: SplashBackdropLayout tự vẽ 3 lớp Gradient Canvas theo thiết kế mockup.
-    - ID splashRoot: Được SplashActivity sử dụng để gắn listener lề thanh hệ thống (Window Insets).
--->
+<?xml version="1.0" encoding="utf-8"?>
 <com.ntq.training.momentbox.core.ui.SplashBackdropLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"

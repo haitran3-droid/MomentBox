@@ -83,22 +83,6 @@ interface SettingsStorage {
     suspend fun getAutoplayVideo(): String = "wifi"
 }
 
-/**
- * [SettingsDataStore] - Triển khai cài đặt bằng thư viện Jetpack Preferences DataStore.
- *
- * **Ưu điểm vượt trội so với SharedPreferences (Intern cần biết):**
- * - [SharedPreferences] cũ có thể gây giật lag hoặc treo ứng dụng (ANR) vì lệnh `commit()` ghi đĩa
- *   đồng bộ trên Main Thread, và `apply()` không có cơ chế bắt lỗi khi ghi thất bại.
- * - [DataStore] giải quyết hoàn toàn bằng cách xử lý bất đồng bộ qua Kotlin Coroutines và Flow,
- *   đảm bảo an toàn luồng (Thread-safety) và hỗ trợ giao dịch (Transactional updates).
- *
- * **Các cấu hình được quản lý:**
- * - `onboarding_done`: Người dùng đã hoàn thành onboarding hay chưa.
- * - `data_source`: Nguồn API được chọn (MB_SERVER, DUMMY_JSON, OFFLINE).
- * - `config_cache`: Bộ nhớ đệm JSON cấu hình máy chủ `/v1/config` trên đĩa.
- * - `debug_delay_ms` & `debug_force_401`: Các cấu hình phục vụ giả lập môi trường phát triển.
- * - `saved_user_json`: Thông tin người dùng đăng nhập gần nhất (phục vụ mô hình Cache-First).
- */
 class SettingsDataStore(private val preferences: DataStore<Preferences>) :
     SettingsStorage {
     /** Context constructor vẫn dùng cùng momentbox_settings với token/reminder. Nhận store
@@ -196,7 +180,7 @@ class SettingsDataStore(private val preferences: DataStore<Preferences>) :
             p[KEY_SOCKET_ATTEMPTS] = value.attempts
             p[KEY_SOCKET_MIN] = value.delayMinMs
             p[KEY_SOCKET_MAX] =
-            value.delayMaxMs
+                value.delayMaxMs
             p[KEY_SOCKET_RANDOMIZATION] = value.randomization
         }
     }

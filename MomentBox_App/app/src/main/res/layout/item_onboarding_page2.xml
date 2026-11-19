@@ -1,8 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-    Giao diện Trang Onboarding 2 (item_onboarding_page2):
-    - Minh họa nhật ký cảm xúc; không đại diện cho tính năng AI đã triển khai.
-    - artContainer2: Trực quan hóa thẻ bài viết (Journal Card), huy hiệu AI (ic_auto_awesome) và tranh vector bãi biển Mỹ Khê (art_onboarding_mykhe).
--->
+<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"

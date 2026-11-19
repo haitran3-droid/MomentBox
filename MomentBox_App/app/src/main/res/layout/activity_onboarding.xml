@@ -1,12 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-    Giao diện màn hình Giới thiệu tính năng (Onboarding Screen - S02):
-    - onboardingRoot: Layout gốc sử dụng để áp dụng lề WindowInsets (Status bar & Navigation bar).
-    - chipLanguage: Chip hiển thị ngôn ngữ hiện hành và mở LanguageDialogFragment khi click.
-    - btnSkip: Nút "Bỏ qua" đưa người dùng thẳng đến màn hình Đăng nhập (ẩn ở trang 3).
-    - viewPagerOnboarding: ViewPager cổ điển chứa 3 trang trượt ngang.
-    - pageIndicator: PageIndicatorView tự vẽ các chấm chỉ báo viên nang co giãn.
-    - btnNext: Nút hành động chính (đổi chữ thành "Bắt đầu khám phá" ở trang cuối).
--->
+<?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"

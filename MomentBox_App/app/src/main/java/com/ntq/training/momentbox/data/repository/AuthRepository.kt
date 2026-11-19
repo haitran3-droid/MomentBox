@@ -29,6 +29,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -41,7 +42,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.Response
 
 interface AuthRepository {
-    val userFlow: Flow<User?> get() = kotlinx.coroutines.flow.flow { emit(getSavedUser()) }
+    val userFlow: Flow<User?> get() = flow { emit(getSavedUser()) }
     suspend fun editProfile(displayName: String, bio: String, location: String): Result<User> =
         Result.failure(UnsupportedOperationException("PROFILE_EDIT_UNSUPPORTED"))
 

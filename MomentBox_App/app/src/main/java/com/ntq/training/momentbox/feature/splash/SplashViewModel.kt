@@ -1,21 +1,23 @@
 package com.ntq.training.momentbox.feature.splash
+
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.ntq.training.momentbox.BuildConfig
 import com.ntq.training.momentbox.data.local.prefs.SettingsStorage
 import com.ntq.training.momentbox.data.local.prefs.TokenStorage
 import com.ntq.training.momentbox.data.repository.ConfigRepository
-import com.ntq.training.momentbox.BuildConfig
-
-import kotlinx.coroutines.async
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
+
 sealed interface SplashDestination {
     data object Loading : SplashDestination
     data class UpdateRequired(val minVersion: Int) : SplashDestination
@@ -38,11 +40,7 @@ class SplashViewModel(
     private val _showLoadingSpinner = MutableStateFlow(false)
     val showLoadingSpinner: StateFlow<Boolean> = _showLoadingSpinner.asStateFlow()
 
-    private val _isReady = MutableStateFlow(false)
-    val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
-
     init {
-        // Tự động khởi động luồng kiểm tra ngay khi ViewModel được tạo
         startStartupFlow()
     }
 
@@ -52,10 +50,8 @@ class SplashViewModel(
 
             // Trigger loading indicator after 300ms if not ready yet
             val spinnerJob = launch {
-                delay(300)
-                if (!_isReady.value) {
-                    _showLoadingSpinner.value = true
-                }
+                delay(300.milliseconds)
+                _showLoadingSpinner.value = true
             }
 
             safeLog("Startup initiated at $startTime. Starting parallel async reads...")
@@ -66,7 +62,7 @@ class SplashViewModel(
 
             // Keep each completed result outside the deadline scope. Cancelling
             // a slow sibling must not discard a known forced-update policy.
-            withTimeoutOrNull(maxDurationMs) {
+            withTimeoutOrNull(maxDurationMs.milliseconds) {
                 val configDeferred = async {
                     val t0 = System.currentTimeMillis()
                     try {
@@ -101,7 +97,7 @@ class SplashViewModel(
                 val remainingMinDelay = (minDurationMs - elapsedTime).coerceAtLeast(0)
 
                 if (remainingMinDelay > 0) {
-                    delay(remainingMinDelay)
+                    delay(remainingMinDelay.milliseconds)
                 }
             }
 
@@ -115,14 +111,13 @@ class SplashViewModel(
                 !hasToken -> SplashDestination.Auth
                 else -> SplashDestination.Main
             }
-            _isReady.value = true
         }
     }
 
     private fun safeLog(msg: String) {
         try {
             Log.d("MomentBoxSplash", msg)
-        } catch (ignored: Throwable) {
+        } catch (_: Throwable) {
             println("[MomentBoxSplash] $msg")
         }
     }

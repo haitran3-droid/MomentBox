@@ -19,6 +19,7 @@ class SplashBackdropLayout @JvmOverloads constructor(
 ) : ConstraintLayout(context, attrs) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val density = resources.displayMetrics.density
+
     init {
         // Cho phép ViewGroup thực thi phương thức onDraw
         setWillNotDraw(false)
@@ -44,15 +45,21 @@ class SplashBackdropLayout @JvmOverloads constructor(
         val dx = sin(radians).toFloat()
         val dy = -cos(radians).toFloat()
         val length = abs(w * dx) + abs(h * dy)
-        linear = LinearGradient(w/2-dx*length/2, h/2-dy*length/2,
-            w/2+dx*length/2, h/2+dy*length/2,
-            intArrayOf(Color.rgb(116,100,238), Color.rgb(91,75,219), Color.rgb(59,45,176)),
-            floatArrayOf(0f,.45f,1f), Shader.TileMode.CLAMP)
+        linear = LinearGradient(
+            w / 2 - dx * length / 2, h / 2 - dy * length / 2,
+            w / 2 + dx * length / 2, h / 2 + dy * length / 2,
+            intArrayOf(Color.rgb(116, 100, 238), Color.rgb(91, 75, 219), Color.rgb(59, 45, 176)),
+            floatArrayOf(0f, .45f, 1f), Shader.TileMode.CLAMP
+        )
         // CSS radial-gradient(circle) mặc định dùng khoảng cách tới góc xa nhất của hình vuông.
-        glow = RadialGradient(180*density, paddingTop+330*density, 210*density*sqrt(2f),
-            intArrayOf(0x24FFFFFF,0x00FFFFFF), floatArrayOf(0f,.65f), Shader.TileMode.CLAMP)
-        warm = RadialGradient(w-50*density, paddingTop+70*density, 110*density*sqrt(2f),
-            intArrayOf(0x73FF7A59,0x00FF7A59), floatArrayOf(0f,.7f), Shader.TileMode.CLAMP)
+        glow = RadialGradient(
+            180 * density, paddingTop + 330 * density, 210 * density * sqrt(2f),
+            intArrayOf(0x24FFFFFF, 0x00FFFFFF), floatArrayOf(0f, .65f), Shader.TileMode.CLAMP
+        )
+        warm = RadialGradient(
+            w - 50 * density, paddingTop + 70 * density, 110 * density * sqrt(2f),
+            intArrayOf(0x73FF7A59, 0x00FF7A59), floatArrayOf(0f, .7f), Shader.TileMode.CLAMP
+        )
     }
 
     override fun onDraw(canvas: Canvas) {

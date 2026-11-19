@@ -55,44 +55,46 @@
                         android:layout_marginTop="-46dp"
                         android:baselineAligned="false"
                         android:clipChildren="false"
-                        android:gravity="bottom"
+                        android:gravity="top"
                         android:paddingStart="16dp"
                         android:paddingEnd="16dp">
 
                         <FrameLayout
-                            android:layout_width="96dp"
+                            android:layout_width="88dp"
                             android:layout_height="94dp"
-                            android:layout_marginEnd="-8dp"
                             android:clipChildren="false">
 
-                            <TextView
-                                android:id="@+id/profileInitials"
-                                style="@style/S21Bold"
+                            <FrameLayout
                                 android:layout_width="88dp"
                                 android:layout_height="88dp"
-                                android:background="@drawable/bg_s21_avatar"
-                                android:gravity="center"
-                                android:includeFontPadding="false"
-                                android:textColor="@color/white"
-                                android:textSize="32sp" />
+                                android:background="@drawable/bg_s21_avatar">
 
-                            <com.google.android.material.imageview.ShapeableImageView
-                                android:id="@+id/profileAvatar"
-                                android:layout_width="88dp"
-                                android:layout_height="88dp"
-                                android:importantForAccessibility="no"
-                                android:scaleType="centerCrop"
-                                app:shapeAppearanceOverlay="@style/S21Circle"
-                                app:strokeColor="@color/surface"
-                                app:strokeWidth="4dp" />
+                                <TextView
+                                    android:id="@+id/profileInitials"
+                                    style="@style/S21Bold"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:gravity="center"
+                                    android:includeFontPadding="false"
+                                    android:textColor="@color/white"
+                                    android:textSize="32sp" />
+
+                                <com.google.android.material.imageview.ShapeableImageView
+                                    android:id="@+id/profileAvatar"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:layout_margin="4dp"
+                                    android:importantForAccessibility="no"
+                                    android:scaleType="centerCrop"
+                                    app:shapeAppearanceOverlay="@style/S21Circle" />
+                            </FrameLayout>
 
                             <ImageButton
                                 android:id="@+id/profileAvatarEdit"
                                 android:layout_width="48dp"
                                 android:layout_height="48dp"
                                 android:layout_gravity="bottom|end"
-                                android:layout_marginEnd="0dp"
-                                android:layout_marginBottom="0dp"
+                                android:layout_marginEnd="-8dp"
                                 android:background="@drawable/bg_s21_camera"
                                 android:contentDescription="@string/s21_avatar"
                                 android:padding="16dp"
@@ -100,11 +102,13 @@
                                 app:tint="@color/white" />
                         </FrameLayout>
 
+                        <!-- The avatar row begins 46dp above the cover edge. Keep the stats 12dp below it. -->
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
-                            android:layout_marginBottom="14dp"
+                            android:layout_marginTop="58dp"
+                            android:layout_marginBottom="8dp"
                             android:layout_weight="1"
                             android:baselineAligned="false">
 

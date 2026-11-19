@@ -12,15 +12,12 @@ import android.os.Bundle
 import android.os.Parcelable
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.graphics.toColorInt
 import androidx.core.widget.doAfterTextChanged
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -28,6 +25,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.ntq.training.momentbox.core.base.BaseFragment
 import com.ntq.training.momentbox.core.media.FeedVideoPlayerManager
 import com.ntq.training.momentbox.core.media.VoicePlayerManager
 import com.ntq.training.momentbox.databinding.DialogPostMenuBottomSheetBinding
@@ -46,7 +44,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class FeedFragment : Fragment() {
+class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::inflate) {
 
     companion object {
         private const val KEY_PAUSED_VIDEO_IDS = "feed.pausedVideoIds"
@@ -55,10 +53,6 @@ class FeedFragment : Fragment() {
         private const val KEY_SEARCH_QUERY = "feed.searchQuery"
         private const val KEY_NORMAL_FEED_SCROLL = "feed.normalScroll"
     }
-
-    private var _binding: FragmentFeedBinding? = null
-    private val binding
-        get() = _binding!!
 
     private val app
         get() = requireActivity().application as MomentBoxApp
@@ -115,15 +109,6 @@ class FeedFragment : Fragment() {
             }
         }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?,
-    ): View {
-        _binding = FragmentFeedBinding.inflate(inflater, container, false)
-        return binding.root
-    }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         viewModel.updateMessageText(resources::getString)
@@ -146,9 +131,11 @@ class FeedFragment : Fragment() {
     }
 
     private fun setupLogoGradient() {
-        binding.tvLogoTitle.post {
-            val paint = binding.tvLogoTitle.paint
-            val width = paint.measureText(binding.tvLogoTitle.text.toString())
+        val title = binding.tvLogoTitle
+        title.post {
+            if (bindingOrNull?.tvLogoTitle !== title) return@post
+            val paint = title.paint
+            val width = paint.measureText(title.text.toString())
             if (width > 0) {
                 val shader =
                     LinearGradient(
@@ -165,7 +152,7 @@ class FeedFragment : Fragment() {
                         Shader.TileMode.CLAMP,
                     )
                 paint.shader = shader
-                binding.tvLogoTitle.invalidate()
+                title.invalidate()
             }
         }
     }
@@ -278,6 +265,7 @@ class FeedFragment : Fragment() {
             object : RecyclerView.OnScrollListener() {
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                     super.onScrolled(recyclerView, dx, dy)
+                    if (bindingOrNull?.rvFeed !== recyclerView) return
                     val totalItemCount = layoutManager.itemCount
                     val lastVisibleItem = layoutManager.findLastVisibleItemPosition()
 
@@ -292,7 +280,7 @@ class FeedFragment : Fragment() {
                 override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                     super.onScrollStateChanged(recyclerView, newState)
                     if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                        checkAndAutoplayVisibleVideo(layoutManager)
+                        checkAndAutoplayVisibleVideo(recyclerView)
                     }
                 }
             }
@@ -309,13 +297,13 @@ class FeedFragment : Fragment() {
         // Nút Tìm kiếm
         binding.btnSearch.setOnClickListener {
             setSearchOpen(true)
-            binding.etFeedSearch.requestFocus()
-            binding.etFeedSearch.post {
-                _binding?.etFeedSearch?.let { input ->
-                    (requireContext().getSystemService(Context.INPUT_METHOD_SERVICE)
-                            as InputMethodManager)
-                        .showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
-                }
+            val input = binding.etFeedSearch
+            input.requestFocus()
+            input.post {
+                if (bindingOrNull?.etFeedSearch !== input) return@post
+                (requireContext().getSystemService(Context.INPUT_METHOD_SERVICE)
+                        as InputMethodManager)
+                    .showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
             }
         }
 
@@ -405,15 +393,18 @@ class FeedFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+        val owner = viewLifecycleOwner
+        owner.lifecycleScope.launch {
+            owner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { app.authRepository.userFlow.collect { viewModel.updateOwnProfile(it) } }
                 // Quan sát danh sách Feed
                 launch {
                     viewModel.feedItems.collectLatest { items ->
                         val appliedQuery = viewModel.appliedSearchQuery.value
                         feedAdapter.submitList(items) {
-                            val currentBinding = _binding ?: return@submitList
+                            if (owner.lifecycle.currentState == Lifecycle.State.DESTROYED)
+                                return@submitList
+                            val currentBinding = bindingOrNull ?: return@submitList
                             // Callback cũ không được cuộn hoặc đổi trạng thái rỗng của kết quả mới
                             // hơn.
                             if (appliedQuery != viewModel.appliedSearchQuery.value)
@@ -432,9 +423,7 @@ class FeedFragment : Fragment() {
                             updateSearchEmptyState()
                             // Vẫn chọn ứng viên theo chính sách autoplay hiện có sau khi lọc hoặc
                             // phục hồi.
-                            (currentBinding.rvFeed.layoutManager as? LinearLayoutManager)?.let(
-                                ::checkAndAutoplayVisibleVideo
-                            )
+                            checkAndAutoplayVisibleVideo(currentBinding.rvFeed)
                         }
                     }
                 }
@@ -509,9 +498,10 @@ class FeedFragment : Fragment() {
      * - Tỉ lệ hiển thị >= 70% chiều cao PlayerView.
      * - Nằm gần tâm viewport RecyclerView nhất (F06, F20).
      */
-    private fun checkAndAutoplayVisibleVideo(layoutManager: LinearLayoutManager) {
-        // Callback diff/cuộn có thể đến sau khi tab bị ẩn hoặc Activity đã Pause.
-        if (_binding == null || isHidden || !isResumed) return
+    private fun checkAndAutoplayVisibleVideo(recyclerView: RecyclerView) {
+        // Callback có thể đến sau khi view bị hủy, tab bị ẩn hoặc Activity đã Pause.
+        if (bindingOrNull?.rvFeed !== recyclerView || isHidden || !isResumed) return
+        val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
         val firstPos = layoutManager.findFirstVisibleItemPosition()
         val lastPos = layoutManager.findLastVisibleItemPosition()
         if (firstPos == RecyclerView.NO_POSITION || lastPos == RecyclerView.NO_POSITION) return
@@ -520,11 +510,11 @@ class FeedFragment : Fragment() {
         var minDistanceToCenter = Float.MAX_VALUE
 
         val rvRect = Rect()
-        binding.rvFeed.getGlobalVisibleRect(rvRect)
+        recyclerView.getGlobalVisibleRect(rvRect)
         val rvCenterY = (rvRect.top + rvRect.bottom) / 2f
 
         for (pos in firstPos..lastPos) {
-            val holder = binding.rvFeed.findViewHolderForAdapterPosition(pos)
+            val holder = recyclerView.findViewHolderForAdapterPosition(pos)
             if (holder is FeedAdapter.VideoPostViewHolder) {
                 val playerView = holder.binding.playerView
                 val childRect = Rect()
@@ -666,12 +656,7 @@ class FeedFragment : Fragment() {
         if (hidden) {
             pauseAllMedia()
         } else {
-            // Khi tab Bảng tin hiển thị lại, kích hoạt kiểm tra tự động phát video
-            _binding?.rvFeed?.post {
-                (_binding?.rvFeed?.layoutManager as? LinearLayoutManager)?.let { lm ->
-                    checkAndAutoplayVisibleVideo(lm)
-                }
-            }
+            scheduleAutoplayCheck()
         }
     }
 
@@ -682,11 +667,12 @@ class FeedFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        _binding?.rvFeed?.post {
-            (_binding?.rvFeed?.layoutManager as? LinearLayoutManager)?.let(
-                ::checkAndAutoplayVisibleVideo
-            )
-        }
+        scheduleAutoplayCheck()
+    }
+
+    private fun scheduleAutoplayCheck() {
+        val recyclerView = bindingOrNull?.rvFeed ?: return
+        recyclerView.post { checkAndAutoplayVisibleVideo(recyclerView) }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -703,6 +689,5 @@ class FeedFragment : Fragment() {
         super.onDestroyView()
         voicePlayerManager.release()
         videoPlayerManager.release()
-        _binding = null
     }
 }

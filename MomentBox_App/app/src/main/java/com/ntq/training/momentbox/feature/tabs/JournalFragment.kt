@@ -3,13 +3,10 @@ package com.ntq.training.momentbox.feature.tabs
 import kotlinx.coroutines.flow.combine
 import android.content.Context
 import android.content.Intent
-import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import androidx.core.widget.doAfterTextChanged
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -22,6 +19,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.base.BaseFragment
 import com.ntq.training.momentbox.databinding.FragmentJournalBinding
 import com.ntq.training.momentbox.feature.journal.JournalEntriesAdapter
 import com.ntq.training.momentbox.feature.journal.JournalEvent
@@ -38,10 +36,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-class JournalFragment : Fragment() {
-
-    private var _binding: FragmentJournalBinding? = null
-    private val binding get() = _binding!!
+class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBinding::inflate) {
 
     private val viewModel: JournalViewModel by viewModels {
         val app = requireActivity().application as MomentBoxApp
@@ -56,23 +51,11 @@ class JournalFragment : Fragment() {
         Locale.getDefault()
     )
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentJournalBinding.inflate(inflater, container, false)
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
+    override fun initViews() {
         setupRecyclerView()
         setupCalendarView()
         setupToolbarAndSearch()
         setupFab()
-        observeViewModel()
     }
 
     private fun setupRecyclerView() {
@@ -238,7 +221,7 @@ class JournalFragment : Fragment() {
         })
     }
 
-    private fun observeViewModel() {
+    override fun observeData() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
@@ -305,10 +288,5 @@ class JournalFragment : Fragment() {
                 }
             }
         }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
     }
 }

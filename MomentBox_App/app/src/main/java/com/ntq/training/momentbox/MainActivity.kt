@@ -6,8 +6,6 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -19,6 +17,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.withResumed
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.gson.Gson
+import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.core.network.SessionManager
 import com.ntq.training.momentbox.databinding.ActivityMainBinding
 import com.ntq.training.momentbox.feature.auth.AuthActivity
@@ -35,7 +34,7 @@ import java.text.NumberFormat
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity<ActivityMainBinding>(ActivityMainBinding::inflate) {
     private val recordPost =
         registerForActivityResult(RecordAudioContract()) { audio ->
             audio?.let {
@@ -47,7 +46,6 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         }
-    private lateinit var binding: ActivityMainBinding
     private val app get() = application as MomentBoxApp
 
     private lateinit var feedFragment: FeedFragment
@@ -62,28 +60,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         reminderRouteConsumed = savedInstanceState?.getBoolean("m5ReminderConsumed") ?: false
-        enableEdgeToEdge()
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        val navContentHeight = binding.bottomNav.layoutParams.height
-        ViewCompat.setOnApplyWindowInsetsListener(binding.mainRoot) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val profileVisible = ::activeFragment.isInitialized && activeFragment is ProfileFragment
-            v.setPadding(
-                systemBars.left,
-                if (profileVisible) 0 else systemBars.top,
-                systemBars.right,
-                0
-            )
-            binding.bottomNav.setPadding(0, 0, 0, systemBars.bottom)
-            // Cộng phần hệ thống vào chiều cao, giữ nguyên vùng nội dung 68dp cho các tab.
-            binding.bottomNav.layoutParams = binding.bottomNav.layoutParams.apply {
-                height = navContentHeight + systemBars.bottom
-            }
-            insets
-        }
-
         setupFragments(savedInstanceState)
         setupBottomNav()
         observeSessionExpiry()
@@ -104,7 +80,27 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
 
+    override fun setupInsets() {
+        val bottomNav = binding.bottomNav
+        val navContentHeight = bottomNav.layoutParams.height
+        ViewCompat.setOnApplyWindowInsetsListener(binding.mainRoot) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val profileVisible = ::activeFragment.isInitialized && activeFragment is ProfileFragment
+            v.setPadding(
+                systemBars.left,
+                if (profileVisible) 0 else systemBars.top,
+                systemBars.right,
+                0
+            )
+            bottomNav.setPadding(0, 0, 0, systemBars.bottom)
+            // Cộng phần hệ thống vào chiều cao, giữ nguyên vùng nội dung 68dp cho các tab.
+            bottomNav.layoutParams = bottomNav.layoutParams.apply {
+                height = navContentHeight + systemBars.bottom
+            }
+            insets
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

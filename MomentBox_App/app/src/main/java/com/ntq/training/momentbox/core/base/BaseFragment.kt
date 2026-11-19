@@ -14,6 +14,9 @@ abstract class BaseFragment<VB: ViewBinding>(
     protected val binding: VB
         get() = _binding ?: throw IllegalStateException("Binding accessed when view is destroyed")
 
+    protected val bindingOrNull: VB?
+        get() = _binding
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,

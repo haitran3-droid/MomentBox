@@ -16,7 +16,6 @@ import android.widget.TextView
 import android.view.Gravity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -27,6 +26,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.databinding.ActivityVideoPlayerBinding
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -35,7 +35,10 @@ import java.text.NumberFormat
 import java.util.Locale
 
 
-class VideoPlayerActivity : AppCompatActivity() {
+class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
+    ActivityVideoPlayerBinding::inflate,
+    applyDefaultEdgeToEdge = false,
+) {
 
     companion object {
         const val EXTRA_VIDEO_URL = "EXTRA_VIDEO_URL"
@@ -52,7 +55,6 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     }
 
-    private lateinit var binding: ActivityVideoPlayerBinding
     private var exoPlayer: ExoPlayer? = null
 
     private var videoUrl: String = ""
@@ -123,11 +125,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityVideoPlayerBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
+    override fun initViews() {
         // Lấy tham số khởi tạo từ Intent
         videoUrl = intent.getStringExtra(EXTRA_VIDEO_URL) ?: ""
         postTitle = intent.getStringExtra(EXTRA_POST_TITLE) ?: getString(R.string.media_video_title)

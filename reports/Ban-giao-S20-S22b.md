@@ -1,6 +1,6 @@
 # Bàn giao MomentBox từ máy nhà sang máy công ty
 
-Ngày 20/11/2026. Nhánh bàn giao là `origin/codex/fix-reminder-language`, tách từ `main` tại `58b6796`. Bắt đầu từ nhánh bàn giao để có cả bản sửa và hai ca hồi quy.
+Ngày 20/11/2026. Nhánh bàn giao là `origin/fix/reminder-language`, tách từ `main` tại `58b6796`. Bắt đầu từ nhánh bàn giao để có cả bản sửa và hai ca hồi quy.
 
 ## S20 và S22b đã sửa gì?
 
@@ -31,9 +31,9 @@ Sau khi thử, đã gỡ bản QA tạm và trả bản chính về tiếng Vi�
 
 Tại thư mục gốc của bản clone hiện có, chạy `git status --short --branch`, `git remote -v` và `git fetch origin`. Remote dự án là `github.com/haitran3-droid/MomentBox`. Có thể lấy trực tiếp nhánh bàn giao dù `main` trên máy đang cũ.
 
-- Nếu thư mục sạch và máy chưa có nhánh bàn giao, chạy `git switch --track origin/codex/fix-reminder-language`.
-- Nếu đã có nhánh local này, chuyển sang nhánh đó và dùng `git merge --ff-only origin/codex/fix-reminder-language`. Kiểm tra `git rev-parse HEAD` và `git rev-parse origin/codex/fix-reminder-language` trả về cùng mã trước khi bắt đầu công việc mới.
-- Nếu đang sửa dở, có commit local riêng trên nhánh bàn giao, hoặc Git báo hai nhánh đã tách lịch sử, mở một worktree mới từ nhánh remote. Ví dụ với tên nhánh và thư mục còn trống, chạy `git worktree add --no-track -b codex/tiep-tuc-review ../MomentBox-tiep-tuc origin/codex/fix-reminder-language` rồi mở thư mục mới trong Codex.
+- Nếu thư mục sạch và máy chưa có nhánh bàn giao, chạy `git switch --track origin/fix/reminder-language`.
+- Nếu đã có nhánh local này, chuyển sang nhánh đó và dùng `git merge --ff-only origin/fix/reminder-language`. Kiểm tra `git rev-parse HEAD` và `git rev-parse origin/fix/reminder-language` trả về cùng mã trước khi bắt đầu công việc mới.
+- Nếu đang sửa dở, có commit local riêng trên nhánh bàn giao, hoặc Git báo hai nhánh đã tách lịch sử, mở một worktree mới từ nhánh remote. Ví dụ với tên nhánh và thư mục còn trống, chạy `git worktree add --no-track -b fix/tiep-tuc-review ../MomentBox-tiep-tuc origin/fix/reminder-language` rồi mở thư mục mới trong Codex.
 
 **Chạy debug qua USB.** Trong `mock-server`, chạy `npm ci` khi cần cài dependency, rồi `npm start`. Ở cửa sổ khác, dùng `adb devices` để kiểm tra thiết bị và `adb reverse tcp:3000 tcp:3000` để nối cổng. Hai lệnh sau chạy trong `MomentBox_App` để cài bản debug, chạy unit test và bộ kiểm thử M5 trên thiết bị.
 
@@ -44,6 +44,6 @@ Tại thư mục gốc của bản clone hiện có, chạy `git status --short 
 
 ## Prompt dán vào Codex ở máy công ty
 
-> Tôi đang mở bản clone MomentBox cũ trên máy công ty. Hãy kiểm tra trạng thái Git và remote, fetch origin rồi lấy đúng nhánh `origin/codex/fix-reminder-language`. Nếu đang sửa dở hoặc có commit local riêng trên nhánh đích, hãy giữ nguyên công việc đó và mở worktree mới từ nhánh remote. Xác minh HEAD trùng với nhánh bàn giao và đọc `reports/Ban-giao-S20-S22b.md`.
+> Tôi đang mở bản clone MomentBox cũ trên máy công ty. Hãy kiểm tra trạng thái Git và remote, fetch origin rồi lấy đúng nhánh `origin/fix/reminder-language`. Nếu đang sửa dở hoặc có commit local riêng trên nhánh đích, hãy giữ nguyên công việc đó và mở worktree mới từ nhánh remote. Xác minh HEAD trùng với nhánh bàn giao và đọc `reports/Ban-giao-S20-S22b.md`.
 >
 > Nếu có điện thoại kết nối ADB, kiểm tra tiếp độ trễ nhắc nhật ký S22b khi app ở nền. Ghi rõ giờ đặt, giờ Android giao báo thức và giờ hiện thông báo. Nếu tái hiện được, xác định nguyên nhân trước khi sửa. Nếu chưa có thiết bị hoặc đã kiểm tra xong S22b, bắt đầu sửa S05 cho bài có `allowComments=false`, đối chiếu tài liệu BA và thêm ca hồi quy. Báo lại tệp đã sửa, kết quả test và phần còn mở. Tạm bỏ qua gọi điện M5 đến khi có thiết bị thứ hai.

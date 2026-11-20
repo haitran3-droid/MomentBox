@@ -3,6 +3,7 @@ package com.ntq.training.momentbox.feature.postdetail
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -38,6 +39,13 @@ class CommentsAdapter(
         const val VIEW_TYPE_ROOT = 1002
         const val VIEW_TYPE_REPLY = 1003
     }
+
+    var commentsAllowed: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            notifyItemRangeChanged(0, itemCount)
+        }
 
     /** Bộ đếm số lần gọi onBindViewHolder phục vụ đo đạc A/B testing */
     var bindCount: Int = 0
@@ -87,6 +95,25 @@ class CommentsAdapter(
         }
     }
 
+    private fun TextView.bindStatus(comment: Comment) {
+        val canRetry = comment.sendFailed && !comment.isSending && commentsAllowed && onRetryClick != null
+        text = when {
+            comment.isSending -> context.getString(R.string.comment_sending)
+            canRetry -> context.getString(R.string.comment_send_failed)
+            comment.sendFailed -> context.getString(R.string.comment_not_sent)
+            else -> RelativePostTime.format(context, comment.createdAt)
+        }
+        val color = if (comment.sendFailed && !comment.isSending) R.color.error else R.color.text_tertiary
+        setTextColor(ContextCompat.getColor(context, color))
+        if (canRetry) {
+            setOnClickListener { if (commentsAllowed) onRetryClick?.invoke(comment) }
+        } else {
+            setOnClickListener(null)
+        }
+        isClickable = canRetry
+        isFocusable = canRetry
+    }
+
     inner class RootCommentViewHolder(val binding: ItemCommentBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
@@ -94,24 +121,7 @@ class CommentsAdapter(
             with(binding) {
                 tvCommentAuthorName.text = comment.author.displayName
                 tvCommentContent.text = comment.content
-                tvCommentTime.isFocusable = comment.sendFailed && !comment.isSending
-
-                // Trạng thái gửi / lỗi gửi
-                if (comment.isSending) {
-                    tvCommentTime.text = root.context.getString(R.string.comment_sending)
-                    tvCommentTime.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
-                    tvCommentTime.setOnClickListener(null)
-                    tvCommentTime.isClickable = false
-                } else if (comment.sendFailed) {
-                    tvCommentTime.text = root.context.getString(R.string.comment_send_failed)
-                    tvCommentTime.setTextColor(ContextCompat.getColor(root.context, R.color.error))
-                    tvCommentTime.setOnClickListener { onRetryClick?.invoke(comment) }
-                } else {
-                    tvCommentTime.text = RelativePostTime.format(root.context, comment.createdAt)
-                    tvCommentTime.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
-                    tvCommentTime.setOnClickListener(null)
-                    tvCommentTime.isClickable = false
-                }
+                tvCommentTime.bindStatus(comment)
 
                 // Avatar với placeholder tròn đồng nhất
                 Glide.with(ivCommentAvatar.context)
@@ -137,10 +147,13 @@ class CommentsAdapter(
                 // Nút Thích & Trả lời
                 btnLikeComment.setOnClickListener { onLikeClick(comment) }
                 btnCommentLikeAction.setOnClickListener { onLikeClick(comment) }
-                btnReplyComment.setOnClickListener { onReplyClick(comment) }
+                btnReplyComment.setOnClickListener {
+                    if (commentsAllowed && comment.id > 0) onReplyClick(comment)
+                }
+                btnReplyComment.visibility = if (commentsAllowed) View.VISIBLE else View.GONE
                 btnLikeComment.isEnabled = comment.id > 0
                 btnCommentLikeAction.isEnabled = comment.id > 0
-                btnReplyComment.isEnabled = comment.id > 0
+                btnReplyComment.isEnabled = commentsAllowed && comment.id > 0
 
                 // Mở rộng phản hồi
                 if (comment.replyCount > 0 || comment.replies.isNotEmpty()) {
@@ -168,24 +181,7 @@ class CommentsAdapter(
             with(binding) {
                 tvReplyAuthorName.text = reply.author.displayName
                 tvReplyContent.text = reply.content
-                tvReplyTime.isFocusable = reply.sendFailed && !reply.isSending
-
-                // Trạng thái gửi / lỗi gửi cho phản hồi con
-                if (reply.isSending) {
-                    tvReplyTime.text = root.context.getString(R.string.comment_sending)
-                    tvReplyTime.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
-                    tvReplyTime.setOnClickListener(null)
-                    tvReplyTime.isClickable = false
-                } else if (reply.sendFailed) {
-                    tvReplyTime.text = root.context.getString(R.string.comment_send_failed)
-                    tvReplyTime.setTextColor(ContextCompat.getColor(root.context, R.color.error))
-                    tvReplyTime.setOnClickListener { onRetryClick?.invoke(reply) }
-                } else {
-                    tvReplyTime.text = RelativePostTime.format(root.context, reply.createdAt)
-                    tvReplyTime.setTextColor(ContextCompat.getColor(root.context, R.color.text_tertiary))
-                    tvReplyTime.setOnClickListener(null)
-                    tvReplyTime.isClickable = false
-                }
+                tvReplyTime.bindStatus(reply)
 
                 Glide.with(ivReplyAvatar.context)
                     .load(MediaImageModel.resolve(ivReplyAvatar.context, reply.author.avatarUrl))

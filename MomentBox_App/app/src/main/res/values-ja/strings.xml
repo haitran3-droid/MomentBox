@@ -92,6 +92,8 @@
     <string name="sort_newest">最新順</string>
     <string name="comment_sending">送信中…</string>
     <string name="comment_send_failed">送信失敗 (再試行)</string>
+    <string name="comment_not_sent">送信できませんでした</string>
+    <string name="comments_turned_off">コメントはオフになっています</string>
     <string name="comment_input_hint">コメントを入力…</string>
     <string name="reply_to">%1$sに返信</string>
     <plurals name="hide_replies">

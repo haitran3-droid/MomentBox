@@ -93,6 +93,8 @@
     <string name="sort_newest">Newest</string>
     <string name="comment_sending">Sending…</string>
     <string name="comment_send_failed">Failed (Retry)</string>
+    <string name="comment_not_sent">Not sent</string>
+    <string name="comments_turned_off">Comments are turned off</string>
     <string name="comment_input_hint">Write a comment…</string>
     <string name="reply_to">Replying to %1$s</string>
     <plurals name="hide_replies">

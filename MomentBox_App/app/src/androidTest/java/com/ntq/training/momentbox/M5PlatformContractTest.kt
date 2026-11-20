@@ -5,9 +5,12 @@ import android.content.ComponentName
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.Parcelable
+import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ContextThemeWrapper
 import android.view.View
+import android.widget.CompoundButton
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -17,12 +20,19 @@ import com.ntq.training.momentbox.core.notification.NotificationChannels
 import com.ntq.training.momentbox.data.repository.ChatSession
 import com.ntq.training.momentbox.feature.chat.NewConversationDialog
 import com.ntq.training.momentbox.feature.player.PlayerService
+import com.ntq.training.momentbox.feature.reminder.ReminderAlarmPayload
+import com.ntq.training.momentbox.feature.reminder.ReminderAlarmReceiver
+import com.ntq.training.momentbox.feature.reminder.ReminderEvent
+import com.ntq.training.momentbox.feature.reminder.ReminderKind
+import com.ntq.training.momentbox.feature.reminder.ReminderTiming
+import com.ntq.training.momentbox.feature.settings.SettingsActivity
 import com.ntq.training.momentbox.feature.tabs.ProfileFragment
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -31,6 +41,40 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class M5PlatformContractTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    @Test
+    fun reminderAlarmPayloadRoundTripsOnlyForItsReceiver() {
+        val event = ReminderEvent(ReminderKind.DAILY, 7L, 1_800_000_000_000L)
+        val intent = ReminderAlarmPayload.intent(context, event, ReminderTiming.INEXACT)
+        val receiverName = ReminderAlarmReceiver::class.java.name
+        assertEquals(ComponentName(context.packageName, receiverName), intent.component)
+        assertEquals(event, ReminderAlarmPayload.event(intent))
+
+        val wrongClass = Intent(intent).setClass(context, SettingsActivity::class.java)
+        assertNull(ReminderAlarmPayload.event(wrongClass))
+        val wrongPackage = Intent(intent).setClassName("example.other", receiverName)
+        assertNull(ReminderAlarmPayload.event(wrongPackage))
+    }
+
+    @Test
+    fun restoringSettingsHierarchyKeepsEnabledReminder() {
+        ActivityScenario.launch<SettingsActivity>(Intent(context, SettingsActivity::class.java)).use { scenario ->
+            scenario.onActivity { activity ->
+                val root = activity.findViewById<View>(R.id.settingsRoot)
+                val reminderRow = root.findViewById<View>(R.id.settingsReminder)
+                val toggle = reminderRow.findViewById<CompoundButton>(R.id.toggle)
+                // Exercise view restoration without changing the device's actual alarm schedule.
+                toggle.setOnCheckedChangeListener(null)
+                toggle.isChecked = true
+
+                val saved = SparseArray<Parcelable>()
+                root.saveHierarchyState(saved)
+                root.restoreHierarchyState(saved)
+
+                assertTrue("A hidden row's unchecked toggle must not overwrite the reminder", toggle.isChecked)
+            }
+        }
+    }
 
     @Test
     fun launchAndDayNightThemeInheritAppCompatAttributes() {

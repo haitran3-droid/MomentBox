@@ -103,6 +103,8 @@ class SettingsActivity : AppCompatActivity() {
             value.isVisible = false
             chevron.isVisible = false
             toggle.isVisible = true
+            // The scheduler owns this value. Other settings rows share the same switch ID.
+            toggle.isSaveFromParentEnabled = false
             root.setPadding(dp(14), dp(2), dp(14), dp(2))
             toggle.setOnCheckedChangeListener { _, checked ->
                 if (!rendering) model.reminder(
@@ -376,9 +378,8 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun reminder(state: ReminderSchedulingState) {
         rendering = true
-        binding.settingsReminder.toggle.isChecked =
-            state.settings.enabled
-            rendering = false
+        binding.settingsReminder.toggle.isChecked = state.settings.enabled
+        rendering = false
         val date = Calendar.getInstance().apply {
             set(
                 Calendar.HOUR_OF_DAY,

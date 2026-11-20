@@ -23,7 +23,7 @@ object ReminderAlarmPayload {
         val kind = ReminderKind.valueOf(intent.getStringExtra(KIND) ?: return null)
         val component = intent.component ?: return null
         if (component.packageName != BuildConfig.APPLICATION_ID ||
-            component.className != component.packageName + ".feature.reminder.ReminderAlarmReceiver" ||
+            component.className != ReminderAlarmReceiver::class.java.name ||
             intent.action != component.packageName + ".reminder." + kind.name ||
             intent.data != ("momentbox-internal://reminder/" + kind.name.lowercase(Locale.ROOT)).toUri()
         ) return null

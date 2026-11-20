@@ -93,6 +93,8 @@
     <string name="sort_newest">Mới nhất</string>
     <string name="comment_sending">Đang gửi…</string>
     <string name="comment_send_failed">Lỗi gửi (Thử lại)</string>
+    <string name="comment_not_sent">Chưa gửi được</string>
+    <string name="comments_turned_off">Bình luận đã tắt</string>
     <string name="comment_input_hint">Viết bình luận…</string>
     <string name="reply_to">Đang trả lời %1$s</string>
     <plurals name="hide_replies">

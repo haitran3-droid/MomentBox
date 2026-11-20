@@ -72,6 +72,8 @@ class PostDetailActivity : AppCompatActivity() {
     private lateinit var postHeaderAdapter: PostHeaderAdapter
     private lateinit var commentsFooterAdapter: CommentsFooterAdapter
     private var voicePlayerManager: VoicePlayerManager? = null
+    private val commentInput: EditText get() = bindingA?.etCommentInputA ?: requireNotNull(bindingB).etCommentInput
+    private var insertedReplyMention: String? = null
     private var restoredAlbumPage = 0
     private var videoPositionMs = 0L
     private var videoShouldPlay = true
@@ -89,6 +91,7 @@ class PostDetailActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        insertedReplyMention = savedInstanceState?.getString("detailReplyMention")
         restoredAlbumPage = savedInstanceState?.getInt("detailAlbumPage") ?: 0
         videoPositionMs = savedInstanceState?.getLong("detailVideoPosition") ?: 0L
         videoShouldPlay = savedInstanceState?.getBoolean("detailVideoShouldPlay", true) ?: true
@@ -152,6 +155,7 @@ class PostDetailActivity : AppCompatActivity() {
             }
         })
 
+        renderCommentPermission(viewModel.post.value)
         observeViewModel()
     }
 
@@ -302,7 +306,7 @@ class PostDetailActivity : AppCompatActivity() {
         }
 
         b.btnCancelReply.setOnClickListener {
-            viewModel.replyingTo.value?.let { removeReplyMention(b.etCommentInput, it) }
+            removeInsertedReplyMention(b.etCommentInput)
             viewModel.setReplyingTo(null)
         }
 
@@ -389,6 +393,7 @@ class PostDetailActivity : AppCompatActivity() {
                 // Quan sát dữ liệu bài viết
                 launch {
                     viewModel.post.collectLatest { post ->
+                        renderCommentPermission(post)
                         if (post != null) {
                             if (!isVersionA) {
                                 postHeaderAdapter.setPost(post)
@@ -426,6 +431,7 @@ class PostDetailActivity : AppCompatActivity() {
                 // Quan sát trạng thái đang trả lời bình luận
                 launch {
                     viewModel.replyingTo.collectLatest { replyingComment ->
+                        if (replyingComment == null) removeInsertedReplyMention(commentInput)
                         val b = bindingB
                         if (b != null) {
                             if (replyingComment != null) {
@@ -527,24 +533,44 @@ class PostDetailActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun renderCommentPermission(post: Post?) {
+        val allowed = post?.allowComments == true
+        val input = commentInput
+        val send = bindingA?.btnSendCommentA ?: requireNotNull(bindingB).btnSendComment
+        if (!allowed && input.hasFocus()) {
+            hideKeyboard(input)
+            input.clearFocus()
+        }
+        input.isEnabled = allowed
+        input.setHint(if (post?.allowComments == false) R.string.comments_turned_off else R.string.comment_input_hint)
+        send.isEnabled = allowed
+        send.alpha = if (allowed) 1f else 0.5f
+        commentsAdapter.commentsAllowed = allowed
+    }
+
     private fun startReply(input: EditText, comment: Comment) {
-        viewModel.replyingTo.value?.let { removeReplyMention(input, it) }
+        if (!viewModel.canComment) return
+        removeInsertedReplyMention(input)
         val mention = replyMention(comment)
-        if (!input.text.startsWith(mention)) input.text.insert(0, mention)
+        if (!input.text.startsWith(mention)) {
+            input.text.insert(0, mention)
+            insertedReplyMention = mention
+        }
         input.setSelection(input.length())
         viewModel.setReplyingTo(comment)
         input.requestFocus()
         showKeyboard(input)
     }
 
-    private fun removeReplyMention(input: EditText, comment: Comment) {
-        val mention = replyMention(comment)
+    private fun removeInsertedReplyMention(input: EditText) {
+        val mention = insertedReplyMention ?: return
+        insertedReplyMention = null
         if (input.text.startsWith(mention)) input.text.delete(0, mention.length)
     }
 
     private fun hasCommentBody(content: String): Boolean {
         val mention = viewModel.replyingTo.value?.let(::replyMention)
-        return content.isNotBlank() && content.trim() != mention?.trim()
+        return viewModel.canComment && content.isNotBlank() && content.trim() != mention?.trim()
     }
 
     private fun replyMention(comment: Comment): String = "@${comment.author.displayName} "
@@ -603,6 +629,7 @@ class PostDetailActivity : AppCompatActivity() {
             "detailAlbumPage",
             if (::postHeaderAdapter.isInitialized) postHeaderAdapter.currentAlbumPage else restoredAlbumPage
         )
+        outState.putString("detailReplyMention", insertedReplyMention)
         outState.putLong("detailVideoPosition", videoPositionMs)
         outState.putBoolean("detailVideoShouldPlay", videoShouldPlay)
         super.onSaveInstanceState(outState)

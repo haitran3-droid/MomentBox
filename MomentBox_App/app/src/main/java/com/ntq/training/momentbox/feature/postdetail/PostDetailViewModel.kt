@@ -34,6 +34,9 @@ class PostDetailViewModel(
     val post: StateFlow<Post?> = feedRepository.observePost(postId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    // A callback from a recycled row may run before the UI collects a permission change.
+    val canComment: Boolean get() = feedRepository.postsMapFlow.value[postId]?.allowComments == true
+
     private val followOverride = MutableStateFlow<Pair<Long, Boolean>?>(null)
     private val _isFollowPending = MutableStateFlow(false)
     val isFollowPending: StateFlow<Boolean> = _isFollowPending.asStateFlow()
@@ -98,6 +101,9 @@ class PostDetailViewModel(
     val commentLoadFailed = _commentLoadFailed.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            post.collect { if (it?.allowComments != true) _replyingTo.value = null }
+        }
         loadPostDetail()
         loadComments(refresh = true)
     }
@@ -187,6 +193,7 @@ class PostDetailViewModel(
      * Thử lại bình luận hoặc phản hồi con bị lỗi gửi (Sửa lỗi F12).
      */
     fun retryComment(comment: Comment) {
+        if (!canComment) return
         // Adapter có thể còn giữ row cũ trong lúc DiffUtil đang chạy; luôn kiểm tra state hiện tại.
         val current = findComment(comment.id) ?: return
         if (!current.sendFailed || current.isSending || !retryingCommentIds.add(current.id)) return
@@ -215,7 +222,7 @@ class PostDetailViewModel(
     }
 
     fun setReplyingTo(comment: Comment?) {
-        _replyingTo.value = comment
+        _replyingTo.value = comment?.takeIf { canComment }
     }
 
     fun toggleLikePost() {
@@ -286,7 +293,7 @@ class PostDetailViewModel(
     }
 
     fun sendComment(content: String, currentAuthor: Author) {
-        if (content.isBlank()) return
+        if (!canComment || content.isBlank()) return
 
         val targetParent = _replyingTo.value
         val tempId = nextTemporaryId--

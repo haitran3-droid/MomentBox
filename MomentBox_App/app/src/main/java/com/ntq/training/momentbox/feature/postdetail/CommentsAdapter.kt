@@ -15,6 +15,7 @@ import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.databinding.ItemCommentBinding
 import com.ntq.training.momentbox.databinding.ItemCommentReplyBinding
+import com.ntq.training.momentbox.databinding.ItemReplyPageBinding
 
 sealed class CommentDisplayItem {
     abstract val stableId: Long
@@ -25,6 +26,10 @@ sealed class CommentDisplayItem {
 
     data class Reply(val reply: Comment, val parentId: Long) : CommentDisplayItem() {
         override val stableId: Long = reply.id
+    }
+
+    data class ReplyPage(val parentId: Long, val loading: Boolean, val failed: Boolean) : CommentDisplayItem() {
+        override val stableId: Long = parentId
     }
 }
 
@@ -38,7 +43,13 @@ class CommentsAdapter(
     companion object {
         const val VIEW_TYPE_ROOT = 1002
         const val VIEW_TYPE_REPLY = 1003
+        const val VIEW_TYPE_REPLY_PAGE = 1005
+
+        internal fun displayedReplyCount(comment: Comment): Int =
+            maxOf(comment.replyCount.coerceAtLeast(0), comment.replies.count { it.isConfirmed })
     }
+
+    var onLoadMoreReplies: ((Long) -> Unit)? = null
 
     var commentsAllowed: Boolean = false
         set(value) {
@@ -66,6 +77,9 @@ class CommentsAdapter(
                 for (reply in root.replies) {
                     displayItems.add(CommentDisplayItem.Reply(reply, root.id))
                 }
+                if (root.nextReplyPage != null && onLoadMoreReplies != null) {
+                    displayItems.add(CommentDisplayItem.ReplyPage(root.id, root.loadingReplies, root.replyLoadFailed))
+                }
             }
         }
         submitList(displayItems)
@@ -75,6 +89,7 @@ class CommentsAdapter(
         return when (getItem(position)) {
             is CommentDisplayItem.Root -> VIEW_TYPE_ROOT
             is CommentDisplayItem.Reply -> VIEW_TYPE_REPLY
+            is CommentDisplayItem.ReplyPage -> VIEW_TYPE_REPLY_PAGE
         }
     }
 
@@ -83,6 +98,7 @@ class CommentsAdapter(
         return when (viewType) {
             VIEW_TYPE_ROOT -> RootCommentViewHolder(ItemCommentBinding.inflate(inflater, parent, false))
             VIEW_TYPE_REPLY -> ReplyCommentViewHolder(ItemCommentReplyBinding.inflate(inflater, parent, false))
+            VIEW_TYPE_REPLY_PAGE -> ReplyPageViewHolder(ItemReplyPageBinding.inflate(inflater, parent, false))
             else -> throw IllegalArgumentException("Unknown viewType: $viewType")
         }
     }
@@ -92,6 +108,21 @@ class CommentsAdapter(
         when (val item = getItem(position)) {
             is CommentDisplayItem.Root -> (holder as RootCommentViewHolder).bind(item.comment)
             is CommentDisplayItem.Reply -> (holder as ReplyCommentViewHolder).bind(item.reply)
+            is CommentDisplayItem.ReplyPage -> (holder as ReplyPageViewHolder).bind(item)
+        }
+    }
+
+    inner class ReplyPageViewHolder(binding: ItemReplyPageBinding) : RecyclerView.ViewHolder(binding.root) {
+        private val button = binding.root
+
+        fun bind(page: CommentDisplayItem.ReplyPage) {
+            button.setText(when {
+                page.loading -> R.string.detail_voice_loading
+                page.failed -> R.string.retry
+                else -> R.string.detail_more_replies
+            })
+            button.isEnabled = !page.loading
+            button.setOnClickListener { onLoadMoreReplies?.invoke(page.parentId) }
         }
     }
 
@@ -155,10 +186,10 @@ class CommentsAdapter(
                 btnCommentLikeAction.isEnabled = comment.id > 0
                 btnReplyComment.isEnabled = commentsAllowed && comment.id > 0
 
-                // Mở rộng phản hồi
-                if (comment.replyCount > 0 || comment.replies.isNotEmpty()) {
+                // Mở rộng phản hồi: chỉ đếm phản hồi đã được server xác nhận, không tính dòng đang gửi/gửi lỗi.
+                val totalReplies = displayedReplyCount(comment)
+                if (totalReplies > 0) {
                     layoutExpandReplies.visibility = View.VISIBLE
-                    val totalReplies = if (comment.replies.isNotEmpty()) comment.replies.size else comment.replyCount
                     tvExpandRepliesText.text = if (comment.isRepliesExpanded) {
                         root.context.resources.getQuantityString(R.plurals.hide_replies, totalReplies, totalReplies)
                     } else {
@@ -169,6 +200,7 @@ class CommentsAdapter(
                     }
                 } else {
                     layoutExpandReplies.visibility = View.GONE
+                    layoutExpandReplies.setOnClickListener(null)
                 }
             }
         }
@@ -212,7 +244,7 @@ class CommentsAdapter(
         override fun areItemsTheSame(
             oldItem: CommentDisplayItem,
             newItem: CommentDisplayItem
-        ): Boolean = oldItem.stableId == newItem.stableId
+        ): Boolean = oldItem.javaClass == newItem.javaClass && oldItem.stableId == newItem.stableId
 
         override fun areContentsTheSame(
             oldItem: CommentDisplayItem,

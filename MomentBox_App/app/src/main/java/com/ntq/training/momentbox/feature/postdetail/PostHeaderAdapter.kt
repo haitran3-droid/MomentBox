@@ -44,7 +44,7 @@ class PostHeaderAdapter(
     }
 
     private var post: Post? = null
-    private var commentCount: Int = 0
+    private var standaloneHeader: HeaderViewHolder? = null
     private var sortLabel: String = ""
     private var isFollowingAuthor: Boolean = false
     private var isFollowPending: Boolean = false
@@ -61,6 +61,23 @@ class PostHeaderAdapter(
     fun release() {
         boundHolders.toList().forEach { it.clearMedia() }
         boundHolders.clear()
+        standaloneHeader = null
+    }
+
+    fun attachStandaloneHeader(binding: ItemPostDetailHeaderBinding) {
+        standaloneHeader = HeaderViewHolder(binding)
+        renderStandaloneHeader()
+    }
+
+    private fun renderStandaloneHeader() {
+        val holder = standaloneHeader ?: return
+        val current = post
+        holder.itemView.visibility = if (current == null) View.GONE else View.VISIBLE
+        if (current != null) bindHeader(holder, current)
+        else if (holder.boundPost != null) {
+            holder.clearMedia()
+            boundHolders -= holder
+        }
     }
 
     /**
@@ -70,6 +87,7 @@ class PostHeaderAdapter(
         val wasEmpty = this.post == null
         val willBeEmpty = newPost == null
         this.post = newPost
+        renderStandaloneHeader()
 
         when {
             wasEmpty && !willBeEmpty -> notifyItemInserted(0)
@@ -79,29 +97,28 @@ class PostHeaderAdapter(
     }
 
     fun setCommentCount(count: Int) {
-        this.commentCount = count
-        if (post != null) {
-            notifyItemChanged(0)
-        }
+        post?.let { setPost(it.copy(commentCount = count)) }
+    }
+
+    private fun refreshHeader() {
+        if (post == null) return
+        renderStandaloneHeader()
+        notifyItemChanged(0)
     }
 
     fun setSortLabel(label: String) {
         this.sortLabel = label
-        if (post != null) {
-            notifyItemChanged(0)
-        }
+        refreshHeader()
     }
 
     fun setFollowing(isFollowing: Boolean) {
         this.isFollowingAuthor = isFollowing
-        if (post != null) {
-            notifyItemChanged(0)
-        }
+        refreshHeader()
     }
 
     fun setFollowPending(pending: Boolean) {
         isFollowPending = pending
-        if (post != null) notifyItemChanged(0)
+        refreshHeader()
     }
 
     inner class HeaderViewHolder(val binding: ItemPostDetailHeaderBinding) :
@@ -144,7 +161,10 @@ class PostHeaderAdapter(
     }
 
     override fun onBindViewHolder(holder: HeaderViewHolder, position: Int) {
-        val currentPost = post ?: return
+        post?.let { bindHeader(holder, it) }
+    }
+
+    private fun bindHeader(holder: HeaderViewHolder, currentPost: Post) {
         val context = holder.binding.root.context
         holder.boundPost = currentPost
         boundHolders += holder
@@ -205,8 +225,7 @@ class PostHeaderAdapter(
             }
 
             tvDetailCommentCount.text = root.context.getString(R.string.ui_integer_count, currentPost.commentCount)
-            val totalComments = if (commentCount > 0) commentCount else currentPost.commentCount
-            tvCommentsTitle.text = context.getString(R.string.comments_count_title, totalComments)
+            tvCommentsTitle.text = context.getString(R.string.comments_count_title, currentPost.commentCount)
             tvSortLabel.text = if (sortLabel.isNotBlank()) sortLabel else context.getString(R.string.sort_top)
         }
     }

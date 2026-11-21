@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -105,48 +106,16 @@ class PostDetailActivity : AppCompatActivity() {
             return
         }
 
-        // 2. Chốt chặn xác thực (Auth Gate) & Lấy thông tin người dùng
-        lifecycleScope.launch {
-            if (!app.authRepository.isLoggedIn()) {
-                Toast.makeText(
-                    this@PostDetailActivity,
-                    getString(R.string.detail_login_required),
-                    Toast.LENGTH_SHORT
-                ).show()
-                val authIntent = Intent(this@PostDetailActivity, AuthActivity::class.java).apply {
-                    putExtra("EXTRA_REDIRECT_POST_ID", postId)
-                }
-                startActivity(authIntent)
-                finish()
-                return@launch
-            }
-
-            currentUser = app.authRepository.getSavedUser()
-            // Profile đọc bất đồng bộ; bind lại header để tính quyền follow ngay khi biết viewerId.
-            if (::postHeaderAdapter.isInitialized) postHeaderAdapter.setFollowing(viewModel.isFollowingAuthor.value)
-            currentUser?.avatarUrl?.let { url ->
-                bindingB?.let { b ->
-                    Glide.with(this@PostDetailActivity)
-                        .load(MediaImageModel.resolve(this@PostDetailActivity, url))
-                        .placeholder(R.drawable.bg_avatar_placeholder)
-                        .circleCrop()
-                        .into(b.ivCurrentUserAvatar)
-                }
-            }
-        }
-
-        // 3. Khởi tạo Layout theo phiên bản A hoặc B
+        // 2. Khởi tạo khung giao diện trước (chưa chạm viewModel để tránh bắn request 401 khi chưa đăng nhập)
         isVersionA = intent.getStringExtra(EXTRA_LAYOUT_VERSION) == "A"
         if (isVersionA) {
             bindingA = ActivityPostDetailABinding.inflate(layoutInflater)
             setContentView(bindingA!!.root)
             setupWindowInsets(bindingA!!.postDetailRootA, bindingA!!.etCommentInputA)
-            setupVersionA()
         } else {
             bindingB = ActivityPostDetailBBinding.inflate(layoutInflater)
             setContentView(bindingB!!.root)
             setupWindowInsets(bindingB!!.postDetailRoot, bindingB!!.etCommentInput)
-            setupVersionB()
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -155,8 +124,35 @@ class PostDetailActivity : AppCompatActivity() {
             }
         })
 
-        renderCommentPermission(viewModel.post.value)
-        observeViewModel()
+        // 3. Chốt chặn xác thực (Auth Gate) TRƯỚC khi khởi tạo ViewModel và tải bài viết/bình luận
+        lifecycleScope.launch {
+            if (!app.authRepository.isLoggedIn()) {
+                Toast.makeText(
+                    this@PostDetailActivity,
+                    getString(R.string.detail_login_required),
+                    Toast.LENGTH_SHORT
+                ).show()
+                val authIntent = Intent(this@PostDetailActivity, AuthActivity::class.java).apply {
+                    putExtra(AuthActivity.EXTRA_REDIRECT_POST_ID, postId)
+                }
+                startActivity(authIntent)
+                finish()
+                return@launch
+            }
+            if (isFinishing || isDestroyed) return@launch
+
+            currentUser = app.authRepository.getSavedUser()
+            if (isFinishing || isDestroyed) return@launch
+
+            setupPostHeader()
+            if (isVersionA) {
+                setupVersionA()
+            } else {
+                setupVersionB()
+            }
+            renderCommentPermission(viewModel.post.value)
+            observeViewModel()
+        }
     }
 
     private fun parsePostIdFromIntent() {
@@ -184,14 +180,8 @@ class PostDetailActivity : AppCompatActivity() {
     // PHIÊN BẢN B (CHUẨN CONCAT ADAPTER)
     // ==========================================
 
-    private fun setupVersionB() {
-        val b = bindingB ?: return
-
-        b.btnBack.setOnClickListener { handleBackNavigation() }
-        b.btnMoreDetail.setOnClickListener { showPostMoreBottomSheet() }
+    private fun setupPostHeader() {
         voicePlayerManager = VoicePlayerManager(this)
-
-        // Khởi tạo các adapter cho ConcatAdapter
         postHeaderAdapter = PostHeaderAdapter(
             onLikeClick = { viewModel.toggleLikePost() },
             onBookmarkClick = { viewModel.toggleBookmarkPost() },
@@ -220,6 +210,12 @@ class PostDetailActivity : AppCompatActivity() {
             }
 
         )
+    }
+
+    private fun setupVersionB() {
+        val b = bindingB ?: return
+        b.btnBack.setOnClickListener { handleBackNavigation() }
+        b.btnMoreDetail.setOnClickListener { showPostMoreBottomSheet() }
 
         commentsAdapter = CommentsAdapter(
             onLikeClick = { comment -> viewModel.toggleLikeComment(comment) },
@@ -228,6 +224,7 @@ class PostDetailActivity : AppCompatActivity() {
             onRetryClick = { comment -> viewModel.retryComment(comment) }
         )
 
+        commentsAdapter.onLoadMoreReplies = viewModel::loadMoreReplies
         commentsFooterAdapter = CommentsFooterAdapter {
             viewModel.loadComments(retry = true)
         }
@@ -328,7 +325,9 @@ class PostDetailActivity : AppCompatActivity() {
     private fun setupVersionA() {
         val a = bindingA ?: return
 
-        a.btnBackA.setOnClickListener { finish() }
+        postHeaderAdapter.attachStandaloneHeader(a.headerPostA)
+        a.btnBackA.setOnClickListener { handleBackNavigation() }
+        a.btnMoreDetailA.setOnClickListener { showPostMoreBottomSheet() }
 
         commentsAdapter = CommentsAdapter(
             onLikeClick = { comment -> viewModel.toggleLikeComment(comment) },
@@ -337,8 +336,36 @@ class PostDetailActivity : AppCompatActivity() {
             onRetryClick = { comment -> viewModel.retryComment(comment) }
         )
 
+        commentsAdapter.onLoadMoreReplies = viewModel::loadMoreReplies
+        commentsFooterAdapter = CommentsFooterAdapter {
+            viewModel.loadComments(retry = true)
+        }
+
+        val concatAdapter = ConcatAdapter(
+            ConcatAdapter.Config.Builder().setIsolateViewTypes(true).build(),
+            commentsAdapter,
+            commentsFooterAdapter
+        )
         a.rvCommentsA.layoutManager = LinearLayoutManager(this)
-        a.rvCommentsA.adapter = commentsAdapter
+        a.rvCommentsA.adapter = concatAdapter
+
+        // Bản A dùng NestedScrollView bao ngoài RecyclerView (nestedScrollingEnabled=false),
+        // nên phải lắng nghe vị trí cuộn của NestedScrollView để nạp trang bình luận gốc tiếp theo.
+        val loadMoreThresholdPx = (240 * resources.displayMetrics.density).toInt()
+        a.nestedScrollViewA.setOnScrollChangeListener(
+            NestedScrollView.OnScrollChangeListener { v, _, scrollY, _, oldScrollY ->
+                if (scrollY < oldScrollY) return@OnScrollChangeListener
+
+                val contentHeight = v.getChildAt(0)?.measuredHeight ?: return@OnScrollChangeListener
+                val viewportHeight = v.height - v.paddingTop - v.paddingBottom
+                if (viewportHeight <= 0 || contentHeight <= 0) return@OnScrollChangeListener
+
+                val distanceToBottom = contentHeight - (scrollY + viewportHeight)
+                if (distanceToBottom <= loadMoreThresholdPx && commentsAdapter.itemCount > 0) {
+                    viewModel.loadComments(refresh = false)
+                }
+            }
+        )
 
         a.btnSendCommentA.setOnClickListener {
             val content = a.etCommentInputA.text.toString()
@@ -363,17 +390,17 @@ class PostDetailActivity : AppCompatActivity() {
     private fun observeViewModel() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                if (!isVersionA) launch {
+                launch {
                     voicePlayerManager?.playbackState?.collectLatest {
                         postHeaderAdapter.updateVoicePlaybackState(
                             it
                         )
                     }
                 }
-                if (!isVersionA) launch {
+                launch {
                     viewModel.isFollowingAuthor.collectLatest { postHeaderAdapter.setFollowing(it) }
                 }
-                if (!isVersionA) launch {
+                launch {
                     combine(
                         viewModel.isFollowPending,
                         viewModel.isFollowAvailable
@@ -394,13 +421,7 @@ class PostDetailActivity : AppCompatActivity() {
                 launch {
                     viewModel.post.collectLatest { post ->
                         renderCommentPermission(post)
-                        if (post != null) {
-                            if (!isVersionA) {
-                                postHeaderAdapter.setPost(post)
-                                // Giữ tổng số bình luận chuẩn từ dữ liệu server thay vì đếm theo số root comments đã nạp
-                                postHeaderAdapter.setCommentCount(post.commentCount)
-                            }
-                        }
+                        postHeaderAdapter.setPost(post)
                     }
                 }
 
@@ -408,10 +429,6 @@ class PostDetailActivity : AppCompatActivity() {
                 launch {
                     viewModel.comments.collectLatest { commentsList ->
                         commentsAdapter.submitCommentsList(commentsList)
-                        // Chỉ dùng kích thước danh sách tạm thời nếu bài viết chưa kịp nạp xong từ máy chủ
-                        if (!isVersionA && viewModel.post.value == null) {
-                            postHeaderAdapter.setCommentCount(commentsList.size)
-                        }
                     }
                 }
 
@@ -419,12 +436,10 @@ class PostDetailActivity : AppCompatActivity() {
                 launch {
                     combine(viewModel.isLoadingComments, viewModel.commentLoadFailed, ::Pair)
                         .collectLatest { (loading, failed) ->
-                            if (!isVersionA) {
-                                commentsFooterAdapter.setLoading(
-                                    loading,
-                                    if (failed) getString(R.string.comments_error) else null
-                                )
-                            }
+                            commentsFooterAdapter.setLoading(
+                                loading,
+                                if (failed) getString(R.string.comments_error) else null
+                            )
                         }
                 }
 
@@ -448,13 +463,9 @@ class PostDetailActivity : AppCompatActivity() {
                 // Quan sát chế độ sắp xếp
                 launch {
                     viewModel.sortMode.collectLatest { mode ->
-                        if (!isVersionA) {
-                            postHeaderAdapter.setSortLabel(
-                                if (mode == "newest") getString(R.string.sort_newest) else getString(
-                                    R.string.sort_top
-                                )
-                            )
-                        }
+                        postHeaderAdapter.setSortLabel(getString(
+                            if (mode == "newest") R.string.sort_newest else R.string.sort_top
+                        ))
                     }
                 }
             }
@@ -642,6 +653,7 @@ class PostDetailActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         if (::postHeaderAdapter.isInitialized) postHeaderAdapter.release()
+        bindingA?.rvCommentsA?.adapter = null
         bindingB?.rvPostDetail?.adapter = null
         voicePlayerManager?.release()
         voicePlayerManager = null
@@ -661,9 +673,12 @@ class PostDetailActivity : AppCompatActivity() {
     /**
      * Phương thức công khai trả về số lần gọi onBindViewHolder để phục vụ A/B Testing Benchmark.
      */
-    fun getCommentsBindCount(): Int = commentsAdapter.bindCount
+    fun getCommentsBindCount(): Int =
+        if (::commentsAdapter.isInitialized) commentsAdapter.bindCount else 0
 
     fun resetCommentsBindCount() {
-        commentsAdapter.resetBindCount()
+        if (::commentsAdapter.isInitialized) {
+            commentsAdapter.resetBindCount()
+        }
     }
 }

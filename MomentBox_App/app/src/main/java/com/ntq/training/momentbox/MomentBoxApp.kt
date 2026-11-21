@@ -134,10 +134,10 @@ class MomentBoxApp : Application() {
     lateinit var configRepository: ConfigRepository private set
 
     /** Điều phối xác thực người dùng, đăng nhập, refresh token và quản lý phiên */
-    lateinit var authRepository: AuthRepository private set
+    lateinit var authRepository: AuthRepository internal set
 
     /** Điều phối dữ liệu Bảng tin, bài viết, story, bình luận và tương tác */
-    lateinit var feedRepository: FeedRepository private set
+    lateinit var feedRepository: FeedRepository internal set
 
     /** Điều phối dữ liệu Nhật ký cá nhân, tệp đính kèm và thống kê M3 */
     lateinit var journalRepository: JournalRepository internal set

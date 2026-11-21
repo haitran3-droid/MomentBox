@@ -1,49 +1,57 @@
 package com.ntq.training.momentbox.feature.settings
 
-import androidx.room.withTransaction
 import android.app.NotificationManager
 import android.content.Intent
 import android.util.Log
+import androidx.room.withTransaction
+import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import com.ntq.training.momentbox.data.repository.ChatSession
 import com.ntq.training.momentbox.feature.auth.AuthActivity
-import com.ntq.training.momentbox.feature.recorder.RecordingService
 import com.ntq.training.momentbox.feature.recorder.RecordPhase
+import com.ntq.training.momentbox.feature.recorder.RecordingService
 import com.ntq.training.momentbox.feature.reminder.ReminderActivity
 import com.ntq.training.momentbox.feature.reminder.ReminderRingingService
-import com.ntq.training.momentbox.MomentBoxApp
 import java.io.File
+import java.net.URI
 import java.security.MessageDigest
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 enum class LogoutPhase { IDLE, RUNNING, COMPLETE, ERROR }
 
-/** Đây là thao tác cấp Application: rotation không hủy logout giữa token fence và cleanup.
+/**
+ * Đây là thao tác cấp Application: rotation không hủy logout giữa token fence và cleanup.
  * Xác nhận xóa nhật ký nằm ở DialogFragment, không mặc định xóa. Không cancelAll notifications
- * hoặc xóa toàn filesDir: chat chỉ owner/backend cũ, reminder chỉ namespace của reminder. */
+ * hoặc xóa toàn filesDir: chat chỉ owner/backend cũ, reminder chỉ namespace của reminder.
+ */
 class LogoutCoordinator(private val app: MomentBoxApp) {
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mutable = MutableStateFlow(LogoutPhase.IDLE)
     val phase = mutable.asStateFlow()
 
-    /** Chỉ mã bước, không có token, đường dẫn hay nội dung người dùng. Debug/test đọc để
-     * biết cleanup nào thất bại; lỗi một bước không ngăn các bước hủy phiên khác chạy. */
+    /**
+     * Chỉ mã bước, không có token, đường dẫn hay nội dung người dùng. Debug/test đọc để
+     * biết cleanup nào thất bại; lỗi một bước không ngăn các bước hủy phiên khác chạy.
+     */
     private val mutableFailures = MutableStateFlow<Set<String>>(emptySet())
     val failureSteps = mutableFailures.asStateFlow()
+
     private var operation: Job? = null
+
     fun start(keepJournal: Boolean, nextSource: String? = null): Job {
         require(
             nextSource == null || nextSource in setOf(
@@ -59,6 +67,7 @@ class LogoutCoordinator(private val app: MomentBoxApp) {
             var failed = false
             var journalSealed = false
             var session: ChatSession? = null
+
             suspend fun attempt(step: String, block: suspend () -> Unit) {
                 try {
                     block()
@@ -70,6 +79,7 @@ class LogoutCoordinator(private val app: MomentBoxApp) {
                     Log.w("MomentBoxLogout", "$step: ${error.javaClass.simpleName}")
                 }
             }
+
             // Cleanup độc lập: lỗi đọc journal không được bỏ qua token/socket/player ở bước sau.
             attempt("CAPTURE_SCOPE") {
                 val before = app.tokenStore.snapshot()
@@ -89,11 +99,11 @@ class LogoutCoordinator(private val app: MomentBoxApp) {
             }
             attempt("AUTH") { app.authRepository.logout().getOrThrow() }
             // Snapshot RAM cũng kiểm được khi server logout lỗi; local clear là điều kiện bắt buộc.
-            if (app.tokenStore.snapshot().accessToken != null) attempt("AUTH_FALLBACK") {
-                app.tokenStore.clear()
-                app.settingsDataStore.setSavedUserJson(
-                null
-            )
+            if (app.tokenStore.snapshot().accessToken != null) {
+                attempt("AUTH_FALLBACK") {
+                    app.tokenStore.clear()
+                    app.settingsDataStore.setSavedUserJson(null)
+                }
             }
             attempt("SOCKET") { app.socketManager.disconnect() }
             attempt("CHAT_SENDS") { app.chatRuntime.cancelForLogout() }
@@ -101,9 +111,7 @@ class LogoutCoordinator(private val app: MomentBoxApp) {
             attempt("CHAT_MEDIA") { app.chatMediaRepository.cancelForLogout() }
             attempt("POST_UPLOAD") { app.uploadRepository.cancelForLogout() }
             attempt("LOCAL_AUDIO") {
-                AndroidPlaybackAudio.get(
-                    app
-                ).interruptForRemotePlayer()
+                AndroidPlaybackAudio.get(app).interruptForRemotePlayer()
             }
             attempt("RECORDER") {
                 val recording = RecordingService.state.value
@@ -121,17 +129,19 @@ class LogoutCoordinator(private val app: MomentBoxApp) {
                             recording.session
                         )
                     )
-                    check(withTimeoutOrNull(5000) {
-                        RecordingService.state.first {
-                            it.phase !in listOf(
-                                RecordPhase.PREPARING,
-                                RecordPhase.RECORDING,
-                                RecordPhase.PAUSED,
-                                RecordPhase.STOPPING
-                            )
-                        }
-                        true
-                    } == true)
+                    check(
+                        withTimeoutOrNull(5000) {
+                            RecordingService.state.first {
+                                it.phase !in listOf(
+                                    RecordPhase.PREPARING,
+                                    RecordPhase.RECORDING,
+                                    RecordPhase.PAUSED,
+                                    RecordPhase.STOPPING
+                                )
+                            }
+                            true
+                        } == true
+                    )
                 }
             }
             attempt("PLAYER_IPC") { check(app.playerAudioBridge.closeForLogout()) }
@@ -141,9 +151,9 @@ class LogoutCoordinator(private val app: MomentBoxApp) {
                 val notices = app.getSystemService(NotificationManager::class.java)
                 notices.activeNotifications.filter {
                     it.id == ReminderActivity.NOTIFICATION_ID &&
-                            (it.tag?.startsWith("m5-reminder:") == true || it.notification.extras.getString(
-                                "m5_reminder_event"
-                            )?.startsWith("m5-reminder:") == true)
+                        (it.tag?.startsWith("m5-reminder:") == true ||
+                            it.notification.extras.getString("m5_reminder_event")
+                                ?.startsWith("m5-reminder:") == true)
                 }.forEach { notices.cancel(it.tag, it.id) }
             }
             session?.let { old ->
@@ -152,15 +162,9 @@ class LogoutCoordinator(private val app: MomentBoxApp) {
                     withContext(Dispatchers.IO) {
                         app.database.withTransaction {
                             val dao = app.database.chatDao()
-                            dao.clearMessages(
-                            old.ownerId,
-                            old.source
-                        )
-                        dao.clearConversations(
-                            old.ownerId,
-                            old.source
-                        )
-                        dao.clearUsers(old.ownerId, old.source)
+                            dao.clearMessages(old.ownerId, old.source)
+                            dao.clearConversations(old.ownerId, old.source)
+                            dao.clearUsers(old.ownerId, old.source)
                         }
                         // Chỉ file trực tiếp trong đúng thư mục SHA256 của owner/backend cũ, không xóa đệ quy.
                         val key = MessageDigest.getInstance("SHA-256")
@@ -176,27 +180,97 @@ class LogoutCoordinator(private val app: MomentBoxApp) {
                     }
                 }
             }
-            if (journalSealed) attempt("JOURNAL_FINISH") {
-                app.journalRepository.finishLogout(
-                    keepJournal
-                )
+            if (journalSealed) {
+                attempt("JOURNAL_FINISH") {
+                    app.journalRepository.finishLogout(keepJournal)
+                }
+            }
+            attempt("MEDIA_DRAFTS") {
+                app.postDraftStore.clear()
+                withContext(Dispatchers.IO) {
+                    val referencedAttachments = if (keepJournal) {
+                        app.database.journalDao().attachmentPathsForLogout().toSet()
+                    } else {
+                        emptySet()
+                    }
+                    cleanupMediaDraftsFiles(app.filesDir, keepJournal, referencedAttachments)
+                }
             }
             // Đổi backend chỉ sau khi vô hiệu hóa và dọn session cũ; không mang token sang nguồn khác.
             nextSource?.let { source ->
                 attempt("DATA_SOURCE") {
-                    app.authRepository.changeDataSource(
-                        source
-                    )
+                    app.authRepository.changeDataSource(source)
                 }
             }
             mutable.value = if (failed) LogoutPhase.ERROR else LogoutPhase.COMPLETE
             app.startActivity(
-                Intent(
-                    app,
-                    AuthActivity::class.java
-                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                Intent(app, AuthActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                     .putExtra("logoutCleanupFailed", failed)
             )
         }.also { operation = it }
     }
+}
+
+/**
+ * Dọn các tệp nháp bài viết, ảnh/video trung gian, phiên chỉnh sửa ảnh và các bản ghi âm
+ * không gắn với nhật ký được giữ lại để ngăn rò rỉ dữ liệu giữa hai tài khoản trên cùng thiết bị.
+ */
+internal fun cleanupMediaDraftsFiles(
+    filesDir: File,
+    keepJournal: Boolean,
+    referencedAttachmentPaths: Set<String>
+) {
+    val canonicalFilesDir = filesDir.canonicalFile
+    listOf("post-drafts", "create-media", "editor-sessions").forEach { dirName ->
+        val dir = File(canonicalFilesDir, dirName).canonicalFile
+        if (dir.parentFile == canonicalFilesDir && dir.isDirectory) {
+            deleteDirectoryContents(dir, dir)
+        }
+    }
+
+    val recordingsDir = File(canonicalFilesDir, "recordings").canonicalFile
+    if (recordingsDir.parentFile == canonicalFilesDir && recordingsDir.isDirectory) {
+        if (!keepJournal) {
+            deleteDirectoryContents(recordingsDir, recordingsDir)
+        } else {
+            val referencedCanonical = referencedAttachmentPaths
+                .mapNotNull(::canonicalFilePath)
+                .toSet()
+            recordingsDir.listFiles()?.forEach { child ->
+                val canonicalChild = child.canonicalFile
+                if (canonicalChild.parentFile == recordingsDir && canonicalChild.isFile) {
+                    val name = canonicalChild.name.lowercase(Locale.ROOT)
+                    val isAudioRecording =
+                        name.endsWith(".m4a") || name.endsWith(".pending.m4a")
+                    if (isAudioRecording && canonicalChild.path !in referencedCanonical) {
+                        check(canonicalChild.delete() || !canonicalChild.exists())
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun deleteDirectoryContents(root: File, directory: File) {
+    val canonicalRoot = root.canonicalFile
+    val rootPrefix = canonicalRoot.path + File.separator
+    directory.listFiles()?.forEach { child ->
+        val canonicalChild = child.canonicalFile
+        check(canonicalChild.path.startsWith(rootPrefix))
+        if (canonicalChild.isDirectory) {
+            deleteDirectoryContents(canonicalRoot, canonicalChild)
+        }
+        check(canonicalChild.delete() || !canonicalChild.exists())
+    }
+}
+
+private fun canonicalFilePath(rawPath: String): String? {
+    if (rawPath.isBlank()) return null
+    val path = if (rawPath.startsWith("file://")) {
+        runCatching { URI(rawPath).path }.getOrNull() ?: return null
+    } else {
+        rawPath
+    }
+    return runCatching { File(path).canonicalPath }.getOrNull()
 }

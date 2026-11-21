@@ -3,23 +3,22 @@
     Cấu hình An toàn Mạng cho bản Debug (Chỉ áp dụng trong quá trình phát triển):
     - trust-anchors: Bổ sung src="user" cho phép các công cụ Debug Proxy (Charles, Proxyman, mitmproxy)
       hoạt động được khi lập trình viên cài chứng chỉ giám sát vào máy ảo/thiết bị test.
-    - domain-config cleartextTrafficPermitted="true": Chỉ mở kết nối HTTP không mã hóa cho đúng 3 địa chỉ
-      máy chủ cục bộ: 10.0.2.2 (IP loopback của máy chủ chạy trên máy tính truy cập từ Android Emulator),
-      localhost và 127.0.0.1.
-    - Các domain khác ra internet vẫn bắt buộc dùng HTTPS.
+    - base-config cleartextTrafficPermitted="true": Cho phép kết nối HTTP trên mạng LAN Wi-Fi
+      (ví dụ http://192.168.x.x:3000 do mock-server/server.js in ra cho thiết bị thật) cũng như
+      10.0.2.2/localhost. Bản Release vẫn giữ cấu hình bắt buộc HTTPS riêng.
 -->
-<network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <!-- Chỉ dùng cho bản debug (proxy LAN & mock-server local); release tách manifest/config riêng bắt buộc HTTPS. -->
+    <base-config
+        cleartextTrafficPermitted="true"
+        tools:ignore="InsecureBaseConfiguration">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
     <debug-overrides>
-        <trust-anchors><certificates src="user" /></trust-anchors>
+        <trust-anchors>
+            <certificates src="user" />
+        </trust-anchors>
     </debug-overrides>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">10.0.2.2</domain>
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
-    </domain-config>
 </network-security-config>

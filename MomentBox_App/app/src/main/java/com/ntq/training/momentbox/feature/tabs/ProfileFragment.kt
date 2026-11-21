@@ -9,29 +9,31 @@ import android.widget.FrameLayout
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import androidx.core.view.isInvisible
-import androidx.core.view.isVisible
-import androidx.core.view.updateLayoutParams
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isInvisible
+import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.AbstractSavedStateViewModelFactory
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.RequestManager
+import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.signature.ObjectKey
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import com.ntq.training.momentbox.MomentBoxApp
+import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.databinding.FragmentProfileBinding
 import com.ntq.training.momentbox.databinding.ViewProfileTabBinding
@@ -50,33 +52,35 @@ import com.ntq.training.momentbox.feature.profile.ProfileUiState
 import com.ntq.training.momentbox.feature.profile.ProfileViewModel
 import com.ntq.training.momentbox.feature.profile.QuarterBlurTransformation
 import com.ntq.training.momentbox.feature.settings.SettingsActivity
-import com.ntq.training.momentbox.MomentBoxApp
-import com.ntq.training.momentbox.R
 import java.text.NumberFormat
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlinx.coroutines.launch
 
 class ProfileFragment : Fragment(R.layout.fragment_profile) {
+
     private var binding: FragmentProfileBinding? = null
     private var images: RequestManager? = null
+
     val model: ProfileViewModel by lazy {
         val app = requireActivity().application as MomentBoxApp
-        ViewModelProvider(this, object : AbstractSavedStateViewModelFactory(this, arguments) {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(
-                key: String,
-                c: Class<T>,
-                handle: SavedStateHandle
-            ): T =
-                ProfileViewModel(
+        ViewModelProvider(
+            this,
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(
+                    modelClass: Class<T>,
+                    extras: CreationExtras
+                ): T = ProfileViewModel(
                     app.profileRepository,
-                    handle,
+                    extras.createSavedStateHandle(),
                     app.authRepository,
                     app.feedRepository
                 ) as T
-        })[ProfileViewModel::class.java]
+            }
+        )[ProfileViewModel::class.java]
     }
+
     private var mediator: TabLayoutMediator? = null
     private var tabs: List<ProfileTab> = emptyList()
     private var imageKey: String? = null
@@ -84,9 +88,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private var lastError: String? = null
     private var collapsed = false
     private var pendingSettingsEdit = false
+
     private val avatar = registerForActivityResult(CreateMediaContract()) { result ->
         result.singleOrNull()?.let { model.uploadAvatar(requireContext(), it.uri.toUri()) }
     }
+
     private val selected = object : TabLayout.OnTabSelectedListener {
         override fun onTabSelected(tab: TabLayout.Tab) {
             renderTabs()
@@ -100,7 +106,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     }
 
     override fun onViewCreated(view: View, saved: Bundle?) {
-        pendingSettingsEdit = saved?.getBoolean("pendingSettingsEdit")
+        pendingSettingsEdit = saved?.getBoolean(KEY_PENDING_SETTINGS_EDIT)
             ?: (arguments?.getBoolean("editProfile") == true)
         val b = FragmentProfileBinding.bind(view)
         binding = b
@@ -121,11 +127,9 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             val expected = runtime.session.value
             // Dialog chỉ giao result ở RESUMED; nhận đồng bộ để rotation không hủy coroutine
             // sau khi Fragment Result đã bị consume. ChatActivity kiểm lại epoch trước render.
-            if (expected != null && !isHidden && result.getLong("id") > 0 && NewConversationDialog.matches(
-                    result,
-                    expected
-                )
-            )
+            if (expected != null && !isHidden && result.getLong("id") > 0 &&
+                NewConversationDialog.matches(result, expected)
+            ) {
                 startActivity(
                     ChatActivity.scopedIntent(
                         requireContext(),
@@ -133,27 +137,27 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                         expected
                     )
                 )
+            }
         }
         b.profileRetry.setOnClickListener { model.refreshHeader() }
         b.profileEdit.setOnClickListener {
-            if (model.state.value.isMe) ProfileEditDialog().show(
-                childFragmentManager,
-                "edit"
-            ) else model.toggleFollow()
+            if (model.state.value.isMe) {
+                showChildDialogOnce(TAG_EDIT_DIALOG) { ProfileEditDialog() }
+            } else {
+                model.toggleFollow()
+            }
         }
         b.profileShare.setOnClickListener {
-            if (model.state.value.isMe) share() else {
+            if (model.state.value.isMe) {
+                share()
+            } else {
                 val id = model.state.value.user?.id ?: return@setOnClickListener
-                NewConversationDialog.forUser(id)
-                    .show(childFragmentManager, "message")
+                showChildDialogOnce(TAG_MESSAGE_DIALOG) { NewConversationDialog.forUser(id) }
             }
         }
         b.profileTopShare.setOnClickListener { share() }
         b.profilePeople.setOnClickListener {
-            ProfilePeopleDialog().show(
-                childFragmentManager,
-                "people"
-            )
+            showChildDialogOnce(TAG_PEOPLE_DIALOG) { ProfilePeopleDialog() }
         }
         b.profileAvatarEdit.setOnClickListener {
             avatar.launch(
@@ -166,15 +170,15 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
         b.profileSettings.setOnClickListener { anchor ->
             val state = model.state.value
-            if (state.isMe) startActivity(
-                Intent(
-                    requireContext(),
-                    SettingsActivity::class.java
-                )
-            )
-            else if (state.user != null) showProfileModeration(anchor)
+            if (state.isMe) {
+                startActivity(Intent(requireContext(), SettingsActivity::class.java))
+            } else if (state.user != null) {
+                showProfileModeration(anchor)
+            }
         }
-        b.profileBack.setOnClickListener { requireActivity().onBackPressedDispatcher.onBackPressed() }
+        b.profileBack.setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
         ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
             val top = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
             b.profileHeader.minimumHeight = top
@@ -182,19 +186,24 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             b.profileTopActions.updateLayoutParams<FrameLayout.LayoutParams> {
                 topMargin = top + dp(12)
             }
-            b.profileBack.updateLayoutParams<FrameLayout.LayoutParams> { topMargin = top + dp(12) }
+            b.profileBack.updateLayoutParams<FrameLayout.LayoutParams> {
+                topMargin = top + dp(12)
+            }
             insets
         }
-        b.profileAppBar.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { bar, offset ->
-            collapsed = bar.totalScrollRange > 0 && abs(offset) >= bar.totalScrollRange
-            b.profileStatusScrim.setBackgroundColor(
-                if (collapsed) ContextCompat.getColor(
-                    requireContext(),
-                    R.color.surface
-                ) else Color.TRANSPARENT
-            )
-            updateChrome()
-        })
+        b.profileAppBar.addOnOffsetChangedListener(
+            AppBarLayout.OnOffsetChangedListener { bar, offset ->
+                collapsed = bar.totalScrollRange > 0 && abs(offset) >= bar.totalScrollRange
+                b.profileStatusScrim.setBackgroundColor(
+                    if (collapsed) {
+                        ContextCompat.getColor(requireContext(), R.color.surface)
+                    } else {
+                        Color.TRANSPARENT
+                    }
+                )
+                updateChrome()
+            }
+        )
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 model.state.collect { render(it) }
@@ -217,6 +226,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             tabs = state.tabs
             b.profilePager.adapter = object : FragmentStateAdapter(this) {
                 override fun getItemCount() = tabs.size
+
                 override fun createFragment(position: Int) = ProfilePageFragment().apply {
                     arguments = Bundle().apply { putString("tab", tabs[position].name) }
                 }
@@ -248,11 +258,21 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         b.profileAvatarEdit.isVisible = state.isMe
         b.profilePeople.isVisible = state.isMe
         b.profileSettings.isVisible = state.isMe || user != null
-        b.profileSettings.setImageResource(if (state.isMe) R.drawable.ic_s21_settings else R.drawable.ic_s21_more_horiz)
+        b.profileSettings.setImageResource(
+            if (state.isMe) R.drawable.ic_s21_settings else R.drawable.ic_s21_more_horiz
+        )
         b.profileSettings.contentDescription =
             getString(if (state.isMe) R.string.s21_settings else R.string.s21_more)
         b.profileBack.isVisible = requireActivity() is ProfileActivity
-        b.profileEdit.setText(if (state.isMe) R.string.s21_edit else if (user?.isFollowing == true) R.string.s21_unfollow else R.string.s21_follow)
+        b.profileEdit.setText(
+            if (state.isMe) {
+                R.string.s21_edit
+            } else if (user?.isFollowing == true) {
+                R.string.s21_unfollow
+            } else {
+                R.string.s21_follow
+            }
+        )
         b.profileShare.setText(if (state.isMe) R.string.s21_share else R.string.s21_message)
         listOf(
             b.profileEdit,
@@ -261,14 +281,15 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             b.profilePeople
         ).forEach {
             it.isEnabled = user != null && !state.actionBusy
-            it.alpha =
-            if (it.isEnabled) 1f else .45f
+            it.alpha = if (it.isEnabled) 1f else 0.45f
         }
         val key = "${state.scope}:${user?.avatarUrl}:${user?.avatarVersion}"
         if (imageKey != key) {
             imageKey = key
             requests.load(user?.avatarUrl?.let { MediaImageModel.resolve(requireContext(), it) })
-                .signature(ObjectKey(user?.avatarVersion ?: 0)).circleCrop().into(b.profileAvatar)
+                .signature(ObjectKey(user?.avatarVersion ?: 0))
+                .circleCrop()
+                .into(b.profileAvatar)
         }
         val cover = state.pages[ProfileTab.POSTS]?.items?.firstNotNullOfOrNull { post ->
             post.media.firstOrNull()?.let { if (it.isImage) it.url else it.thumbnailUrl }
@@ -276,19 +297,31 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val ckey = "$cover:${user?.avatarVersion}"
         if (coverKey != ckey) {
             coverKey = ckey
-            requests.asBitmap().load(cover?.let { MediaImageModel.resolve(requireContext(), it) })
+            val coverModel = cover?.let {
+                MediaImageModel.resolveForBitmap(requireContext(), it)
+            }
+            requests.asBitmap()
+                .load(coverModel)
                 .disallowHardwareConfig()
-                .signature(ObjectKey(user?.avatarVersion ?: 0)).transform(
+                .signature(ObjectKey(user?.avatarVersion ?: 0))
+                .transform(
                     CenterCrop(),
                     QuarterBlurTransformation((5f * resources.displayMetrics.density).toInt())
-                ).into(b.profileCover)
+                )
+                .into(b.profileCover)
         }
         renderTabs()
-        if (state.actionError != null && state.actionError != lastError) Snackbar.make(
-            b.root,
-            if (state.actionError == "UNSUPPORTED") R.string.s21_source_unsupported else R.string.s21_update_error,
-            Snackbar.LENGTH_LONG
-        ).show()
+        if (state.actionError != null && state.actionError != lastError) {
+            Snackbar.make(
+                b.root,
+                if (state.actionError == "UNSUPPORTED") {
+                    R.string.s21_source_unsupported
+                } else {
+                    R.string.s21_update_error
+                },
+                Snackbar.LENGTH_LONG
+            ).show()
+        }
         lastError = state.actionError
     }
 
@@ -314,9 +347,12 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             } ?: getString(R.string.s21_unknown_count)
             v.profileTabIcon.setImageResource(
                 when (kind) {
-                    ProfileTab.POSTS -> if (active) R.drawable.ic_s21_grid_on_filled else R.drawable.ic_s21_grid_on
-                    ProfileTab.VIDEOS -> if (active) R.drawable.ic_s21_play_circle_filled else R.drawable.ic_s21_play_circle
-                    ProfileTab.SAVED -> if (active) R.drawable.ic_s21_bookmark_filled else R.drawable.ic_s21_bookmark
+                    ProfileTab.POSTS ->
+                        if (active) R.drawable.ic_s21_grid_on_filled else R.drawable.ic_s21_grid_on
+                    ProfileTab.VIDEOS ->
+                        if (active) R.drawable.ic_s21_play_circle_filled else R.drawable.ic_s21_play_circle
+                    ProfileTab.SAVED ->
+                        if (active) R.drawable.ic_s21_bookmark_filled else R.drawable.ic_s21_bookmark
                 }
             )
             val color = ContextCompat.getColor(
@@ -327,19 +363,18 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             v.profileTabLabel.setTextAppearance(if (active) R.style.S21Bold else R.style.S21Semibold)
             v.profileTabIcon.setColorFilter(color)
             v.profileTabCount.setTextColor(color)
-            v.profileTabLabel.setTextColor(
-            color
-        )
+            v.profileTabLabel.setTextColor(color)
             tab.contentDescription = "${v.profileTabLabel.text}, ${v.profileTabCount.text}"
-            // Material mặc định48dp chỉ đủ một dòng. Custom hai tầng cần58dp trở lên khi font tăng.
-            val line = ceil(v.profileTabLabel.paint.fontMetrics.run { bottom - top }
-                .toDouble()).toInt()
-            val countLine =
-                ceil(v.profileTabCount.paint.fontMetrics.run { bottom - top }
-                    .toDouble()).toInt()
+            // Material mặc định 48dp chỉ đủ một dòng. Custom hai tầng cần 58dp trở lên khi font tăng.
+            val line = ceil(
+                v.profileTabLabel.paint.fontMetrics.run { bottom - top }.toDouble()
+            ).toInt()
+            val countLine = ceil(
+                v.profileTabCount.paint.fontMetrics.run { bottom - top }.toDouble()
+            ).toInt()
             val desired = maxOf(dp(58), dp(8) + maxOf(dp(20), countLine) + dp(3) + line + dp(8))
-            if (b.profileTabs.layoutParams.height < desired) b.profileTabs.updateLayoutParams {
-                height = desired
+            if (b.profileTabs.layoutParams.height < desired) {
+                b.profileTabs.updateLayoutParams { height = desired }
             }
         }
     }
@@ -348,14 +383,17 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val user = model.state.value.user ?: return
         startActivity(
             Intent.createChooser(
-                Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(
-                    Intent.EXTRA_TEXT,
-                    getString(
-                        R.string.s21_share_text,
-                        user.displayName,
-                        "momentbox://user/${user.id}"
-                    )
-                ), getString(R.string.s21_share)
+                Intent(Intent.ACTION_SEND)
+                    .setType("text/plain")
+                    .putExtra(
+                        Intent.EXTRA_TEXT,
+                        getString(
+                            R.string.s21_share_text,
+                            user.displayName,
+                            "momentbox://user/${user.id}"
+                        )
+                    ),
+                getString(R.string.s21_share)
             )
         )
     }
@@ -368,35 +406,54 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }.show()
     }
 
+    private inline fun showChildDialogOnce(
+        tag: String,
+        factory: () -> androidx.fragment.app.DialogFragment
+    ) {
+        if (!childFragmentManager.isStateSaved && childFragmentManager.findFragmentByTag(tag) == null) {
+            factory().show(childFragmentManager, tag)
+        }
+    }
+
+    private fun isNightMode(): Boolean =
+        (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+
+    private fun restoreDefaultStatusBar() {
+        val window = activity?.window ?: return
+        WindowCompat.getInsetsController(window, window.decorView)
+            .isAppearanceLightStatusBars = !isNightMode()
+    }
+
     fun updateChrome() {
-        val b = binding ?: return
-        if (isHidden || !isResumed) return
-        val light =
-            collapsed && (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) != Configuration.UI_MODE_NIGHT_YES
-        WindowCompat.getInsetsController(
-            requireActivity().window,
-            b.root
-        ).isAppearanceLightStatusBars = light
+        if (binding == null || isHidden || !isResumed) return
+        val window = activity?.window ?: return
+        val light = collapsed && !isNightMode()
+        WindowCompat.getInsetsController(window, window.decorView)
+            .isAppearanceLightStatusBars = light
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
-        if (!hidden) updateChrome()
+        if (hidden) {
+            restoreDefaultStatusBar()
+        } else {
+            updateChrome()
+        }
     }
 
     private fun openSettingsEditWhenReady() {
-        if (pendingSettingsEdit && isResumed && model.state.value.isMe && model.state.value.user != null && !childFragmentManager.isStateSaved) {
+        if (pendingSettingsEdit && isResumed && model.state.value.isMe &&
+            model.state.value.user != null && !childFragmentManager.isStateSaved
+        ) {
             pendingSettingsEdit = false
-            if (childFragmentManager.findFragmentByTag("edit") == null) ProfileEditDialog().show(
-                childFragmentManager,
-                "edit"
-            )
+            showChildDialogOnce(TAG_EDIT_DIALOG) { ProfileEditDialog() }
         }
     }
 
     override fun onSaveInstanceState(out: Bundle) {
         super.onSaveInstanceState(out)
-        out.putBoolean("pendingSettingsEdit", pendingSettingsEdit)
+        out.putBoolean(KEY_PENDING_SETTINGS_EDIT, pendingSettingsEdit)
     }
 
     override fun onResume() {
@@ -406,13 +463,13 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
     override fun onDestroyView() {
         mediator?.detach()
         mediator = null
         binding?.let {
             it.profileTabs.removeOnTabSelectedListener(selected)
-            it.profilePager.adapter =
-            null
+            it.profilePager.adapter = null
             images?.clear(it.profileAvatar)
             images?.clear(it.profileCover)
         }
@@ -420,8 +477,14 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         images = null
         tabs = emptyList()
         imageKey = null
-        coverKey =
-            null
+        coverKey = null
         super.onDestroyView()
+    }
+
+    companion object {
+        private const val KEY_PENDING_SETTINGS_EDIT = "pendingSettingsEdit"
+        private const val TAG_EDIT_DIALOG = "edit"
+        private const val TAG_PEOPLE_DIALOG = "people"
+        private const val TAG_MESSAGE_DIALOG = "message"
     }
 }

@@ -80,10 +80,7 @@ class DevToolsActivity : AppCompatActivity() {
     private val app get() = application as MomentBoxApp
     private val settings get() = app.settingsDataStore
     private val socket get() = app.socketManager
-    private val api by lazy {
-        val client = NetworkModule.provideOkHttpClient(app, app.tokenStore, settings)
-        NetworkModule.provideRetrofit(client).create(DebugApi::class.java)
-    }
+    private val api: DebugApi get() = sharedDebugApi(app)
     private val sources = arrayOf(
         SettingsDataStore.SOURCE_OFFLINE,
         SettingsDataStore.SOURCE_DUMMY_JSON,
@@ -664,4 +661,29 @@ class DevToolsActivity : AppCompatActivity() {
     private fun tint(color: Int) = ColorStateList.valueOf(getColor(color))
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    companion object {
+        @Volatile
+        private var cachedApp: MomentBoxApp? = null
+
+        @Volatile
+        private var cachedDebugApi: DebugApi? = null
+
+        private fun sharedDebugApi(app: MomentBoxApp): DebugApi {
+            cachedDebugApi?.takeIf { cachedApp === app }?.let { return it }
+            return synchronized(this) {
+                cachedDebugApi?.takeIf { cachedApp === app } ?: run {
+                    val client = NetworkModule.provideOkHttpClient(
+                        app,
+                        app.tokenStore,
+                        app.settingsDataStore
+                    )
+                    val created = NetworkModule.provideRetrofit(client).create(DebugApi::class.java)
+                    cachedApp = app
+                    cachedDebugApi = created
+                    created
+                }
+            }
+        }
+    }
 }

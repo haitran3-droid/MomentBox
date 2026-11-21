@@ -46,7 +46,8 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MomentBox">
+        android:theme="@style/Theme.MomentBox"
+        tools:targetApi="33">
         <!-- SystemUI dùng PendingIntent explicit; receiver không nhận broadcast từ app khác. -->
         <receiver
             android:name=".core.notification.ChatActionReceiver"
@@ -119,10 +120,12 @@
         </activity>
         <activity
             android:name=".feature.onboarding.OnboardingActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.MomentBox.Surface" />
         <activity
             android:name=".feature.auth.AuthActivity"
             android:exported="false"
+            android:theme="@style/Theme.MomentBox.Surface"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".MainActivity"
@@ -131,6 +134,7 @@
         <activity
             android:name=".feature.postdetail.PostDetailActivity"
             android:exported="true"
+            android:theme="@style/Theme.MomentBox.Surface"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -142,7 +146,7 @@
                     android:host="post"
                     android:scheme="momentbox" />
             </intent-filter>
-            <intent-filter>
+            <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
 
                 <category android:name="android.intent.category.DEFAULT" />
@@ -161,6 +165,7 @@
         <activity
             android:name=".feature.journal.editor.JournalEditorActivity"
             android:exported="false"
+            android:theme="@style/Theme.MomentBox.Surface"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.journal.stats.JournalStatsActivity"
@@ -172,6 +177,7 @@
         <activity
             android:name=".feature.create.CreateActivity"
             android:exported="false"
+            android:theme="@style/Theme.MomentBox.Surface"
             android:windowSoftInputMode="adjustResize" />
 
         <service

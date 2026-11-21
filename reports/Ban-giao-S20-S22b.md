@@ -1,5 +1,7 @@
 # Bàn giao MomentBox từ máy nhà sang máy công ty
 
+**Kết quả mới nhất trên Realme:** [Phiên xác nhận 20–21/11, kết quả và phần còn mở](#ket-qua-realme-2111).
+
 **Tiếp tục ở máy nhà:** xem mục [Bàn giao về máy nhà](#ban-giao-realme). Các hướng dẫn lấy nhánh ở đầu tài liệu thuộc phiên trước.
 
 Ngày 20/11/2026. Nhánh bàn giao là `origin/fix/reminder-language`, tách từ `main` tại `58b6796`. Bắt đầu từ nhánh bàn giao để có cả bản sửa và hai ca hồi quy.
@@ -182,3 +184,198 @@ Unit test đạt **17/17**. `:app:lintDebug` hoàn tất với **0 lỗi, 160 c�
 1. Lấy bản bàn giao từ `origin/main`. Kiểm tra PR #2 và chạy lại S05 A/B trên **Realme** với bài khóa có bình luận cũ và bài mở. Tách kết quả của nhánh sửa khỏi kết quả của main. Ưu tiên tiếp theo là hai lỗi phản hồi và bộ đếm.
 2. Khi QA chưa viết nhật ký trong ngày, đặt một giờ mới, báo giờ hẹn, đổi ngôn ngữ rồi về Home. Ghi riêng giờ hẹn, giờ Android giao, giờ đăng và giờ thấy thông báo. Nếu trễ, lưu lịch sử broadcast, trạng thái app và log OEM trước khi sửa.
 3. Hoàn tất S11 và các cột còn kiểm tra ở trên. Sửa lỗi nút Next và nhãn nút ghi, rồi xử lý từng điểm review bằng ca hồi quy hoặc phép đo phù hợp. Ghi commit, thiết bị, bước tái hiện và bằng chứng vào cùng file này.
+
+## Phiên máy nhà, tối 20/11/2026 (UTC+7)
+
+Worktree riêng trên nhánh `fix/realme-home`, từ `origin/main` tại `b5c8f50`. Khi bắt đầu, PR #2 đang mở. Đã áp dụng commit `a1f175f` của PR lên nền bàn giao để kiểm thử cục bộ (`add57de`). Thư mục làm việc cũ vẫn giữ các báo cáo chưa commit.
+
+Thiết bị Realme RMX3350 kết nối USB. Bản debug QA có mã gói `com.ntq.training.momentbox.reminderqa`. Hai bài mẫu đều có bình luận cũ và 12 phản hồi của cùng một bình luận cha. Mở bản A và B bằng deep link trỏ cùng bài, sau đó thao tác trong giao diện. Proxy QA tạo một lỗi 503 trước khi lưu cho lần gửi đầu có chữ RetryQA.
+
+- **Trước sửa phân trang – bản có PR #2.** Cả A và B hiển thị “Comments are turned off”, ô nhập và nút gửi bị vô hiệu hóa ở bài khóa, hàng bình luận không có nút trả lời. Mở rộng và cuộn vẫn đọc được nội dung cũ. Cả hai dừng ở QA child 10 dù nhãn ban đầu báo 12. Bản B của bài mở cho nhập và gửi, lỗi 503 hiện đúng hàng “Failed (Retry)”.
+
+- **Gửi và thử lại trên bản PR.** Bản B hiện bình luận mới sau khi bấm “Failed (Retry)”, server trả 201, nhưng bộ đếm vẫn là 14. Ở bản A, đã trả lời trực tiếp một bình luận, thấy đúng tiền tố tên tác giả. Một lần gửi bình luận gốc riêng nhận 503, bấm thử lại thì chuyển thành “Just now” và server trả 201.
+- **Sau sửa phân trang và bộ đếm.** Trên cùng Realme, bài khóa bảo toàn trạng thái chỉ đọc trong cả A/B. Bấm “Show more replies” rồi cuộn thấy cả “QA child 11” và “QA child 12” ở mỗi bản. Bài mở trên bản B ban đầu có 14 bình luận. Trả lời khi chưa mở luồng, proxy trả 503, số đếm vẫn là 14. Bấm thử lại, phản hồi xuất hiện, số đếm thành 15. Nhấn Back và cuộn đến chính bài đó trên bảng tin cũng thấy 15. Đã phát hiện thêm header A trước đây chỉ hiển thị layout tĩnh và đã nối với cùng nguồn dữ liệu của B.
+- **S11.** Đã vào Camera từ nút Tạo, chọn timer 3 giây, chụp vật mẫu bằng camera sau và thấy màn “Crop & rotate”. Bấm Close quay về camera.
+- **S22b.** Lượt 18:25 đã đặt và xác nhận ô lịch bằng UI. ADB gián đoạn trước khi quan sát được đổi ngôn ngữ, về Home và giao thông báo. Khi kết nối lại, hệ thống đã đăng ký lượt 18:25 cho ngày mai. Không dùng lượt này để kết luận thời điểm giao. Ở lượt riêng trên gói QA mới `com.ntq.training.momentbox.homeqa`, đã thấy nhật ký trống, bật thông báo qua cài đặt Android, đặt 21:25 rồi đổi Anh → Việt. Giờ lưu vẫn là 21:25, công tắc vẫn bật. Sau khi về Home, thiết bị báo 21:19:57.688. AlarmManager ghi `RTC_WAKEUP`, giờ yêu cầu 21:25:00.000, cửa sổ dài 3 phút 52.383 giây.
+
+
+### S22b trên Realme khi tài khoản chưa viết nhật ký
+
+Lượt này dùng gói `com.ntq.training.momentbox.homeqa`. Nhật ký trống, lời nhắc đã bật. Đã báo giờ hẹn trước khi đổi tiếng Anh sang tiếng Việt và trở về Home. Các mốc dưới đây đều là giờ trên điện thoại, UTC+7 ngày 20/11/2026.
+
+| Sự kiện | Giờ | Bằng chứng |
+| --- | --- | --- |
+| Hẹn | 21:25:00.000 | Giao diện vẫn hiện 21:25 sau đổi ngôn ngữ. AlarmManager lưu đúng giờ yêu cầu. |
+| Android khởi động tiến trình để giao broadcast | 22:24:41.874 | Sự kiện `am_proc_start` nêu đích danh `ReminderAlarmReceiver`, lý do `broadcast`, PID 23229. BatteryStats cũng ghi cho phép tạm thời với action `reminder.DAILY`. Không còn dấu thời gian riêng lúc vào `onReceive`. |
+| Android nhận thông báo | 22:24:45.325 | `notification_enqueue` đầu tiên của gói QA, PID 23229, ID 5202. |
+| Thông báo xuất hiện trên giao diện hệ thống | 22:25:00.666 | `notification_visibility=1`, sau khi đăng 15.341 giây. Có sự kiện chạm vào đúng thông báo lúc 22:25:21.523. |
+
+Hệ thống dừng tiến trình cũ lúc 22:24:41.661 rồi khởi động tiến trình nhận broadcast. Từ lúc hẹn đến khi khởi động receiver là 59 phút 41.874 giây. Từ đó tới khi đăng thông báo chỉ có 3.451 giây. Khi kiểm tra lúc 21:26, điện thoại đang sạc và Android báo trạng thái hoạt động. Cửa sổ giao mà hệ thống ghi lúc đặt lịch cũng đã qua từ lâu. Dữ liệu khoanh vùng độ trễ ở trước bước ứng dụng xử lý. Chưa có log chỉ rõ chính sách nào của Realme giữ lịch. Giữ cách đặt lịch hiện tại.
+
+
+### S05 trên APK đã sửa
+
+APK debug `com.ntq.training.momentbox.reminderqa` tại `add57de` cộng các sửa đổi trong worktree, SHA-256 `B958BB55C4196E881FB42026BA95D97699E3DFF1E7ECF89259017AB0BD61476E`.
+
+| Tình huống trên Realme | Kết quả |
+| --- | --- |
+| Header A của bài mở | Hiện đúng caption “QA open”, hashtag `#coffee #weekend` và số do server trả về. Gửi bình luận gốc thành công làm số tăng 14 → 15. |
+| A, bấm thử lại bình luận gốc | Proxy trả 503 lần đầu, hiện “Failed (Retry)”, số vẫn là 15. Bấm vào dòng lỗi, server trả 201 và số tăng lên 16 ngay trên màn hình. |
+| A và B, bài bị khóa sau khi đã mở | Mỗi lượt đều bắt đầu với ô nhập và nút gửi hoạt động. Proxy mô phỏng chủ bài khóa trong lúc đang nhập. Mỗi giao diện nhận một POST bị từ chối 403 rồi tải lại quyền. Cả hai hiển thị “Comments are turned off”, vô hiệu hóa ô nhập, nút gửi và thao tác thử lại. Chạm vào dòng “Not sent” không phát sinh thêm POST. Bộ đếm vẫn là 16. |
+
+Ca hồi quy bao gồm phân trang độc lập cho từng bình luận cha, thử lại đúng trang gặp lỗi, cập nhật bộ đếm khi server xác nhận, phản hồi khi chưa mở luồng, quyền bị thu hồi, và cách hiển thị từng hàng bình luận. Kết quả thao tác trên các bản trước đó được ghi riêng ở đầu mục phiên máy nhà.
+
+### Thư viện ảnh, máy ảnh, đăng bài và kết quả review
+
+- **S10.** Tạo riêng album `MomentBox-QA-Home-20261120-Long-Album-Next` có đúng một ảnh hình khối mẫu. Trong bộ lọc Photos, chọn ảnh đó. Trên màn rộng 1080 px, nút “Next (1)” nằm hoàn toàn trong khoảng x=806–1038, rộng 232 px. Bấm được nút để sang cắt ảnh và lưu qua trình chỉnh sửa. Ca hồi quy trên thiết bị cũng kiểm tra chiều rộng 320 dp và cỡ chữ 150%.
+- **S11.** Sau khi cấp quyền mic, giữ nút quay trên camera sau, thả tay và thấy clip 0:01 được chọn trong thư viện. Bấm Next tới màn đăng, rồi chọn Discard ở hộp thoại bản nháp. Ảnh/video chụp vật mẫu chỉ phục vụ kiểm thử cục bộ.
+- **S15, mất phản hồi sau khi server đã lưu.** Từ thư viện, chọn ảnh mẫu và quyền “Only me”, nhập `QA515home`. Proxy nhận HTTP 201 rồi đóng kết nối trước khi trả dữ liệu về app. Màn đăng giữ nội dung và hiện “Posting unconfirmed. Draft preserved.”. Bấm Retry trả HTTP 200. Kiểm tra danh sách của tài khoản trên server thấy đúng một bài, ID 49, một ảnh, quyền private.
+- **S04 sau khi đăng.** Khi màn đăng đóng, hàng Tin và bài cũ “QA locked” vẫn nằm trước mắt. Vuốt xuống trong danh sách mới thấy bài `QA515home` nằm *phía trên* hàng Tin. Màn hình đã có dữ liệu mới nhưng vị trí hiển thị sau khi chèn bị sai.
+- **S09 và S16.** Ca instrumentation trên Realme dùng Room trong bộ nhớ. Thống kê đối chiếu kỳ trước, ngày biên, DST, bài đã xóa và chuỗi liên tục 40 ngày. Với ba phòng chat trống cache, mỗi phòng chỉ yêu cầu một trang 30 tin. Cuộn lấy được 60 tin. Sau khi mô phỏng thêm 75 tin trên server, đồng bộ lại lấy đúng ba trang và giữ đủ các ID. Phép đo riêng bằng SQLite trên máy tính với 29.192 dòng cho cùng kết quả 240 bài kỳ này và 232 kỳ trước. Trung vị 9 lượt giảm từ 78,206 ms xuống 0,757 ms. Đây là số đo trên máy tính.
+- **Cấu hình release.** Gradle yêu cầu URL HTTPS cho bản release, có kiểm tra trường hợp thiếu hoặc nhập HTTP. Đã build APK release unsigned với URL kiểm thử `https://qa.example.invalid/`. Đăng nhập/tải feed trên môi trường phát hành vẫn cần endpoint thật.
+
+
+### Bản xác nhận sau sửa thứ tự bảng tin
+
+- Test `FeedPostOrderTest` tái hiện lỗi thứ tự trước khi sửa. Bản mới đặt bài vừa đăng ngay sau hàng Tin, loại ID trùng với trang feed và giữ thứ tự các hàng còn lại. Đã cài trên Realme APK SHA-256 `385BC5BEF27BF09F5DF85B3504BA68A7FAFC93F3084DBF81A31E9E717A1E4CD9`. Trước khi đăng, đầu feed có hàng Tin và bài `QA515home`. Sau khi đăng `QA515-2026` với quyền Only me, hàng Tin vẫn ở đầu, bài mới nằm ngay bên dưới, trước `QA515home`. Không cuộn và không kéo làm mới sau khi bấm đăng.
+- **S11.** Ở gói QA còn chưa có quyền camera, chọn Không cho phép. Ứng dụng hiện “Cần quyền máy ảnh để chụp.”. Chạm thông báo và cấp quyền trong khi sử dụng, camera hiện lại thanh zoom và nút chụp. Trên gói QA chính của phiên, chụp vật mẫu, xác nhận cắt, lưu qua trình chỉnh sửa, lưu nháp ở màn đăng. Mở lại qua Tạo → Text → Restore, thấy lại nội dung đã nhập và ảnh. Sau đó bỏ bản nháp.
+- **S14.** Trước khi ghi, nhãn trợ năng của nút là “Start recording”, đồng hồ 00:00.0. Bấm để ghi, bấm tiếp để tạm dừng, nút chuyển thành “Resume”. Tiếp tục ghi, màn hình hiện “Recording” và đồng hồ chạy, sau đó tạm dừng và bỏ bản ghi. Đồng hồ trở lại 00:00.0 cùng nhãn bắt đầu.
+- **Kết quả tự động.** Bản cuối build debug và androidTest thành công. Unit test 26/26. Trên Realme 17/17 ca instrumentation đạt, bao gồm hai ca nhật ký M3 với 24 bài mẫu trong gói QA. Lint debug ghi 0 lỗi, 178 cảnh báo. Backend đạt 12/12 ca Node và 34/34 kiểm tra smoke. Không có cuộc gọi M5 hai đầu trong những con số này.
+
+### Đối chiếu tối 20/11 và sáng 21/11/2026 tại máy nhà
+
+- **S22 xuất JSON.** Từ Cài đặt, bấm “Export journal (JSON)” rồi xác nhận. App báo “Journal JSON exported”. Đọc lại đúng tệp do gói QA tạo trong Downloads cho thấy `schemaVersion=1`, đủ 24 bài M3, bài mẫu đầu có hai thông tin đính kèm, `includesMediaFiles=false`. Tài liệu BA yêu cầu xuất nhật ký. Trong phần S22 không có yêu cầu nhập lại JSON.
+- **S22 làm mới phiên.** Tại Developer tools chọn “Simulate HTTP 401”. Yêu cầu hồ sơ trả 401, refresh token trả 200 và app báo đã tải lại hồ sơ. Đăng xuất qua nút xác nhận cũng trả 200.
+- **S20, lịch 23:16 tối 20/11.** Đã lưu giờ qua bộ chọn Android, kiểm tra công tắc vẫn bật rồi về Home. Bộ theo dõi trên máy tính chỉ còn dòng khởi động. Lịch sử Android ghi tiến trình của gói QA thoát với `REMOVE TASK` lúc 23:16:16.728, sau đó một tiến trình khác bị hệ thống dừng lúc 23:16:58.498. Sáng hôm sau gói ở trạng thái `stopped=true`. Không xác định được thời điểm giao, hiển thị hoặc thao tác báo lại của lượt 23:16.
+- Sáng 21/11 đã fetch lại. `origin/main` vẫn là `b5c8f50`, PR #2 đang mở và nhánh nguồn vẫn tại `a1f175f`. Máy chỉ chạy các ca giao diện trên Realme RMX3350. Bản APK xác nhận ở mục trên được cài lại cho người dùng Android hiện tại.
+
+**S01, đăng nhập bằng bàn phím.** Từ màn hình đăng nhập, nhập email của tài khoản demo và mật khẩu sai. Mock trả HTTP 401, giao diện hiện “Incorrect email or password” và giữ người dùng ở màn đăng nhập. Sửa mật khẩu rồi gửi, server trả 200 và giao diện hiện các tab Feed/Tạo. Hai lượt này đều bấm nút Log in.
+
+**S06, video và xoay màn hình.** Trên Realme, mở bài QA có video cục bộ dài 09:56, bấm Play từ S05 và dừng ở 00:23. Nút tua tiến chuyển đến 00:33. Chọn tốc độ 1.5x, khóa điều khiển, thấy nút mở khóa và các nút tua ẩn đi. Mở khóa rồi xoay bằng nút trong trình phát. Cả lúc ngang và khi bấm Back về dọc đều giữ 00:33 và 1.5x. Nhấn Back lần nữa trở về bài viết.
+
+**S08–S09, lọc kết hợp và so sánh kỳ.** Với 24 bài mẫu, chọn đồng thời mood Great, có ảnh và có âm thanh. Nút Apply báo 1 kết quả và danh sách hiện đúng `M3 QA 01`. Rời rồi mở lại nhật ký vẫn thấy dấu bộ lọc và cùng bài. Sau khi đặt lại bộ lọc, bấm nhãn khoảng ngày trên biểu đồ để mở điều hướng kỳ. Tháng 11 tính tới ngày 21 có 21 bài, tháng 10 có 3. Bấm trở lại tháng 11 lại thấy 21 bài và nút sang tương lai bị khóa.
+
+### S22b ngày 21/11, đo đủ bốn mốc (giờ Việt Nam)
+
+Gói `com.ntq.training.momentbox.homeqa` hiện “Chưa có dòng nhật ký nào”. Sau khi đặt lịch và báo giờ hẹn, đổi từ tiếng Việt sang tiếng Anh. Cài đặt vẫn hiện “Every day at 09:53” và công tắc bật. Khi đã về Home, đồng hồ thiết bị là 09:49:48.540. Android ghi `RTC_WAKEUP` và cửa sổ giao 2 phút 30.189 giây.
+
+| Sự kiện | Giờ trên Realme |
+| --- | --- |
+| Giờ hẹn trong app và AlarmManager | 09:53:00.000 |
+| Android giao `reminder.DAILY` | 09:59:04.392 |
+| NotificationManager nhận thông báo ID 5202 | 09:59:04.792 |
+| Lần hiển thị đầu tiên trong ngăn thông báo | 09:59:38.112 |
+
+Lúc 09:59:04.356 bắt đầu mở lại app. OplusHansManager ghi chính UID của gói QA chuyển từ đóng băng sang chạy lúc 09:59:04.383, lý do `Activity`. Android đưa broadcast vào hàng đợi lúc 09:59:04.391 và giao lúc 09:59:04.392. Receiver ghi `timing=EXACT result=PRESENTED` lúc 09:59:04.815. Trong lượt này, Android giao trễ 6 phút 4.392 giây, ngay sau khi Realme mở đóng băng tiến trình. Phần ứng dụng từ lúc giao đến khi hệ thống nhận thông báo mất 400 ms. Không thay đổi mã đặt lịch hay cài đặt tiết kiệm pin toàn máy.
+
+Mở ngăn thông báo, đọc được “Time to write your journal” qua giao diện lúc 09:59:40.828. Chạm thông báo lúc 09:59:41.117, thấy màn S20, bấm “Remind me in 10 minutes”. Android lưu lịch báo lại lúc 10:09:44.400 và còn lịch hằng ngày 09:53 ngày mai.
+
+**S05 trên APK xác nhận.** Mở lại bài khóa trên từng giao diện A và B, kiểm tra ô nhập và nút gửi đều bị khóa. Trong cả hai giao diện, cuộn qua trang đầu, bấm xem thêm rồi đọc được “QA child 11”, “QA child 12”. Mỗi lượt, mock server ghi nhận yêu cầu trang 2 của đúng bình luận cha.
+
+**S20, thông báo cũ còn sau khi báo lại.** Trên bản trước sửa, dù lịch báo lại 10:09:44.400 đã tồn tại và dịch vụ phát chuông đã dừng, Android vẫn giữ thông báo ID 5202 cho sự kiện DAILY cũ. SystemUI hiện lại nó lúc 10:02:26.709. Ca hồi quy dựng một lời nhắc đang đổ chuông và bấm nút báo lại trên S20 cũng thất bại trên thiết bị trước khi sửa. Đã đổi cách dừng foreground service để Android gỡ luôn thông báo khi sự kiện kết thúc. Trường hợp hết thời gian phát chuông mà người dùng chưa xử lý vẫn có thông báo để quay lại.
+
+**Báo lại và bỏ qua.** Trước lúc báo lại, đưa gói QA ra trước màn hình. Giờ hẹn 10:09:44.400, Android giao broadcast SNOOZE lúc 10:09:44.402, nhận thông báo lúc 10:09:44.571. Ngăn thông báo ghi lần đầu hiển thị lúc 10:09:56.095. Mở từ thông báo và bấm “Skip today” trên S20. AlarmManager còn lịch DAILY của sáng hôm sau. Ở lượt này khoảng cách từ giờ hẹn tới lúc giao chỉ là 2 ms.
+
+**Bản sửa cuối cho S20.** APK debug SHA-256 `D5440534435FE4313616A404776E8BD94032E0CF92A9EA0B203433148DBCE292`. Cùng ca hồi quy trên Realme đã thất bại trên APK `385BC5…` rồi đạt sau sửa. Sau khi người dùng bấm báo lại, ID 5202 được gỡ và lịch báo lại vẫn tồn tại. Chạy chung cả 18 ca instrumentation trên bản cuối đạt 18/18.
+
+**S17 trên Realme.** Gửi hai dấu nhận diện từ bot Lan Anh trong môi trường mock cục bộ. Từ thông báo chứa đúng tin mẫu, bấm “Reply…”, nhập `QA-1721` và gửi. Lịch sử phía server có đúng một bản. Với tin mẫu tiếp theo, bấm “Mark as read”. API hội thoại trả số chưa đọc bằng 0.
+
+**Kiểm tra bản cuối.** Gradle hoàn tất `:app:assembleDebug`, `:app:assembleDebugAndroidTest`, `:app:testDebugUnitTest` và `:app:lintDebug`. Unit test đạt 26/26, instrumentation đạt 18/18. Lint debug có 0 lỗi và 178 cảnh báo. Bộ backend đã chạy 12/12 ca Node và 34/34 kiểm tra smoke.
+
+<a id="ket-qua-realme-2111"></a>
+
+### Kết quả bàn giao ngày 21/11
+
+Đã đối chiếu S05 A/B, S06, S08–S11, S14–S15, S17 và S20/S22b trên Realme. Trong Developer tools cũng đã đổi MB Server → Offline → MB Server, đăng nhập lại bằng nút demo ở từng nguồn. Nhật ký vẫn hiện 21 bài tháng 11 ở cả hai lượt.
+
+| Hạng mục | Trạng thái cuối phiên |
+| --- | --- |
+| Mã nguồn | Worktree `E:\MomentBox\build\home-realme`, nhánh `fix/realme-home`. Nền `b5c8f50`, commit cục bộ áp dụng PR là `add57de`. Các thay đổi sau commit đó đang ở working tree. PR #2 vẫn mở. |
+| Bản chạy | Gói `com.ntq.training.momentbox.reminderqa` trên Realme, APK `D5440534…`. Giữ 24 bài mẫu M3 để tiếp tục thử. Đã gỡ gói QA cũ dành riêng cho đo lời nhắc khỏi người dùng Android hiện tại. |
+| Mock server và USB | Mock QA trả 200 ở `/v1/config`, ADB reverse `tcp:3035 → tcp:3035`. Đã dừng proxy cố ý làm rớt phản hồi và tiến trình ghi log lời nhắc. |
+| Xác minh | 26/26 unit, 18/18 instrumentation trên Realme, 12/12 Node, 34/34 smoke. Lint debug còn 178 cảnh báo, 0 lỗi. |
+| Còn mở | Đăng nhập và tải feed bằng endpoint HTTPS phát hành thật. Thử khôi phục nháp sau khi hệ điều hành thu hồi tiến trình, đối chiếu ảnh xuất sau chỉnh sửa, phát qua loa/tai nghe và khôi phục hàng đợi phát sau ngắt kết nối. Gọi M5 hai đầu chờ thiết bị thứ hai. |
+
+### Sửa hai lỗi S05 khi gửi bình luận/phản hồi thất bại – 21/11/2026 (bàn giao Codex)
+
+Phạm vi: hai lỗi S05 trên worktree `E:\MomentBox\build\home-realme` (nhánh `fix/realme-home`, chưa commit).
+
+- **Lỗi 1 – Đổi sắp xếp làm mất bình luận/phản hồi gửi lỗi và nút Thử lại:** `PostDetailViewModel` nay lưu các bình luận/phản hồi chưa xác nhận (`pendingComments`) cùng bản ghi `inFlightSubmissions` / `recentlyConfirmed` theo phiên bản đột biến (`commentMutationVersion`), và hợp nhất lại trong `mergeServerPage()` cho cả trang đầu (`refresh = true`) lẫn trang sau (`page > 1`). Đổi `top ↔ newest` giữ nguyên nội dung, trạng thái `Failed (Retry)` và `parentId`, kể cả khi bình luận cha trượt sang trang 2 hoặc khi đổi sắp xếp lúc request gửi đang chạy; khi thành công chỉ hiển thị đúng một bản và vẫn tuân thủ `allowComments`.
+- **Lỗi 2 – Phản hồi gửi lỗi vẫn cộng vào tổng của bình luận cha:** `PostDetailViewModel.sendComment()` không còn cộng trước `parent.replyCount`; chỉ cộng đúng một lần khi server xác nhận (`submitComment()` thành công), đồng thời khóa nền `inFlightParentBaseCounts` để tránh cộng kép khi refresh trùng thời điểm gửi. `Comment.isConfirmed` và `CommentsAdapter.displayedReplyCount()` chỉ đếm phản hồi đã xác nhận (`id > 0 && !isSending && !sendFailed`), ẩn hẳn hàng mở/ẩn phản hồi khi cha có 0 phản hồi xác nhận và vẫn hiển thị dòng lỗi để thử lại.
+- **Tệp đã sửa (phần mới trong worktree):** `Comment.kt`, `PostDetailViewModel.kt`, `CommentsAdapter.kt`, `PostDetailViewModelTest.kt`, `CommentsAdapterTest.kt`.
+- **Đã xác nhận bằng unit test (máy tính):**
+  - Trước sửa (RED): bộ S05 chạy 19 ca -> 13 ca có sẵn đạt, **6/6 ca hồi quy mới thất bại** (bắt cả lỗi ViewModel lẫn lỗi `CommentsAdapter.displayedReplyCount`).
+  - Sau sửa (GREEN): bộ S05 đạt **19/19** (`PostDetailViewModelTest` 14/14, `CommentCountRepositoryTest` 2/2, `CommentLikeResponseTest` 3/3); toàn bộ `:app:testDebugUnitTest` đạt **32/32** (0 lỗi, 0 bỏ qua); `git diff --check` sạch.
+- **Đã kiểm thử bổ sung trên Realme RMX3350 (`US79CERW99P7HU9P`, bản QA tạm `com.ntq.training.momentbox.s05qa`, APK SHA-256 `F3F0861E…`, đã gỡ sạch cùng reverse `tcp:3036` sau khi xong):**
+  - Instrumentation trên máy: `CommentsAdapterTest` (3/3) + `PostHeaderAdapterTest` (2/2) = **5/5 đạt**.
+  - Giao diện thật qua proxy chèn 503 cục bộ (`3036 → 3037`, giữ nguyên phiên đăng nhập):
+    - **Bố cục B:** bình luận gốc `RootB_FAIL1` lỗi 503 → đổi `Top → Newest` vẫn còn `Failed (Retry)` → Thử lại (201) hiện 1 bản `Just now`, tổng bài `14 → 15`; cha 0 phản hồi (`QA Zero Parent`) gửi `ZeroB_FAIL2` lỗi 2 lần (kèm đổi `Newest → Top`) không hiện nhãn `Hide 1/0 reply`, lần 3 thành công hiện `Hide 1 reply`, tổng bài `15 → 16`; cha 12 phản hồi (`QA Twelve Parent`) mở 10/12 → gửi `TwelveB_FAIL2` lỗi → đổi `Top → Newest` vẫn `Hide 12 replies` + `Failed (Retry)` → thử lại lỗi lần 2 vẫn `12` → thử lại thành công thành `Hide 13 replies`, tổng bài `16 → 17`, bấm `Show more replies` vẫn tải tiếp `QA child 11`, `QA child 12`.
+    - **Bố cục A:** lặp lại bình luận gốc `RootA_FAIL1` (`17 → 18`) và phản hồi `TwelveA_FAIL2` trên cha 13 phản hồi (lỗi 503 + đổi `Newest → Top` + thử lại lỗi vẫn `Hide 13 replies`, thành công lên `Hide 14 replies`, tổng bài `18 → 19`). Bài khóa (`id=50`) ở cả A/B hiện `Comments are turned off`.
+- Codex đã build lại và đối chiếu các kết quả trên cùng Realme trong [mục review độc lập S05](#review-s05-realme-2111).
+- **Cách tái hiện lặp lại lỗi gửi trên Realme mà giữ phiên đăng nhập:** đặt một HTTP proxy nhỏ (Node) đứng trước `mock-server` (ví dụ `127.0.0.1:3036 → 127.0.0.1:3035` với `adb reverse tcp:3036 tcp:3036` và build `-PmomentboxBaseUrl=http://127.0.0.1:3036/`). Proxy chuyển tiếp nguyên vẹn mọi header `Authorization` và các request `GET`/`login`/`refresh`, chỉ chặn `POST /v1/posts/:id/comments` khi `body.content` chứa từ khóa (ví dụ `FAIL1` trả `503` trước khi lưu ở lần 1; `FAIL2` trả `503` ở lần 1 và 2 theo khóa `url|parentId|content`), rồi chuyển tiếp bình thường (trả `201`) ở lần bấm `Thử lại` kế tiếp. Cách này không làm mất token hay đăng xuất và lặp lại ổn định cho cả bình luận gốc lẫn phản hồi.
+
+<a id="review-s05-realme-2111"></a>
+
+### Review độc lập bản sửa S05 trên Realme ngày 21/11/2026
+
+**Bản chạy.** Worktree `fix/realme-home` tại `add57de` cùng diff chưa commit. Codex build APK debug riêng `com.ntq.training.momentbox.s05review`, SHA-256 `55E1D84186AC75A8A6853B79E697A41A5A87C54B2C6906AEAC659B62E5513955`. Đã đối chiếu cùng SHA-256 trên APK cài trong Realme RMX3350, Android 13, kết nối ADB qua USB. Cả A và B được mở bằng deep link chọn bố cục rồi thao tác bằng chạm, nhập và cuộn. Proxy loopback 3036 chuyển đến mock 3035. Dữ liệu mẫu gồm các bài riêng tư của tài khoản demo.
+
+**Kiểm thử tự động.** Bộ có sẵn đạt 32/32 unit test, trong đó 19 ca thuộc S05. Trên Realme, `CommentsAdapterTest` và `PostHeaderAdapterTest` đạt 5/5. Hai unit test đối chứng của Codex chạy riêng từ thư mục build đều tái hiện lỗi. Khi một lượt gửi đã xuất hiện trong danh sách từ server nhưng phản hồi POST còn chậm, mong đợi 1 dòng, thực tế 2. Khi hai phiên cùng gửi vào một cha, mong đợi 2 phản hồi, thực tế 1. Đã chạy lại bộ 32 ca sau các phép đối chứng.
+
+**Ca chuẩn đã xác nhận trên cả A và B.** Mỗi bố cục dùng một bài mở riêng. Gửi bình luận gốc lỗi 503 trước khi lưu, đổi sắp xếp rồi bấm “Thử lại” thành công. Tổng bài tăng từ 14 lên 15. Với cha ban đầu có 0 hoặc 12 phản hồi, hai lần gửi lỗi liên tiếp giữ nguyên số đếm và hàng “Thử lại” vẫn gắn đúng cha. Sau 201, số phản hồi lần lượt thành 1 và 13, tổng bài thành 16 rồi 17. Khi mới tải 10/12, cả hai bố cục vẫn đọc được phản hồi 11 và 12 qua nút xem thêm. Ở bài khóa có bình luận cũ, ô nhập và nút gửi bị khóa trong cả hai bố cục, vẫn mở được phản hồi thứ 12.
+
+**Các tình huống còn lỗi trước khi merge**
+
+| Mức | Cách tái hiện và kết quả | Vị trí và hướng sửa |
+| --- | --- | --- |
+| Cao | Cho mock lưu bình luận và trả 201, rồi để proxy trả 502 về điện thoại. Đổi sang “Mới nhất” và bấm “Thử lại”. Cùng một lần nhập sinh hai bình luận đã lưu, tổng bài tăng từ 2 lên 4. | `FeedRepositoryImpl.kt:790`, `FeedDtos.kt:89`, `mock-server/server.js:422`. Cấp một mã yêu cầu cho mỗi lần nhập, dùng lại mã khi thử lại và để server trả về bản ghi đã lưu. Bổ sung ca lỗi sau khi server đã lưu. |
+| Cao | Bài có 23 bình luận gốc. Trả lời cha đang ở đầu “Phù hợp nhất”, nhận 503 rồi đổi sang “Mới nhất”. Cha chuyển sang trang 2. Bản A cuộn đến cuối vẫn dừng ở bình luận thứ 20, proxy chỉ thấy trang 1. Ở bản B, cuộn tải trang 2, hàng lỗi gắn đúng cha và thử lại thành công với `parentId=1141`. | `PostDetailActivity.kt:346`. Nối sự kiện cuộn gần đáy của `NestedScrollView` bản A vào phân trang bình luận gốc. Kiểm tra từ Activity với hơn 20 bình luận gốc. |
+| Vừa | Giữ phản hồi 201 trên proxy 15,5 giây sau khi mock đã lưu. Trong lúc chờ, đổi sang “Mới nhất”. Cùng nội dung hiển thị một dòng “Sending…” và một dòng “Just now”. Sau khi 201 về máy, danh sách mới còn một dòng. | `PostDetailViewModel.kt:479`. Hợp nhất bản tạm và bản xác nhận bằng mã yêu cầu mà server cũng trả trong danh sách. Hai người dùng vẫn có thể chủ ý gửi cùng một nội dung. |
+| Vừa | Cha ban đầu có 0 phản hồi. Giữ 201 của điện thoại, dùng một phiên QA khác gửi thêm một phản hồi vào cùng cha rồi đổi sắp xếp trên điện thoại. Sau khi 201 về, nhãn hiển thị 1 trong khi server có 2. Đổi sắp xếp thêm lần nữa nhãn mới lên 2. | `PostDetailViewModel.kt:453` và `:403` ưu tiên số cũ khi đang gửi rồi cộng 1. Đối chiếu với số mới từ server sau khi hoàn tất yêu cầu hoặc đọc lại cha, kể cả khi một phiên khác cùng gửi. |
+
+Hai điểm ở mức cao đã có trong mã nền `add57de`. Cả A và B tái hiện được ba trường hợp liên quan đến phản hồi chậm, lỗi sau khi lưu và hai phiên cùng gửi. Đọc trực tiếp từ mock cho thấy một lần nhập tạo hai ID ở mỗi bố cục. Bài 53 (B) có `1193` và `1194` cùng nội dung `ReviewLostACK502`. Bài 55 (A) có `1207` và `1208` cùng nội dung `950502`. Với ca hai phiên, server có `1195` và `1196` dưới cha `1187` (B), `1209` và `1210` dưới cha `1205` (A). Cả hai lần, điện thoại hiện 1 rồi mới lên 2 khi tải lại.
+
+Lượt A cuối dùng nội dung toàn chữ số do bộ gõ đã đổi chuỗi thử dạng chữ. Chỉ ghi nhận những lần log proxy xác nhận đã giữ hoặc chặn đúng phản hồi cần đo. Sau khi đối chiếu, đã dọn các bài riêng tư do phiên review tạo, gỡ hai gói `s05review` và `s05review.test`, dừng proxy 3036. Cổng USB 3035 vẫn nối với mock QA. Thay đổi của phiên review trong Git nằm ở báo cáo này.
+
+**Kết luận.** Nên sửa thao tác gửi lại sau khi server đã lưu và phân trang gốc trên A trước khi merge. Bổ sung ca hồi quy cho hai tình huống này, cùng ca hai phiên trả lời đồng thời và ca đổi sắp xếp khi ứng dụng còn chờ 201.
+
+---
+
+<a id="sua-4-loi-s05-2111"></a>
+
+### Sửa 4 lỗi S05 sau review độc lập và kiểm thử lại trên Realme ngày 21/11/2026
+
+**Phạm vi & bản mã.** Thực hiện trên worktree `E:\MomentBox\build\home-realme` (nhánh `fix/realme-home`, HEAD nền `add57de`, giữ nguyên các thay đổi trước đó và để diff chưa commit để Codex review). Toàn bộ mã sửa/viết mới đã được định dạng gọn, rõ khối logic trước vòng kiểm thử cuối.
+
+**Tóm tắt sửa lỗi**
+1. **Lỗi 1 — Chống trùng khi bấm “Thử lại” sau 502 (đã lưu trên server):**
+   - Android (`Comment.kt`, `FeedDtos.kt`, `CommentMapper.kt`, `FeedRepository.kt`, `FeedRepositoryImpl.kt`, `PostDetailViewModel.kt`, `OfflineFeedState.kt`): cấp một `clientId` (UUID v4) cho mỗi lần chủ ý gửi và tái sử dụng nguyên `clientId` + `parentId` khi gọi `retryComment()`; hai lần chủ ý gửi cùng nội dung mang hai `clientId` khác nhau.
+   - `mock-server/server.js`: `POST /v1/posts/:id/comments` kiểm tra định dạng UUID v4 (trả `400` nếu sai, giữ tương thích request cũ thiếu `clientId`, giữ `403` cho bài khóa), khử trùng đồng bộ theo khóa `(userId, postId, clientId)` trong `commentIdByOperation` (trả `200` cùng bản ghi cũ khi gửi lại, trả `201` khi tạo mới), đồng thời trả kèm `postCommentCount` và `parentReplyCount`. `commentDto()` chỉ trả `clientId` cho đúng tác giả để không lộ cho người khác.
+2. **Lỗi 2 — Phân trang bình luận gốc trên Bố cục A:**
+   - `PostDetailActivity.kt` (`setupVersionA()`): gắn `ConcatAdapter(commentsAdapter, commentsFooterAdapter)` cho `rvCommentsA` (dọn adapter ở `onDestroy()`), nối `NestedScrollView.OnScrollChangeListener` của `nestedScrollViewA` để gọi `viewModel.loadComments(refresh = false)` khi cuộn xuống gần đáy (ngưỡng `240dp`), và cập nhật footer cho cả hai bố cục A/B.
+3. **Lỗi 3 — Tránh hiện 2 dòng (“Sending…” + “Just now”) trong lúc 201 bị giữ:**
+   - `PostDetailViewModel.kt` (`mergeServerPage()`, `loadMoreReplies()`, `submitComment()`): đối chiếu bình luận/phản hồi cục bộ với danh sách server theo `clientId` (cả bình luận gốc lẫn phản hồi con). Khi `GET` trả về bản ghi trùng `clientId` trong lúc `POST` còn treo, ẩn ngay bản `Sending…` để chỉ hiện 1 dòng duy nhất và ghi nhận vào `confirmedByClientId`; khi `201` hoàn tất hoặc gặp thứ tự ngược (`POST` xong trước `GET` cũ), danh sách vẫn chỉ còn 1 dòng; bình luận cùng nội dung từ người dùng khác vẫn giữ riêng.
+4. **Lỗi 4 — Tự đồng bộ cha 0 phản hồi & tổng bài khi hai phiên cùng trả lời:**
+   - `PostDetailViewModel.kt` (`handleConfirmedReply()`, `mergeServerPage()`, `refreshPostDetailCount()`): ghi nhận `observedServerParentCounts` trong khi `POST` đang chạy, ưu tiên `serverParentReplyCount` từ phản hồi `POST` để tránh cộng trùng sau `502 → đổi sắp xếp → Thử lại` nhưng vẫn lấy giá trị lớn nhất với số đếm server đã quan sát khi có phiên khác cùng trả lời; tự gọi `loadMoreReplies()` nếu thread đang mở thiếu phản hồi từ phiên khác và gọi `getPostDetail()` để đồng bộ tổng bài viết mà không cần tải lại thủ công.
+
+**Kiểm thử tự động (chạy lại sau bước định dạng mã cuối)**
+- **Backend (`mock-server`, `NODE_PATH=E:\MomentBox\mock-server\node_modules`):**
+  - `node --test test/comment-retry.cjs test/post-retry.cjs test/m5-send.cjs test/m5-profile.cjs test/m5-following.cjs`: **13/13 đạt** (0 fail, 0 skip).
+  - `node test/smoke.js http://127.0.0.1:3039` (trên server sạch tạm thời): **đạt toàn bộ**.
+- **Android Unit Test (`MomentBox_App`):**
+  - `.\gradlew.bat :app:testDebugUnitTest --rerun-tasks`: **36/36 đạt** (0 fail, 0 skip; S05 đạt **23/23**: `PostDetailViewModelTest` 17/17, `CommentCountRepositoryTest` 3/3, `CommentLikeResponseTest` 3/3).
+- **Android Instrumentation trên Realme RMX3350 (`US79CERW99P7HU9P`, Android 13):**
+  - Build gói tạm `com.ntq.training.momentbox.s05qa2` qua init script ngoài repo (`build.gradle.kts` không đổi), đối chiếu khớp SHA-256 trên máy tính và trên máy qua `sha256sum`: `FC58EF068B3419E4857C875F330F8E46CA59A5A496BCEC04F9C855B096B56B8F`.
+  - `CommentsAdapterTest` (3/3) + `PostHeaderAdapterTest` (2/2) + `PostDetailActivityPaginationTest` (2/2 — kiểm tra trực tiếp `PostDetailActivity` cả bố cục A và B với 23 gốc, đổi sắp xếp, trang 2, Retry đúng `parentId`/`clientId`, không lặp vô hạn và phân trang phản hồi 11–12): **7/7 đạt** (`8.21s`).
+
+**Kiểm thử thực tế trên Realme RMX3350 (cả Bố cục B và A, proxy `127.0.0.1:3036 → 127.0.0.1:3038`, mock QA cổng `3035` giữ nguyên)**
+
+| Lỗi | Trước sửa (review 21/11) | Sau sửa trên APK `FC58EF06…` (cả B và A) |
+| --- | --- | --- |
+| Lỗi 1 (502 sau lưu → Thử lại) | 1 lần nhập tạo 2 ID trên server (`1193`/`1194` ở B, `1207`/`1208` ở A), tổng bài tăng 2 lần | **Đạt (B: bài `50`, A: bài `51`).** Bình luận gốc `805021` (`attempt=1 SAVED_THEN_502`, `attempt=2 status=200` cùng `clientId`): chỉ 1 ID trên server (`229` ở B, `236` ở A), 1 dòng trên UI, `Comments (2) → Comments (3)`. Bình luận gốc `805023` (502 → đổi `Mới nhất`): tự khớp 1 ID (`230` ở B, `237` ở A), `Comments (4)`. Phản hồi `805022` (502 → đổi sắp xếp → Thử lại): giữ đúng `parentId` (`149` ở B, `151` ở A) và 1 ID (`231` ở B, `238` ở A), `Hide 1 reply`, `Comments (5)`, tổng server `5`. Kiểm chứng riêng bài độc lập xác nhận cả B (`[245]`) và A (`[248]`) đều hiện `Comments (3)`, `Hide 1 reply`, `showMoreCount=0`, `serverPostCount=3`. |
+| Lỗi 2 (Bố cục A dừng ở 20 gốc) | A chỉ gọi `GET page=1`, không tới trang 2 | **Đạt (B: bài `52` cha `153`, A: bài `53` cha `188`, 23 gốc / 12 phản hồi).** Phản hồi `805031` gặp `503` trước khi lưu → đổi `Mới nhất` → cuộn đến đáy phát sinh đúng `page=1` và `page=2` (`sort=newest`, không lặp trang 3) → hiện cha + `Failed (Retry)` (`Hide 12 replies`) → bấm Thử lại gửi đúng `parentId` & cùng `clientId` (`savedId=232` ở B, `239` ở A), nhãn lên `Hide 13 replies`, `postCount=36`; mở tiếp tải đủ phản hồi `11–12` (`2111`, `2112`). |
+| Lỗi 3 (Giữ 201 + đổi sắp xếp) | Hiện 2 dòng (`Sending…` + `Just now`) trong lúc chờ 201 | **Đạt (B: bài `54` `savedId=233`, A: bài `55` `savedId=240`).** Khi proxy đang giữ 201 (`held=1`) và đổi `Mới nhất`, UI ở cả B và A chỉ hiển thị **1 dòng** `802011` (`Just now`, `sending=0`). Sau khi nhả 201 vẫn đúng **1 dòng** và `Comments (3)`. |
+| Lỗi 4 (Hai phiên cùng trả lời cha 0 phản hồi) | Máy giữ nhãn `1` trong khi server có `2`, phải tải lại thủ công | **Đạt (B: bài `54` cha `223`, A: bài `55` cha `225`).** Giữ 201 phản hồi #1 (`804011`: ID `234` ở B, `241` ở A), phiên 2 (`travel@momentbox.dev`) gửi #2 (`804021`: ID `235` ở B, `242` ở A), đổi sắp xếp rồi nhả 201 → ngay lập tức (không reload/đổi sắp xếp thêm) UI tự cập nhật `Hide 2 replies`, đủ 2 phản hồi riêng biệt và `Comments (5)` khớp server (`postCount=5`, `parentReplies=2`). |
+| Bài khóa bình luận (`id=56`) | Giữ nguyên quyền đọc, khóa nhập | **Đạt trên cả B và A:** ô nhập hiển thị `Comments are turned off` và bị khóa. |
+
+**Dọn dẹp sau kiểm thử.** Đã gỡ `com.ntq.training.momentbox.s05qa2` và `com.ntq.training.momentbox.s05qa2.test`, bỏ `adb reverse tcp:3036`, dừng mock server tạm (`3038`) và proxy (`3036`). Kiểm tra lại xác nhận `adb reverse tcp:3035`, mock QA trên `127.0.0.1:3035` cùng các gói cài sẵn (`com.ntq.training.momentbox`, `.reminderqa`, `.homeqa`) đều còn nguyên vẹn. **Điểm mở:** không có lỗi S05 nào còn tồn đọng; sẵn sàng để Codex review diff và kiểm thử độc lập trên Realme.

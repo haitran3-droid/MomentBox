@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="detail_more_replies">Xem thêm phản hồi</string>
     <string name="detail_voice_loading">Đang tải…</string>
     <string name="detail_photo_viewer">Xem ảnh toàn màn hình</string>
     <string name="detail_reply">Trả lời</string>

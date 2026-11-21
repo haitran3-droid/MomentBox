@@ -55,6 +55,7 @@
     <string name="m4_discard_edits">変更を破棄しますか？</string>
     <string name="m4_discard">破棄</string>
     <string name="m4_record_title">録音</string>
+    <string name="m4_start_recording">録音を開始</string>
     <string name="m4_paused">一時停止</string>
     <string name="m4_recording">録音中</string>
     <string name="m4_resume">再開</string>
@@ -81,7 +82,6 @@
     <string name="m4_upload">アップロード中</string>
     <string name="m4_posted">投稿済み</string>
     <string name="m4_save_draft">下書きを保存しますか？</string>
-    <string name="m4_retry_uncertain">応答が失われても投稿済みの可能性があります。再試行すると重複する場合があります。続行しますか？</string>
     <string name="m4_retry">再試行</string>
     <string name="m4_journal_failed">投稿済みですが日記保存に失敗。再試行は日記のみ保存します。</string>
     <string name="m4_not_posted">投稿未確認。下書き保存済み。</string>

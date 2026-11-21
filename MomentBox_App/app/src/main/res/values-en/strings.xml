@@ -132,6 +132,8 @@
     <string name="journal_delete">Delete</string>
     <string name="journal_empty_title">No journal entries yet</string>
     <string name="journal_empty_desc">Start recording your thoughts and feelings today</string>
+    <string name="journal_empty_search_title">No matching journal entries</string>
+    <string name="journal_empty_search_desc">Try adjusting your search keywords or filters</string>
     <string name="journal_write_button">Write journal</string>
     <string name="journal_delete_success">Entry deleted</string>
     <string name="journal_undo">Undo</string>

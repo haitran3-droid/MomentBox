@@ -30,6 +30,7 @@
         <item quantity="other">Mất kết nối · lần %1$d sau %2$d giây · Thử ngay</item>
     </plurals>
     <string name="m5_socket_failed">Không thể kết nối · Thử ngay</string>
+    <string name="m5_socket_retry_now">Thử ngay</string>
     <string name="m5_socket_expired">Phiên hết hạn · đang xác thực lại</string>
     <string name="m5_quick_hold">Giữ nút micro để ghi; thả để gửi, vuốt trái để hủy</string>
     <string name="m5_quick_recording">Đang ghi %1$s · Vuốt trái để hủy</string>

@@ -129,6 +129,8 @@
     <string name="journal_delete">削除</string>
     <string name="journal_empty_title">日記のエントリがまだありません</string>
     <string name="journal_empty_desc">今日の思考や感情を記録し始めましょう</string>
+    <string name="journal_empty_search_title">一致する日記が見つかりません</string>
+    <string name="journal_empty_search_desc">検索キーワードやフィルターを変更してみてください</string>
     <string name="journal_write_button">日記を書く</string>
     <string name="journal_delete_success">エントリを削除しました</string>
     <string name="journal_undo">元に戻す</string>

@@ -1,8 +1,5 @@
 package com.ntq.training.momentbox.core.realtime
 
-import io.socket.client.Manager
-import io.socket.thread.EventThread
-import java.util.concurrent.atomic.AtomicReference
 import com.ntq.training.momentbox.BuildConfig
 import com.ntq.training.momentbox.data.local.db.NotificationDao
 import com.ntq.training.momentbox.data.local.db.NotificationEntity
@@ -12,24 +9,28 @@ import com.ntq.training.momentbox.data.local.prefs.TokenStorage
 import com.ntq.training.momentbox.data.repository.ChatSession
 import io.socket.client.AckWithTimeout
 import io.socket.client.IO
+import io.socket.client.Manager
 import io.socket.client.Socket
 import io.socket.emitter.Emitter
+import io.socket.thread.EventThread
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.json.JSONObject
-import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.channels.awaitClose
 
 /** Event mang scope tại thời điểm transport nhận, để consumer kiểm generation trước khi ghi Room. */
 data class ScopedChatEvent(
@@ -42,6 +43,7 @@ data class ScopedChatEvent(
 
 /** Khóa chủ sở hữu bền vững: cùng tài khoản/nguồn vẫn đọc được thông báo sau khi mở lại app. */
 enum class SocketPhase { DISCONNECTED, CONNECTING, CONNECTED, WAITING, FAILED, AUTH_EXPIRED }
+
 data class SocketState(
     val phase: SocketPhase = SocketPhase.DISCONNECTED,
     val attempt: Int = 0,
@@ -74,9 +76,9 @@ interface RealtimeSocket {
 private class SocketIoTransport(origin: String, token: String, initial: SocketTuning) :
     RealtimeSocket {
     companion object {
-        private val network =
-            OkHttpClient.Builder().readTimeout(60, TimeUnit.SECONDS)
-                .build()
+        private val network = OkHttpClient.Builder()
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build()
         private val closingAware = CloseAwareWebSocketFactory(network)
     }
 
@@ -106,8 +108,11 @@ private class SocketIoTransport(origin: String, token: String, initial: SocketTu
     private fun applyPending() {
         val v = pending.get()
         val manager = socket.io()
-        manager.timeout(v.timeoutMs).reconnectionAttempts(v.attempts).reconnection(v.attempts > 0)
-            .reconnectionDelay(v.delayMinMs).reconnectionDelayMax(v.delayMaxMs)
+        manager.timeout(v.timeoutMs)
+            .reconnectionAttempts(v.attempts)
+            .reconnection(v.attempts > 0)
+            .reconnectionDelay(v.delayMinMs)
+            .reconnectionDelayMax(v.delayMaxMs)
             .randomizationFactor(v.randomization)
         // Snapshot đọc ngược từ SDK, không báo giá trị vừa lưu là giá trị của kết nối đang chạy.
         effective.set(
@@ -126,7 +131,9 @@ private class SocketIoTransport(origin: String, token: String, initial: SocketTu
     }
 
     override fun tuning(): SocketTuning = effective.get()
+
     override fun connectionId(): String? = socket.id()
+
     private fun emitter(event: String): Emitter =
         if (event.startsWith("manager:")) socket.io() else socket
 
@@ -175,17 +182,16 @@ private class SocketIoTransport(origin: String, token: String, initial: SocketTu
     }
 
     override fun connect() {
-        EventThread.exec { applyPending()
-        socket.connect() }
+        EventThread.exec {
+            applyPending()
+            socket.connect()
+        }
     }
 
     override fun disconnect() {
         synchronized(callbacks) {
             callbacks.forEach { (key, wrapper) ->
-                emitter(key.first).off(
-                    eventName(key.first),
-                    wrapper
-                )
+                emitter(key.first).off(eventName(key.first), wrapper)
             }
             callbacks.clear()
         }
@@ -248,17 +254,19 @@ open class SocketManager(
     /** Cold Flow chỉ mượn transport Application hiện có. awaitClose gỡ đúng callback của collector,
      * không disconnect socket chung của Feed/notification hoặc collector khác.
      * Refresh cùng phiên được nối lại; login/backend khác hủy Flow cũ, không phát data chủ mới vào nó. */
-    fun events(event: String): Flow<ScopedChatEvent> =
-        kotlinx.coroutines.flow.callbackFlow {
-            require(event in setOf("presence:update", "typing", "message:new", "message:status"))
-            val subscription = ChatSubscription(event,
-                { value -> trySend(value).isSuccess },
-                { cause -> close(cause) })
-            synchronized(gate) {
-                chatSubscriptions.add(subscription)
-                val transport = socket
-                val currentOwner = owner
-                if (transport != null && currentOwner != null) attachChat(
+    fun events(event: String): Flow<ScopedChatEvent> = callbackFlow {
+        require(event in setOf("presence:update", "typing", "message:new", "message:status"))
+        val subscription = ChatSubscription(
+            event,
+            { value -> trySend(value).isSuccess },
+            { cause -> close(cause) }
+        )
+        synchronized(gate) {
+            chatSubscriptions.add(subscription)
+            val transport = socket
+            val currentOwner = owner
+            if (transport != null && currentOwner != null) {
+                attachChat(
                     subscription,
                     transport,
                     connectionSerial,
@@ -267,15 +275,14 @@ open class SocketManager(
                     resolveSocketOrigin()
                 )
             }
-            awaitClose {
-                synchronized(gate) {
-                    detachChat(subscription)
-                    chatSubscriptions.remove(
-                    subscription
-                )
-                }
+        }
+        awaitClose {
+            synchronized(gate) {
+                detachChat(subscription)
+                chatSubscriptions.remove(subscription)
             }
         }
+    }
 
     private fun detachChat(subscription: ChatSubscription) {
         val transport = subscription.transport
@@ -303,7 +310,11 @@ open class SocketManager(
         val listener: (Array<out Any>) -> Unit = { args ->
             val payload = args.firstOrNull() as? JSONObject
             synchronized(gate) {
-                if (payload != null && owns(serial) && owner == scopeOwner && generation == sessionGeneration) {
+                if (payload != null &&
+                    owns(serial) &&
+                    owner == scopeOwner &&
+                    generation == sessionGeneration
+                ) {
                     if (!subscription.deliver(
                             ScopedChatEvent(
                                 subscription.event,
@@ -315,7 +326,9 @@ open class SocketManager(
                         )
                     ) {
                         // Queue đầy không được im lặng bỏ tin: consumer phải catch lỗi và sync REST khi subscribe lại.
-                        subscription.close(IllegalStateException("Chat event buffer full; resynchronize REST"))
+                        subscription.close(
+                            IllegalStateException("Chat event buffer full; resynchronize REST")
+                        )
                     }
                 }
             }
@@ -335,21 +348,26 @@ open class SocketManager(
     ): Boolean {
         require(event in setOf("message:send", "message:seen", "typing:start", "typing:stop"))
         synchronized(gate) {
-            if (!_isConnected.value || owner?.ownerId != expected.ownerId ||
-                generation != expected.generation || tokenStore.getSessionGeneration() != expected.generation ||
+            if (!_isConnected.value ||
+                owner?.ownerId != expected.ownerId ||
+                generation != expected.generation ||
+                tokenStore.getSessionGeneration() != expected.generation ||
                 owner?.source + "|" + resolveSocketOrigin() != expected.source
-            ) return false
+            ) {
+                return false
+            }
             val current = socket ?: return false
-            if (ack == null) current.emitEvent(event, payload) else current.emitAck(
-                event,
-                payload,
-                5000
-            ) { response ->
-                val valid = synchronized(gate) {
-                    tokenStore.getSessionGeneration() == expected.generation &&
-                            owner?.ownerId == expected.ownerId && owner?.source + "|" + resolveSocketOrigin() == expected.source
+            if (ack == null) {
+                current.emitEvent(event, payload)
+            } else {
+                current.emitAck(event, payload, 5000) { response ->
+                    val valid = synchronized(gate) {
+                        tokenStore.getSessionGeneration() == expected.generation &&
+                            owner?.ownerId == expected.ownerId &&
+                            owner?.source + "|" + resolveSocketOrigin() == expected.source
+                    }
+                    if (valid) ack(response)
                 }
-                if (valid) ack(response)
             }
             return true
         }
@@ -362,6 +380,10 @@ open class SocketManager(
         connectForEpoch()
     }
 
+    open fun reconnectNow() {
+        connectForEpoch()
+    }
+
     private fun connectForEpoch(expectedEpoch: Long? = null, expectedGeneration: Long? = null) {
         val (epoch, shouldSubscribe) = synchronized(gate) {
             if (expectedEpoch != null && expectedEpoch != lifecycleEpoch) return
@@ -369,7 +391,9 @@ open class SocketManager(
             if (tokenListener == null) {
                 generation = tokenStore.getSessionGeneration()
                 lifecycleEpoch to true
-            } else lifecycleEpoch to false
+            } else {
+                lifecycleEpoch to false
+            }
         }
         if (shouldSubscribe) {
             // Không giữ gate khi đăng ký hoặc hủy listener: TokenStore phát callback dưới khóa riêng.
@@ -377,8 +401,11 @@ open class SocketManager(
                 val refresh = synchronized(gate) {
                     if (epoch != lifecycleEpoch) return@synchronized false
                     val sameSessionRefresh = snapshot.generation == generation &&
-                            !snapshot.accessToken.isNullOrBlank() && snapshot.accessToken != connectedToken
-                    if (snapshot.generation != generation || snapshot.accessToken.isNullOrBlank()) invalidateLocked()
+                        !snapshot.accessToken.isNullOrBlank() &&
+                        snapshot.accessToken != connectedToken
+                    if (snapshot.generation != generation || snapshot.accessToken.isNullOrBlank()) {
+                        invalidateLocked()
+                    }
                     sameSessionRefresh
                 }
                 if (refresh) scope.launch { connectForEpoch(epoch, snapshot.generation) }
@@ -387,7 +414,9 @@ open class SocketManager(
                 if (epoch == lifecycleEpoch && tokenListener == null) {
                     tokenListener = subscription
                     false
-                } else true
+                } else {
+                    true
+                }
             }
             if (duplicate) subscription.close()
         }
@@ -398,15 +427,19 @@ open class SocketManager(
                 sourceListener = scope.launch {
                     settingsStorage.dataSourceFlow.collect { source ->
                         synchronized(gate) {
-                            if (epoch == lifecycleEpoch && owner != null && source != owner?.source) invalidateLocked()
+                            if (epoch == lifecycleEpoch && owner != null && source != owner?.source) {
+                                invalidateLocked()
+                            }
                         }
                     }
                 }
             }
-            if (BuildConfig.DEBUG && tuningListener == null) tuningListener = scope.launch {
-                settingsStorage.socketTuningFlow.collect { value ->
-                    synchronized(gate) {
-                        if (epoch == lifecycleEpoch) socket?.configure(value)
+            if (BuildConfig.DEBUG && tuningListener == null) {
+                tuningListener = scope.launch {
+                    settingsStorage.socketTuningFlow.collect { value ->
+                        synchronized(gate) {
+                            if (epoch == lifecycleEpoch) socket?.configure(value)
+                        }
                     }
                 }
             }
@@ -419,19 +452,35 @@ open class SocketManager(
             val tuning =
                 if (BuildConfig.DEBUG) settingsStorage.getSocketTuning() else SocketTuning()
             synchronized(gate) {
-                if (request != connectRequest || snapshot.generation != tokenStore.getSessionGeneration()) return@synchronized
-                if (expectedGeneration != null && snapshot.generation != expectedGeneration) return@synchronized
+                if (request != connectRequest || snapshot.generation != tokenStore.getSessionGeneration()) {
+                    return@synchronized
+                }
+                if (expectedGeneration != null && snapshot.generation != expectedGeneration) {
+                    return@synchronized
+                }
                 val token = snapshot.accessToken
-                if (source != SettingsDataStore.SOURCE_MB_SERVER || token.isNullOrBlank() ||
-                    scopeOwner == null || scopeOwner.source != source || scopeOwner.ownerId.isBlank()
+                if (source != SettingsDataStore.SOURCE_MB_SERVER ||
+                    token.isNullOrBlank() ||
+                    scopeOwner == null ||
+                    scopeOwner.source != source ||
+                    scopeOwner.ownerId.isBlank()
                 ) {
                     invalidateLocked()
                     return@synchronized
                 }
-                if (socket != null && token == connectedToken && generation == snapshot.generation && owner == scopeOwner && connectedOrigin == resolveSocketOrigin()) {
+                if (socket != null &&
+                    token == connectedToken &&
+                    generation == snapshot.generation &&
+                    owner == scopeOwner &&
+                    connectedOrigin == resolveSocketOrigin()
+                ) {
+                    // Allow retry from WAITING/AUTH_EXPIRED as well as FAILED/DISCONNECTED so
+                    // network recovery or "Retry now" never gets permanently stuck.
                     if (!_isConnected.value && _state.value.phase in setOf(
                             SocketPhase.FAILED,
-                            SocketPhase.DISCONNECTED
+                            SocketPhase.DISCONNECTED,
+                            SocketPhase.WAITING,
+                            SocketPhase.AUTH_EXPIRED
                         )
                     ) {
                         _state.value = SocketState(SocketPhase.CONNECTING)
@@ -447,24 +496,17 @@ open class SocketManager(
                 connectedOrigin = resolveSocketOrigin()
                 _state.value = SocketState(SocketPhase.CONNECTING)
                 try {
-                    val transport =
-                        socketFactory?.invoke(resolveSocketOrigin(), token) ?: SocketIoTransport(
-                            resolveSocketOrigin(),
-                            token,
-                            tuning
-                        )
+                    val transport = socketFactory?.invoke(resolveSocketOrigin(), token)
+                        ?: SocketIoTransport(resolveSocketOrigin(), token, tuning)
                     transport.configure(tuning)
                     socket = transport
                     transport.on(Socket.EVENT_CONNECT) {
                         synchronized(gate) {
                             if (owns(serial)) {
                                 _isConnected.value = true
-                                _state.value =
-                                    SocketState(SocketPhase.CONNECTED)
-                                _connectionId.value =
-                                    transport.connectionId()
-                                    _appliedTuning.value =
-                                    transport.tuning()
+                                _state.value = SocketState(SocketPhase.CONNECTED)
+                                _connectionId.value = transport.connectionId()
+                                _appliedTuning.value = transport.tuning()
                             }
                         }
                     }
@@ -472,16 +514,18 @@ open class SocketManager(
                         synchronized(gate) {
                             if (owns(serial)) {
                                 _isConnected.value = false
-                                _connectionId.value =
-                                    null
-                                    _appliedTuning.value = null
+                                _connectionId.value = null
+                                _appliedTuning.value = null
                                 val reason = args.firstOrNull()?.toString()
                                 _state.value = if (reason in setOf(
                                         "io client disconnect",
                                         "io server disconnect"
                                     )
-                                ) SocketState(reason = reason)
-                                else waiting(1, reason)
+                                ) {
+                                    SocketState(reason = reason)
+                                } else {
+                                    waiting(1, reason)
+                                }
                             }
                         }
                     }
@@ -491,13 +535,9 @@ open class SocketManager(
                                 _isConnected.value = false
                                 val raw = args.firstOrNull()
                                 val reason = when (raw) {
-                                    is JSONObject -> raw.optString(
-                                        "message",
-                                        ""
-                                    )
+                                    is JSONObject -> raw.optString("message", "")
                                     is Throwable -> raw.message.orEmpty()
-                                    else -> raw?.toString()
-                                        .orEmpty()
+                                    else -> raw?.toString().orEmpty()
                                 }
                                 _state.value = when (reason) {
                                     "TOKEN_EXPIRED" -> SocketState(
@@ -510,10 +550,11 @@ open class SocketManager(
                                         reason = reason
                                     )
 
-                                    else -> if (_state.value.attempt == 0) waiting(
-                                        1,
-                                        "transport"
-                                    ) else _state.value
+                                    else -> if (_state.value.attempt == 0) {
+                                        waiting(1, "transport")
+                                    } else {
+                                        _state.value
+                                    }
                                 }
                             }
                         }
@@ -564,11 +605,7 @@ open class SocketManager(
                         // trước khi Room ghi xong nhưng thông báo vẫn thuộc cùng tài khoản/phiên.
                         if (data != null && synchronized(gate) { owns(serial) }) {
                             scope.launch {
-                                persistNotification(
-                                    snapshot.generation,
-                                    scopeOwner,
-                                    data
-                                )
+                                persistNotification(snapshot.generation, scopeOwner, data)
                             }
                         }
                     }
@@ -608,7 +645,8 @@ open class SocketManager(
         val currentOwner = notificationScopeProvider()
         val currentSource = settingsStorage.getDataSource()
         return expectedGeneration == tokenStore.getSessionGeneration() &&
-                currentOwner == scopeOwner && currentSource == scopeOwner.source
+            currentOwner == scopeOwner &&
+            currentSource == scopeOwner.source
     }
 
     private suspend fun persistNotification(
@@ -626,8 +664,9 @@ open class SocketManager(
         )
         var insertedId: Long? = null
         try {
-            if (notificationSessionIsCurrent(expectedGeneration, scopeOwner)) insertedId =
-                notificationDao?.insert(entity)
+            if (notificationSessionIsCurrent(expectedGeneration, scopeOwner)) {
+                insertedId = notificationDao?.insert(entity)
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -654,19 +693,26 @@ open class SocketManager(
      * trường hợp ngẫu nhiên hiển thị attempt, tránh hứa sai thời điểm với người dùng. */
     private fun waiting(attempt: Int, reason: String?): SocketState {
         val tuning = socket?.tuning() ?: SocketTuning()
-        if (attempt > tuning.attempts) return SocketState(
-            SocketPhase.FAILED,
-            attempt - 1,
-            reason = "attempts_exhausted"
+        if (attempt > tuning.attempts) {
+            return SocketState(
+                SocketPhase.FAILED,
+                attempt - 1,
+                reason = "attempts_exhausted"
+            )
+        }
+        val delay = minOf(
+            tuning.delayMaxMs,
+            tuning.delayMinMs * (1L shl (attempt - 1).coerceIn(0, 10))
         )
-        val delay =
-            minOf(tuning.delayMaxMs, tuning.delayMinMs * (1L shl (attempt - 1).coerceIn(0, 10)))
-        val deadline = if (tuning.randomization == 0.0) System.currentTimeMillis() + delay else null
+        val deadline =
+            if (tuning.randomization == 0.0) System.currentTimeMillis() + delay else null
         return SocketState(SocketPhase.WAITING, attempt, deadline, reason)
     }
 
-    private fun owns(serial: Long): Boolean = serial == connectionSerial && owner != null &&
-            generation == tokenStore.getSessionGeneration() && connectedOrigin == resolveSocketOrigin()
+    private fun owns(serial: Long): Boolean = serial == connectionSerial &&
+        owner != null &&
+        generation == tokenStore.getSessionGeneration() &&
+        connectedOrigin == resolveSocketOrigin()
 
     private fun invalidateLocked() {
         ++connectRequest

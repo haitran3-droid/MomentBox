@@ -16,31 +16,36 @@ import com.ntq.training.momentbox.data.repository.ChatRepository
 import com.ntq.training.momentbox.data.repository.ChatSession
 import com.ntq.training.momentbox.domain.model.User
 import java.time.Instant
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.sin
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
 class ChatRuntime(
-    private val tokens: TokenStore, private val settings: SettingsDataStore,
-    private val socket: SocketManager, private val database: AppDatabase, api: ChatApi,
+    private val tokens: TokenStore,
+    private val settings: SettingsDataStore,
+    private val socket: SocketManager,
+    private val database: AppDatabase,
+    api: ChatApi,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 ) : DefaultLifecycleObserver {
     private val gate = Any()
@@ -50,7 +55,7 @@ class ChatRuntime(
     val error = _error.asStateFlow()
     private val _typing = MutableStateFlow<Map<Long, Set<Long>>>(emptyMap())
     val typing = _typing.asStateFlow()
-    val repository = ChatRepository(database, api) { current() }
+    val repository = ChatRepository(database, api, sessionProvider = { current() })
     private var workers: Job? = null
     private val activationMutex = Mutex()
     private val syncMutex = Mutex()
@@ -67,11 +72,17 @@ class ChatRuntime(
 
     init {
         tokens.addSnapshotListener { value ->
-            synchronized(gate) { if (value.generation != _session.value?.generation || value.accessToken.isNullOrBlank()) invalidateLocked() }
+            synchronized(gate) {
+                if (value.generation != _session.value?.generation || value.accessToken.isNullOrBlank()) {
+                    invalidateLocked()
+                }
+            }
         }
         scope.launch {
             settings.dataSourceFlow.collect { source ->
-                synchronized(gate) { if (_session.value?.source?.substringBefore('|') != source) invalidateLocked() }
+                synchronized(gate) {
+                    if (_session.value?.source?.substringBefore('|') != source) invalidateLocked()
+                }
             }
         }
     }
@@ -80,9 +91,10 @@ class ChatRuntime(
     suspend fun current(): ChatSession? {
         val expected = _session.value ?: return null
         return expected.takeIf {
-            tokens.getSessionGeneration() == it.generation && !tokens.getAccessToken()
-                .isNullOrBlank() &&
-                    settings.getDataSource() + "|" + socket.resolveSocketOrigin() == it.source && _session.value == it
+            tokens.getSessionGeneration() == it.generation &&
+                !tokens.getAccessToken().isNullOrBlank() &&
+                settings.getDataSource() + "|" + socket.resolveSocketOrigin() == it.source &&
+                _session.value == it
         }
     }
 
@@ -93,10 +105,7 @@ class ChatRuntime(
         val source = settings.getDataSource()
         if (snapshot.accessToken.isNullOrBlank() || source != SettingsDataStore.SOURCE_MB_SERVER) return
         val user = runCatching {
-            Gson().fromJson(
-                settings.getSavedUserJson(),
-                User::class.java
-            )
+            Gson().fromJson(settings.getSavedUserJson(), User::class.java)
         }.getOrNull() ?: return
         val next = ChatSession(
             user.id.toString(),
@@ -130,11 +139,25 @@ class ChatRuntime(
                     launch { sync(next) }
                     launch { socket.isConnectedFlow.collect { if (it) sync(next) } }
                     launch {
-                        val attemptedTokens = mutableSetOf<String>()
+                        var lastPhase: SocketPhase? = null
+                        var lastAttemptedToken: String? = null
                         socket.state.collect { state ->
-                            if (state.phase == SocketPhase.AUTH_EXPIRED && current() == next) {
+                            val enteredAuthExpired = state.phase == SocketPhase.AUTH_EXPIRED &&
+                                lastPhase != SocketPhase.AUTH_EXPIRED
+                            lastPhase = state.phase
+                            if (enteredAuthExpired && current() == next) {
                                 val token = tokens.cachedAccessToken()
-                                if (token != null && attemptedTokens.add(token)) sync(next)
+                                if (token != null && token != lastAttemptedToken) {
+                                    lastAttemptedToken = token
+                                    val synced = syncInternal(next)
+                                    // If sync failed during a network outage and token did not
+                                    // change, clear the attempt so later retries can refresh auth.
+                                    if (!synced && tokens.cachedAccessToken() == token) {
+                                        lastAttemptedToken = null
+                                    }
+                                }
+                            } else if (state.phase == SocketPhase.CONNECTED) {
+                                lastAttemptedToken = null
                             }
                         }
                     }
@@ -149,10 +172,13 @@ class ChatRuntime(
                             while (isActive && current() == next) {
                                 try {
                                     socket.events(event).collect { value ->
-                                        if (value.generation == next.generation && value.owner.ownerId == next.ownerId && value.origin == next.source.substringAfter(
-                                                '|'
-                                            ) && current() == next
-                                        ) handle(next, value)
+                                        if (value.generation == next.generation &&
+                                            value.owner.ownerId == next.ownerId &&
+                                            value.origin == next.source.substringAfter('|') &&
+                                            current() == next
+                                        ) {
+                                            handle(next, value)
+                                        }
                                     }
                                 } catch (cancelled: CancellationException) {
                                     throw cancelled
@@ -172,9 +198,13 @@ class ChatRuntime(
 
     suspend fun sync(expected: ChatSession? = _session.value) {
         if (expected == null) return
+        syncInternal(expected)
+    }
+
+    private suspend fun syncInternal(expected: ChatSession): Boolean {
         syncMutex.lock()
-        try {
-            if (current() != expected) return
+        return try {
+            if (current() != expected) return false
             val before = database.chatDao().conversations(expected.ownerId, expected.source).first()
                 .associate {
                     it.id to database.chatDao()
@@ -184,16 +214,20 @@ class ChatRuntime(
                 val rooms =
                     database.chatDao().conversations(expected.ownerId, expected.source).first()
                 for (room in rooms) {
-                    if (current() != expected) return
+                    if (current() != expected) return false
                     // sync vừa chèn lastMessage; mốc phải lấy trước sync để không dừng sớm mất phần giữa.
-                    repository.catchUp(expected, room.id, before[room.id] ?: 0L)
+                    repository.catchUp(expected, room.id, before[room.id])
                 }
                 _error.value = null
+                true
+            } else {
+                false
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
             if (current() == expected) _error.value = "CHAT_SYNC_FAILED"
+            false
         } finally {
             syncMutex.unlock()
         }
@@ -206,13 +240,16 @@ class ChatRuntime(
                 repository.receive(
                     expected,
                     Gson().fromJson(it.toString(), ChatMessageDto::class.java),
-                    synchronized(gate) { readingRoom.takeIf { foreground } })
+                    synchronized(gate) { readingRoom.takeIf { foreground } }
+                )
                 if (database.chatDao().conversation(
                         expected.ownerId,
                         expected.source,
                         it.optLong("conversationId")
                     ) == null
-                ) sync(expected)
+                ) {
+                    sync(expected)
+                }
             }
 
             "presence:update" -> repository.updatePresence(
@@ -220,24 +257,29 @@ class ChatRuntime(
                 p.optLong("userId"),
                 p.optBoolean("online"),
                 p.optString("lastSeenAt").takeIf { it.isNotBlank() && it != "null" }
-                    ?.let { Instant.parse(it).toEpochMilli() })
+                    ?.let { Instant.parse(it).toEpochMilli() }
+            )
 
             "typing" -> {
                 val room = p.optLong("conversationId")
                 val user = p.optLong("userId")
                 if (user.toString() == expected.ownerId || database.chatDao()
                         .conversation(expected.ownerId, expected.source, room) == null
-                ) return
+                ) {
+                    return
+                }
                 synchronized(gate) {
                     val key = room to user
                     typingJobs.remove(key)?.cancel()
                     setTyping(room, user, p.optBoolean("isTyping"))
-                    if (p.optBoolean("isTyping")) typingJobs[key] = scope.launch {
-                        delay(5000)
-                        synchronized(gate) {
-                            if (_session.value == expected) {
-                                setTyping(room, user, false)
-                                typingJobs.remove(key)
+                    if (p.optBoolean("isTyping")) {
+                        typingJobs[key] = scope.launch {
+                            delay(5000)
+                            synchronized(gate) {
+                                if (_session.value == expected) {
+                                    setTyping(room, user, false)
+                                    typingJobs.remove(key)
+                                }
                             }
                         }
                     }
@@ -289,35 +331,39 @@ class ChatRuntime(
                 "message:seen",
                 JSONObject().put("conversationId", room).put("messageId", through)
             )
-        ) scope.launch { repository.read(expected, room, through) }
+        ) {
+            scope.launch { repository.read(expected, room, through) }
+        }
     }
 
     /** Job thuộc Application, không bị rotation hủy giữa local commit và emit. Một callback
      * hoàn tất đúng một lần; ACK đến sau logout bị cả transport và Room session fence loại. */
-    var retryMedia: ((ChatSession, MessageEntity) -> Unit)? =
-        null
+    var retryMedia: ((ChatSession, MessageEntity) -> Unit)? = null
 
     fun send(room: Long, text: String, retry: String? = null) {
         val expected = _session.value ?: return
         launchSession(expected) {
+            var row: MessageEntity? = null
             try {
-                val row =
+                val prepared =
                     repository.prepare(expected, room, text, retry = retry) ?: return@launchSession
-                if (row.type != "text" && row.mediaUrl == null) retryMedia?.invoke(expected, row)
-                else transmit(expected, row)
+                row = prepared
+                if (prepared.type != "text" && prepared.mediaUrl == null) {
+                    retryMedia?.invoke(expected, prepared)
+                } else {
+                    transmit(expected, prepared)
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
+                row?.let { repository.failed(expected, it.localId) }
                 if (current() == expected) _error.value = "CHAT_SEND_FAILED"
             }
         }
     }
 
     /** Media đã có local UUID và upload URL; emit đúng row đó, không tạo thêm optimistic row. */
-    fun sendPrepared(
-        expected: ChatSession,
-        row: MessageEntity
-    ) {
+    fun sendPrepared(expected: ChatSession, row: MessageEntity) {
         launchSession(expected) {
             try {
                 transmit(expected, row)
@@ -329,41 +375,45 @@ class ChatRuntime(
         }
     }
 
-    private suspend fun transmit(
-        expected: ChatSession,
-        row: MessageEntity
-    ) {
+    private suspend fun transmit(expected: ChatSession, row: MessageEntity) {
         if (current() != expected) return
         val finished = AtomicBoolean(false)
+        val settled = CompletableDeferred<Unit>()
         val callback: (JSONObject?) -> Unit = { response ->
-            if (finished.compareAndSet(false, true)) launchSession(expected) {
-                try {
-                    val message = response?.optJSONObject("message")
-                    if (response?.optBoolean("ok") == true && message != null) {
-                        if (repository.receive(
-                                expected,
-                                Gson().fromJson(message.toString(), ChatMessageDto::class.java)
-                            )
-                        ) pop()
-                    } else repository.failed(expected, row.localId)
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    repository.failed(expected, row.localId)
+            if (finished.compareAndSet(false, true)) {
+                settled.complete(Unit)
+                launchSession(expected) {
+                    try {
+                        val message = response?.optJSONObject("message")
+                        if (response?.optBoolean("ok") == true && message != null) {
+                            if (repository.receive(
+                                    expected,
+                                    Gson().fromJson(message.toString(), ChatMessageDto::class.java)
+                                )
+                            ) {
+                                pop()
+                            }
+                        } else {
+                            repository.failed(expected, row.localId)
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        repository.failed(expected, row.localId)
+                    }
                 }
             }
         }
-        val payload = JSONObject().put("conversationId", row.conversationId)
-            .put("clientId", row.clientId).put("type", row.type).put("content", row.content)
-        row.mediaUrl?.let {
-            payload.put(
-                "mediaUrl",
-                it
-            )
-        }
+        val payload = JSONObject()
+            .put("conversationId", row.conversationId)
+            .put("clientId", row.clientId)
+            .put("type", row.type)
+            .put("content", row.content)
+        row.mediaUrl?.let { payload.put("mediaUrl", it) }
         row.durationMs?.let { payload.put("durationMs", it) }
         socket.emitForSession(expected, "message:send", payload, callback)
-        delay(5000)
+        // Honor BA S17 5s ACK timeout before marking an unacknowledged or offline send FAILED.
+        withTimeoutOrNull(5000) { settled.await() }
         callback(null)
     }
 
@@ -373,22 +423,27 @@ class ChatRuntime(
             try {
                 val rate = 22050
                 val samples = ShortArray(rate / 30) { i ->
-                    (sin(2 * Math.PI * 880 * i / rate) * 5000 * (1.0 - i.toDouble() / (rate / 30))).toInt()
+                    (sin(2 * Math.PI * 880 * i / rate) * 5000 * (1.0 - i.toDouble() / (rate / 30)))
+                        .toInt()
                         .toShort()
                 }
-                track = AudioTrack.Builder().setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
+                track = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    )
                     .setAudioFormat(
-                        AudioFormat.Builder().setSampleRate(rate)
+                        AudioFormat.Builder()
+                            .setSampleRate(rate)
                             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build()
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
                     )
                     .setTransferMode(AudioTrack.MODE_STATIC)
-                    .setBufferSizeInBytes(samples.size * 2).build()
+                    .setBufferSizeInBytes(samples.size * 2)
+                    .build()
                 track.write(samples, 0, samples.size)
                 track.play()
                 delay(100)
@@ -406,7 +461,9 @@ class ChatRuntime(
     }
 
     private fun launchSession(expected: ChatSession, block: suspend CoroutineScope.() -> Unit) {
-        val task = scope.launch(start = CoroutineStart.LAZY) { if (current() == expected) block() }
+        val task = scope.launch(start = CoroutineStart.LAZY) {
+            if (current() == expected) block()
+        }
         synchronized(gate) {
             if (_session.value != expected) {
                 task.cancel()
@@ -419,8 +476,10 @@ class ChatRuntime(
     }
 
     suspend fun cancelForLogout() {
-        val work = synchronized(gate) { invalidateLocked()
-        operations.toList() }
+        val work = synchronized(gate) {
+            invalidateLocked()
+            operations.toList()
+        }
         work.joinAll()
     }
 
@@ -431,23 +490,20 @@ class ChatRuntime(
         _visibleConversation.value = null
         _session.value = null
         visibleRoom = null
-        visiblePanel =
-            null
-            readingRoom = null
-            workers?.cancel()
-            workers = null
+        visiblePanel = null
+        readingRoom = null
+        workers?.cancel()
+        workers = null
         typingJobs.values.forEach { it.cancel() }
         typingJobs.clear()
-        _typing.value =
-            emptyMap()
-            _error.value = null
+        _typing.value = emptyMap()
+        _error.value = null
     }
 
     override fun onStart(owner: LifecycleOwner) {
         synchronized(gate) {
             foreground = true
-            _visibleConversation.value =
-            visibleRoom
+            _visibleConversation.value = visibleRoom
             backgroundTimer?.cancel()
             backgroundTimer = null
             if (_session.value != null) socket.connect()
@@ -458,14 +514,14 @@ class ChatRuntime(
         synchronized(gate) {
             foreground = false
             _visibleConversation.value = null
-            visibleRoom =
-            null
+            visibleRoom = null
             visiblePanel = null
             readingRoom = null
             backgroundTimer?.cancel()
-            backgroundTimer =
-                scope.launch { delay(300_000)
-                synchronized(gate) { if (!foreground) socket.disconnect() } }
+            backgroundTimer = scope.launch {
+                delay(300_000)
+                synchronized(gate) { if (!foreground) socket.disconnect() }
+            }
         }
     }
 }

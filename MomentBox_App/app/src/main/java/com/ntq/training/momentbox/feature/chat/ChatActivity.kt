@@ -163,16 +163,16 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    override fun onSaveInstanceState(out: Bundle) {
+    override fun onSaveInstanceState(outState: Bundle) {
         (openedSession ?: restoredSession)?.let {
-            out.putString(
+            outState.putString(
                 "chatOwner",
                 it.ownerId
             )
-            out.putString("chatSource", it.source)
-            out.putLong("chatGeneration", it.generation)
+            outState.putString("chatSource", it.source)
+            outState.putLong("chatGeneration", it.generation)
         }
-        super.onSaveInstanceState(out)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -97,7 +97,7 @@ class NewConversationDialog : DialogFragment() {
     private val model: FollowingViewModel by viewModels {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(c: Class<T>): T =
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
                 FollowingViewModel((requireActivity().application as MomentBoxApp).chatRuntime) as T
         }
     }

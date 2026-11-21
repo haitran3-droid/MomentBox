@@ -8,8 +8,8 @@ import android.os.Bundle
 import android.text.format.DateFormat
 import android.view.View
 import android.view.WindowManager
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -19,12 +19,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.snackbar.Snackbar
-import com.ntq.training.momentbox.databinding.ActivityReminderBinding
 import com.ntq.training.momentbox.MainActivity
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
-import java.time.format.DateTimeFormatter
+import com.ntq.training.momentbox.databinding.ActivityReminderBinding
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -36,9 +36,11 @@ class ReminderActivity : AppCompatActivity() {
         private const val REVISION = "s20_revision"
         private const val DUE = "s20_due"
         const val NOTIFICATION_ID = 5202
+
         fun intent(context: Context, event: ReminderEvent) =
             Intent(context, ReminderActivity::class.java)
-                .putExtra(KIND, event.kind.name).putExtra(REVISION, event.revision)
+                .putExtra(KIND, event.kind.name)
+                .putExtra(REVISION, event.revision)
                 .putExtra(DUE, event.dueEpochMillis)
 
         private fun event(intent: Intent): ReminderEvent? = runCatching {
@@ -60,6 +62,7 @@ class ReminderActivity : AppCompatActivity() {
     private val credential =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (!keyguard.isDeviceLocked) routeAfterUnlock()
+            else pendingMood = null
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +73,10 @@ class ReminderActivity : AppCompatActivity() {
             setTurnScreenOn(true)
         } else {
             @Suppress("DEPRECATION")
-            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
         }
         binding = ActivityReminderBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -80,12 +86,7 @@ class ReminderActivity : AppCompatActivity() {
         }
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(
-                bars.left,
-                bars.top,
-                bars.right,
-                bars.bottom
-            )
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
         entry = event(intent)
@@ -106,18 +107,10 @@ class ReminderActivity : AppCompatActivity() {
         }
         binding.reminderWrite.setOnClickListener { requestWrite(pendingMood ?: 1) }
         binding.reminderSnooze.setOnClickListener {
-            performAction {
-                app.reminderScheduler.snooze(
-                    expected
-                )
-            }
+            performAction { app.reminderScheduler.snooze(expected) }
         }
         binding.reminderSkip.setOnClickListener {
-            performAction {
-                app.reminderScheduler.skipToday(
-                    expected
-                )
-            }
+            performAction { app.reminderScheduler.skipToday(expected) }
         }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -128,8 +121,11 @@ class ReminderActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     app.reminderStore.snapshots.collect { state ->
-                        if (!busy && (state.active != expected || !state.settings.enabled)) finishAndRemoveTask()
-                        else binding.root.visibility = View.VISIBLE
+                        if (!busy && (state.active != expected || !state.settings.enabled)) {
+                            finishAndRemoveTask()
+                        } else {
+                            binding.root.visibility = View.VISIBLE
+                        }
                     }
                 }
                 launch {
@@ -140,10 +136,8 @@ class ReminderActivity : AppCompatActivity() {
                             now.format(DateTimeFormatter.ofPattern("HH:mm", locale))
                         binding.reminderDate.text = now.format(
                             DateTimeFormatter.ofPattern(
-                                DateFormat.getBestDateTimePattern(
-                                    locale,
-                                    "EEEEdMMMM"
-                                ), locale
+                                DateFormat.getBestDateTimePattern(locale, "EEEEdMMMM"),
+                                locale
                             )
                         )
                         delay(1000)
@@ -176,27 +170,48 @@ class ReminderActivity : AppCompatActivity() {
     private fun requestWrite(mood: Int) {
         if (busy || routed) return
         pendingMood = mood
-        entry?.let { ReminderRingingService.silence(this, it) }
-        lifecycleScope.launch { cancelNotification() }
-        if (!keyguard.isKeyguardLocked) {
+        val locked = keyguard.isKeyguardLocked
+        entry?.let { ReminderRingingService.silence(this, it, keepNotice = locked) }
+        if (!locked) {
+            lifecycleScope.launch { cancelNotification() }
             routeAfterUnlock()
             return
         }
-        if (Build.VERSION.SDK_INT >= 26) keyguard.requestDismissKeyguard(this,
-            object : KeyguardManager.KeyguardDismissCallback() {
-                override fun onDismissSucceeded() {
-                    if (!isDestroyed) routeAfterUnlock()
+        if (Build.VERSION.SDK_INT >= 26) {
+            keyguard.requestDismissKeyguard(
+                this,
+                object : KeyguardManager.KeyguardDismissCallback() {
+                    override fun onDismissSucceeded() {
+                        if (!isDestroyed) routeAfterUnlock()
+                    }
+
+                    override fun onDismissCancelled() {
+                        pendingMood = null
+                    }
+
+                    override fun onDismissError() {
+                        pendingMood = null
+                    }
                 }
-            }) else {
+            )
+        } else {
             @Suppress("DEPRECATION")
-            val unlock =
-                keyguard.createConfirmDeviceCredentialIntent(getString(R.string.s20_write), null)
-            if (unlock != null) credential.launch(unlock)
-            else {
+            val unlock = keyguard.createConfirmDeviceCredentialIntent(
+                getString(R.string.s20_write),
+                null
+            )
+            if (unlock != null) {
+                credential.launch(unlock)
+            } else {
                 @Suppress("DEPRECATION")
                 window.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD)
                 binding.root.postDelayed(
-                    { if (!isDestroyed && !keyguard.isKeyguardLocked) routeAfterUnlock() },
+                    {
+                        if (!isDestroyed) {
+                            if (!keyguard.isKeyguardLocked) routeAfterUnlock()
+                            else pendingMood = null
+                        }
+                    },
                     300
                 )
             }
@@ -217,12 +232,10 @@ class ReminderActivity : AppCompatActivity() {
                     routed = true
                     cancelNotification()
                     val main = ReminderJournalRoute.put(
-                        Intent(
-                            this@ReminderActivity,
-                            MainActivity::class.java
-                        ), mood, System.currentTimeMillis()
-                    )
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        Intent(this@ReminderActivity, MainActivity::class.java),
+                        mood,
+                        System.currentTimeMillis()
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     startActivity(main)
                     finishAndRemoveTask()
                 } else {

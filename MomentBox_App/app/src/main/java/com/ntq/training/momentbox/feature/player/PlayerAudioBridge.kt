@@ -9,21 +9,21 @@ import android.os.DeadObjectException
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
-import com.ntq.training.momentbox.feature.recorder.RecordingService
-import com.ntq.training.momentbox.feature.recorder.RecordPhase
 import com.ntq.training.momentbox.MomentBoxApp
-import kotlinx.coroutines.channels.Channel
+import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
+import com.ntq.training.momentbox.feature.recorder.RecordPhase
+import com.ntq.training.momentbox.feature.recorder.RecordingService
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.coroutines.cancellation.CancellationException
 
 class PlayerAudioBridge(private val app: MomentBoxApp) {
     private val main = Handler(Looper.getMainLooper())
@@ -35,9 +35,12 @@ class PlayerAudioBridge(private val app: MomentBoxApp) {
 
     @Volatile
     var active = false
-    private set
+        private set
+
     private var connection: ServiceConnection? = null
     private var callback: IAudioPeer? = null
+    private var manuallyDisconnected = false
+    private var rebindTask: Runnable? = null
 
     @Volatile
     private var epoch = 0L
@@ -49,6 +52,9 @@ class PlayerAudioBridge(private val app: MomentBoxApp) {
     /** create=false lúc cold main chỉ nối player đang tồn tại, không tự khởi động audio nền. */
     fun connect(create: Boolean = false) {
         check(Looper.myLooper() == Looper.getMainLooper())
+        manuallyDisconnected = false
+        rebindTask?.let { main.removeCallbacks(it) }
+        rebindTask = null
         if (connection != null) return
         val version = ++epoch
         val next = object : ServiceConnection {
@@ -69,9 +75,7 @@ class PlayerAudioBridge(private val app: MomentBoxApp) {
                         main.post {
                             if (version == epoch && remote === api) {
                                 AndroidPlaybackAudio.get(app).interruptForRemotePlayer()
-                                RecordingService.interruptForPlayback(
-                                    app
-                                )
+                                RecordingService.interruptForPlayback(app)
                                 scope.launch {
                                     val released = withTimeoutOrNull(1000) {
                                         RecordingService.state.first {
@@ -83,30 +87,37 @@ class PlayerAudioBridge(private val app: MomentBoxApp) {
                                         AndroidPlaybackAudio.get(app).awaitRecordersReleased()
                                         true
                                     } == true
-                                    if (released) commands.trySend {
-                                        if (version == epoch && remote === api) api.confirmFocus(
-                                            nonce
-                                        )
+                                    if (released) {
+                                        commands.trySend {
+                                            if (version == epoch && remote === api) {
+                                                api.confirmFocus(nonce)
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-                callback =
-                    peer
+                callback = peer
                 commands.trySend { if (remote === api) api.registerAudioPeer(peer) }
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
                 if (version == epoch) {
                     remote = null
+                    callback = null
                     active = false
                 }
             }
 
             override fun onBindingDied(name: ComponentName?) {
-                if (version == epoch) disconnect()
+                if (version == epoch) {
+                    // Clear dead binder/connection and re-bind lazily (flags=0) so audio focus
+                    // coordination automatically recovers when :player restarts.
+                    detachConnection()
+                    scheduleRebind()
+                }
             }
 
             override fun onNullBinding(name: ComponentName?) {
@@ -125,29 +136,55 @@ class PlayerAudioBridge(private val app: MomentBoxApp) {
         }
     }
 
+    private fun scheduleRebind() {
+        if (manuallyDisconnected) return
+        rebindTask?.let { main.removeCallbacks(it) }
+        val task = Runnable {
+            rebindTask = null
+            if (!manuallyDisconnected && connection == null) {
+                connect(create = false)
+            }
+        }
+        rebindTask = task
+        main.postDelayed(task, 500L)
+    }
+
+    private fun detachConnection() {
+        ++epoch
+        val old = remote
+        val peer = callback
+        remote = null
+        callback = null
+        active = false
+        commands.trySend { if (peer != null) old?.unregisterAudioPeer(peer) }
+        connection?.let { runCatching { app.unbindService(it) } }
+        connection = null
+    }
+
     suspend fun closeForLogout(): Boolean {
         val service = Intent(app, PlayerService::class.java)
         try {
             val api = withContext(Dispatchers.IO) {
                 remote ?: object : BroadcastReceiver() {
                     override fun onReceive(context: Context, intent: Intent?) {}
-                }
-                    .peekService(app, service)?.let(IPlayerService.Stub::asInterface)
+                }.peekService(app, service)?.let(IPlayerService.Stub::asInterface)
             }
             if (api == null) {
                 // Không có Binder thì chưa có queue/engine điều khiển qua AIDL. Dọn pending bind và
                 // stop service rỗng nếu một start đang chờ, không BIND_AUTO_CREATE chỉ để đóng.
-                withContext(Dispatchers.Main.immediate) { disconnect()
-                app.stopService(service) }
+                withContext(Dispatchers.Main.immediate) {
+                    disconnect()
+                    app.stopService(service)
+                }
                 return true
             }
             return withContext(Dispatchers.IO) {
                 try {
                     api.close()
                     withTimeoutOrNull(1500) {
-                        while (api.asBinder().isBinderAlive && api.state.error != "PLAYER_CLOSED") delay(
-                            25
-                        )
+                        while (api.asBinder().isBinderAlive && api.state.error != "PLAYER_CLOSED") {
+                            delay(25)
+                        }
                         true
                     } == true
                 } catch (_: DeadObjectException) {
@@ -164,15 +201,10 @@ class PlayerAudioBridge(private val app: MomentBoxApp) {
     }
 
     fun disconnect() {
-        ++epoch
-        val old = remote
-        val peer = callback
-        remote = null
-        callback = null
-        active = false
-        commands.trySend { if (peer != null) old?.unregisterAudioPeer(peer) }
-        connection?.let { runCatching { app.unbindService(it) } }
-        connection = null
+        manuallyDisconnected = true
+        rebindTask?.let { main.removeCallbacks(it) }
+        rebindTask = null
+        detachConnection()
     }
 
     /** Auto Feed không được cướp quyền đang phát. User voice là transient, video/ambient là
@@ -180,9 +212,7 @@ class PlayerAudioBridge(private val app: MomentBoxApp) {
     fun interruptForMain(transientLoss: Boolean) {
         val api = remote ?: return
         commands.trySend {
-            if (remote === api) api.interruptForMain(
-                transientLoss
-            )
+            if (remote === api) api.interruptForMain(transientLoss)
         }
     }
 }

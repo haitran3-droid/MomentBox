@@ -117,19 +117,18 @@
         </LinearLayout>
 
         <!-- Trái tim thích bình luận bên phải -->
-        <LinearLayout
+        <RelativeLayout
             android:id="@+id/btnCommentLikeAction"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:orientation="vertical">
+            android:focusable="true">
 
             <ImageView
                 android:id="@+id/ivCommentLike"
                 android:layout_width="18dp"
                 android:layout_height="18dp"
+                android:layout_centerHorizontal="true"
                 android:contentDescription="@string/action_like"
                 android:src="@drawable/ic_favorite"
                 app:tint="@color/text_tertiary" />
@@ -138,12 +137,14 @@
                 android:id="@+id/tvCommentLikeCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_below="@id/ivCommentLike"
+                android:layout_centerHorizontal="true"
                 android:layout_marginTop="1dp"
                 android:fontFamily="@font/be_vietnam_pro"
                 android:textColor="@color/text_tertiary"
                 android:textSize="11sp"
                 tools:text="12" />
-        </LinearLayout>
+        </RelativeLayout>
     </LinearLayout>
 
     <!-- Hàng mở rộng câu trả lời con: Xem N phản hồi -->

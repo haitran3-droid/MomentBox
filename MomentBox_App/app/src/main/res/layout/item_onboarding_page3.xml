@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:fillViewport="true"
@@ -19,6 +20,7 @@
             android:layout_height="330dp"
             android:background="@drawable/bg_onboarding_art_gradient"
             android:clipToOutline="true"
+            tools:targetApi="s"
             android:clipToPadding="false">
 
             <!-- Chat Bubble Left -->
@@ -34,6 +36,7 @@
                 android:orientation="vertical"
                 android:outlineAmbientShadowColor="#303C288C"
                 android:outlineSpotShadowColor="#303C288C"
+                tools:targetApi="p"
                 android:padding="12dp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
@@ -64,6 +67,7 @@
                 android:outlineAmbientShadowColor="#485B4BDB"
 
                 android:outlineSpotShadowColor="#485B4BDB"
+                tools:targetApi="p"
                 android:padding="12dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
@@ -94,6 +98,7 @@
                 android:orientation="horizontal"
                 android:outlineAmbientShadowColor="#303C288C"
                 android:outlineSpotShadowColor="#303C288C"
+                tools:targetApi="p"
                 android:paddingStart="12dp"
                 android:paddingTop="8dp"
                 android:paddingEnd="12dp"

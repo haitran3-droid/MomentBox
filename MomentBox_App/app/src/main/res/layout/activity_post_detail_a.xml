@@ -4,8 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/postDetailRootA"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/surface">
+    android:layout_height="match_parent">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
@@ -138,9 +137,8 @@
 
                 <EditText
                     android:id="@+id/etCommentInputA"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:fontFamily="@font/be_vietnam_pro"
                     android:hint="@string/comment_input_hint"

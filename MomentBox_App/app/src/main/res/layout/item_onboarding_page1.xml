@@ -20,6 +20,7 @@
             android:layout_height="330dp"
             android:background="@drawable/bg_onboarding_art_gradient"
             android:clipToOutline="true"
+            tools:targetApi="s"
             android:clipToPadding="false">
 
             <!-- Top Left Audio Pill -->
@@ -37,6 +38,7 @@
                 android:orientation="horizontal"
                 android:outlineAmbientShadowColor="#303C288C"
                 android:outlineSpotShadowColor="#303C288C"
+                tools:targetApi="p"
                 android:paddingStart="12dp"
                 android:paddingTop="7dp"
                 android:paddingEnd="12dp"
@@ -84,6 +86,7 @@
                 android:includeFontPadding="false"
                 android:outlineAmbientShadowColor="#303C288C"
                 android:outlineSpotShadowColor="#303C288C"
+                tools:targetApi="p"
                 android:paddingStart="12dp"
                 android:paddingTop="7dp"
                 android:paddingEnd="12dp"
@@ -122,6 +125,7 @@
                     android:layout_height="150dp"
                     android:background="@drawable/bg_photo_clip"
                     android:clipToOutline="true"
+                    tools:targetApi="s"
                     android:contentDescription="@string/onboarding_art_tag_dalat"
                     android:scaleType="centerCrop"
                     android:src="@drawable/art_onboarding_dalat" />
@@ -164,6 +168,7 @@
                     android:layout_height="140dp"
                     android:background="@drawable/bg_photo_clip"
                     android:clipToOutline="true"
+                    tools:targetApi="s"
                     android:contentDescription="@string/onboarding_art_tag_mykhe"
                     android:scaleType="centerCrop"
                     android:src="@drawable/art_onboarding_mykhe" />

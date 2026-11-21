@@ -95,18 +95,17 @@
         </LinearLayout>
     </LinearLayout>
 
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:clickable="true"
-        android:focusable="true"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:focusable="true">
 
         <ImageView
             android:id="@+id/ivReplyLike"
             android:layout_width="16dp"
             android:layout_height="16dp"
+            android:layout_centerHorizontal="true"
             android:contentDescription="@string/action_like"
             android:src="@drawable/ic_favorite"
             app:tint="@color/text_tertiary" />
@@ -115,9 +114,11 @@
             android:id="@+id/tvReplyLikeCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_below="@id/ivReplyLike"
+            android:layout_centerHorizontal="true"
             android:fontFamily="@font/be_vietnam_pro"
             android:textColor="@color/text_tertiary"
             android:textSize="11sp"
             tools:text="3" />
-    </LinearLayout>
+    </RelativeLayout>
 </LinearLayout>

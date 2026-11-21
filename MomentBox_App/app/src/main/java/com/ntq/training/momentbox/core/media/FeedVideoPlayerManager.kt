@@ -2,9 +2,9 @@ package com.ntq.training.momentbox.core.media
 
 import android.content.Context
 import android.graphics.Rect
-import android.view.View
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.view.View
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -13,16 +13,17 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.ntq.training.momentbox.core.ui.FeedVideoSurface
 import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class FeedVideoPlayerManager(
     private val context: Context,
-    private val settingsDataStore: SettingsDataStore
+    private val settingsDataStore: SettingsDataStore,
+    private val onAutoplayChanged: (() -> Unit)? = null
 ) {
 
     private var exoPlayer: ExoPlayer? = null
@@ -42,8 +43,18 @@ class FeedVideoPlayerManager(
         initPlayer()
         scope.launch {
             try {
-                autoplaySetting = settingsDataStore.autoplayVideoFlow.first()
-            } catch (e: Exception) {
+                settingsDataStore.autoplayVideoFlow.collect { mode ->
+                    val changed = autoplaySetting != mode
+                    autoplaySetting = mode
+                    if (!isAutoplayAllowed()) {
+                        pause()
+                    } else if (changed) {
+                        onAutoplayChanged?.invoke()
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
                 // Giữ giá trị mặc định nếu đọc DataStore thất bại
             }
         }
@@ -85,7 +96,9 @@ class FeedVideoPlayerManager(
     }
 
     private fun isWifiConnected(): Boolean {
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return false
         val activeNetwork = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
@@ -94,7 +107,13 @@ class FeedVideoPlayerManager(
     /**
      * Gắn ExoPlayer vào PlayerView của bài viết đang active.
      */
-    fun attachPlayer(playerView: FeedVideoSurface, videoUrl: String, postId: Long, startPositionMs: Long = 0L, poster: View? = null) {
+    fun attachPlayer(
+        playerView: FeedVideoSurface,
+        videoUrl: String,
+        postId: Long,
+        startPositionMs: Long = 0L,
+        poster: View? = null
+    ) {
         initPlayer()
         val player = exoPlayer ?: return
 
@@ -128,14 +147,11 @@ class FeedVideoPlayerManager(
             player.setMediaItem(mediaItem, savedPositions[postId] ?: startPositionMs)
             player.prepare()
             resume()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             pause()
         }
     }
 
-    /**
-     * Tách ExoPlayer khỏi PlayerView khi bị cuộn khỏi vùng nhìn thấy.
-     */
     /**
      * Tách ExoPlayer khỏi PlayerView khi bị cuộn khỏi vùng nhìn thấy hoặc ViewHolder bị recycle (F20).
      */
@@ -239,11 +255,14 @@ class FeedVideoPlayerManager(
     }
 
     /**
-     * Lấy vị trí phát hiện tại (mili-giây) để bàn giao cho S06 VideoPlayerActivity.
+     * Lấy thời lượng hiện tại (mili-giây) của bài viết đang active.
      */
     fun getDuration(postId: Long): Long? =
         exoPlayer?.duration?.takeIf { currentPostId == postId && it > 0 }
 
+    /**
+     * Lấy vị trí phát hiện tại (mili-giây) để bàn giao cho S06 VideoPlayerActivity.
+     */
     fun getCurrentPosition(postId: Long): Long {
         return if (currentPostId == postId) {
             exoPlayer?.currentPosition ?: 0L

@@ -9,6 +9,7 @@ import android.os.Parcelable
 import android.util.AttributeSet
 import android.view.View
 import androidx.core.content.ContextCompat
+import androidx.core.os.BundleCompat
 import com.ntq.training.momentbox.R
 
 class PageIndicatorView @JvmOverloads constructor(
@@ -154,7 +155,7 @@ class PageIndicatorView @JvmOverloads constructor(
             pageCount = state.getInt("page_count", 3)
             currentPosition = state.getInt("current_position", 0)
             positionOffset = state.getFloat("position_offset", 0f)
-            restoredState = state.getParcelable("super_state")
+            restoredState = BundleCompat.getParcelable(state, "super_state", Parcelable::class.java)
         }
         super.onRestoreInstanceState(restoredState)
     }

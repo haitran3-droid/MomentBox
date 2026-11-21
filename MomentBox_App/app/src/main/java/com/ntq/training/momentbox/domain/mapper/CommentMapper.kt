@@ -20,7 +20,9 @@ class CommentMapper(private val postMapper: PostMapper = PostMapper()) :
             replyCount = input.replyCount ?: 0,
             createdAt = input.createdAt ?: "Vừa xong",
             isSending = false,
-            sendFailed = false
+            sendFailed = false,
+            clientId = input.clientId,
+            serverParentReplyCount = input.parentReplyCount
         )
     }
 

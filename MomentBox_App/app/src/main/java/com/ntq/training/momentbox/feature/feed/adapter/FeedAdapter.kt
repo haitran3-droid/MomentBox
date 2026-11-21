@@ -106,12 +106,26 @@ class FeedAdapter(
     }
 
     fun updateVoicePlaybackState(state: VoicePlaybackState) {
-        val prevPostId = currentVoiceState.postId
+        val prevState = currentVoiceState
+        val prevPostId = prevState.postId
         val newPostId = state.postId
+        val changedSpeedPostIds = buildSet {
+            for ((postId, speed) in state.speedsByPostId) {
+                if (prevState.speedsByPostId[postId] != speed) add(postId)
+            }
+            for (postId in prevState.speedsByPostId.keys) {
+                if (postId !in state.speedsByPostId) add(postId)
+            }
+        }
         currentVoiceState = state
 
         currentList.forEachIndexed { index, item ->
-            if (item is FeedItem.PostItem && (item.post.id == prevPostId || item.post.id == newPostId)) {
+            if (
+                item is FeedItem.PostItem &&
+                (item.post.id == prevPostId ||
+                    item.post.id == newPostId ||
+                    item.post.id in changedSpeedPostIds)
+            ) {
                 notifyItemChanged(index, state)
             }
         }
@@ -412,6 +426,7 @@ class FeedAdapter(
                 btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
+                    ivBookmark.clearColorFilter()
                     ivBookmark.imageTintList = null
                 } else {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark)
@@ -571,6 +586,7 @@ class FeedAdapter(
                 btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
+                    ivBookmark.clearColorFilter()
                     ivBookmark.imageTintList = null
                 } else {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark)
@@ -664,41 +680,58 @@ class FeedAdapter(
             }
 
             private fun updatePlaybackDisplay(post: Post, state: VoicePlaybackState) {
-                val totalSec = ((post.media.firstOrNull()?.durationMs ?: 42000L) / 1000).toInt()
-                with(binding) {
-                val failed = state.postId == post.id && state.errorMessage != null
-                tvVoiceError.visibility = if (failed) View.VISIBLE else View.GONE
-                btnVoicePlay.contentDescription = root.context.getString(
-                    if (failed) R.string.retry else if (state.postId == post.id && state.isPlaying) R.string.feed_pause else R.string.feed_play
-                )
-                ivVoicePlay.contentDescription = null
-                val speed = if (state.postId == post.id) state.speed else 1f
-                btnVoiceSpeed.text = String.format(Locale.getDefault(), "%.1fx", speed)
-                btnVoiceSpeed.contentDescription = root.context.getString(
-                    R.string.audio_speed_format, String.format(Locale.getDefault(), "%.1f", speed)
-                )
-                if (state.postId == post.id) {
-                    ivVoicePlay.setImageResource(
-                        if (state.isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow
-                    )
-                    waveformView.setProgress(state.progress)
-                    val currentSec = state.currentPositionMs / 1000
-                    tvVoiceTime.text = String.format(
-                        Locale.getDefault(),
-                        "%02d:%02d / %02d:%02d",
-                        currentSec / 60, currentSec % 60,
-                        totalSec / 60, totalSec % 60
-                    )
+                val isActivePost = state.postId == post.id
+                val metadataDurationMs = (post.media.firstOrNull()?.durationMs ?: 0L).toInt()
+                val effectiveDurationMs = if (isActivePost && state.durationMs > 0) {
+                    state.durationMs
                 } else {
-                    ivVoicePlay.setImageResource(R.drawable.ic_play_arrow)
-                    waveformView.setProgress(0f)
-                    tvVoiceTime.text = String.format(
-                        Locale.getDefault(),
-                        "00:00 / %02d:%02d",
-                        totalSec / 60, totalSec % 60
-                    )
+                    metadataDurationMs
                 }
-            }
+                val totalSec = (effectiveDurationMs / 1000).coerceAtLeast(0)
+                with(binding) {
+                    val failed = isActivePost && state.errorMessage != null
+                    tvVoiceError.visibility = if (failed) View.VISIBLE else View.GONE
+                    btnVoicePlay.contentDescription = root.context.getString(
+                        when {
+                            failed -> R.string.retry
+                            isActivePost && state.isPlaying -> R.string.feed_pause
+                            else -> R.string.feed_play
+                        }
+                    )
+                    ivVoicePlay.contentDescription = null
+                    val speed = state.speedForPost(post.id)
+                    btnVoiceSpeed.text = String.format(Locale.getDefault(), "%.1fx", speed)
+                    btnVoiceSpeed.contentDescription = root.context.getString(
+                        R.string.audio_speed_format,
+                        String.format(Locale.getDefault(), "%.1f", speed)
+                    )
+                    waveformView.isSeekEnabled =
+                        isActivePost && state.isPrepared && effectiveDurationMs > 0
+                    if (isActivePost) {
+                        ivVoicePlay.setImageResource(
+                            if (state.isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow
+                        )
+                        waveformView.setProgress(state.progress)
+                        val currentSec = (state.currentPositionMs / 1000).coerceAtLeast(0)
+                        tvVoiceTime.text = String.format(
+                            Locale.getDefault(),
+                            "%02d:%02d / %02d:%02d",
+                            currentSec / 60,
+                            currentSec % 60,
+                            totalSec / 60,
+                            totalSec % 60
+                        )
+                    } else {
+                        ivVoicePlay.setImageResource(R.drawable.ic_play_arrow)
+                        waveformView.setProgress(0f)
+                        tvVoiceTime.text = String.format(
+                            Locale.getDefault(),
+                            "00:00 / %02d:%02d",
+                            totalSec / 60,
+                            totalSec % 60
+                        )
+                    }
+                }
             }
 
             private fun updateLikeState(post: Post) {
@@ -738,6 +771,7 @@ class FeedAdapter(
                 btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
+                    ivBookmark.clearColorFilter()
                     ivBookmark.imageTintList = null
                 } else {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark)
@@ -855,6 +889,7 @@ class FeedAdapter(
                 btnBookmark.isSelected = post.isBookmarked
                 if (post.isBookmarked) {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark_filled)
+                    ivBookmark.clearColorFilter()
                     ivBookmark.imageTintList = null
                 } else {
                     ivBookmark.setImageResource(R.drawable.ic_bookmark)
@@ -1005,8 +1040,9 @@ class FeedAdapter(
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
         )
 
-        // Tô màu tím cho các #hashtag (tái sử dụng Regex tĩnh tránh phân tích cú pháp lặp lại)
-        val matches = HASHTAG_REGEX.findAll(fullText)
+        // Tô màu tím cho các #hashtag chỉ trong phần caption (bỏ qua tên tác giả như "Tác giả #187")
+        val captionStart = (authorName.length + 1).coerceAtMost(fullText.length)
+        val matches = HASHTAG_REGEX.findAll(fullText, startIndex = captionStart)
         for (match in matches) {
             spannable.setSpan(
                 ForegroundColorSpan(0xFF5B4BDB.toInt()),

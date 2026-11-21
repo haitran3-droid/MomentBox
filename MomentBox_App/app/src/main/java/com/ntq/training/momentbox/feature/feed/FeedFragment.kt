@@ -1,8 +1,8 @@
 package com.ntq.training.momentbox.feature.feed
 
 import android.app.Activity
-import android.content.ClipboardManager
 import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.LinearGradient
@@ -10,9 +10,9 @@ import android.graphics.Rect
 import android.graphics.Shader
 import android.os.Bundle
 import android.os.Parcelable
+import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +25,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.ntq.training.momentbox.MomentBoxApp
+import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.base.BaseFragment
 import com.ntq.training.momentbox.core.media.FeedVideoPlayerManager
 import com.ntq.training.momentbox.core.media.VoicePlayerManager
@@ -37,8 +39,6 @@ import com.ntq.training.momentbox.feature.feed.adapter.FeedAdapter
 import com.ntq.training.momentbox.feature.postdetail.PostDetailActivity
 import com.ntq.training.momentbox.feature.profile.ProfileActivity
 import com.ntq.training.momentbox.feature.videoplayer.VideoPlayerActivity
-import com.ntq.training.momentbox.MomentBoxApp
-import com.ntq.training.momentbox.R
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -80,6 +80,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
 
     private lateinit var voicePlayerManager: VoicePlayerManager
     private lateinit var videoPlayerManager: FeedVideoPlayerManager
+    private var postMenuDialog: BottomSheetDialog? = null
 
     /** ID bài viết video đang phát để nhận bàn giao vị trí từ VideoPlayerActivity (F15) */
     private var currentPlayingVideoPostId: Long? = null
@@ -114,7 +115,11 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
         viewModel.updateMessageText(resources::getString)
 
         voicePlayerManager = VoicePlayerManager(requireContext())
-        videoPlayerManager = FeedVideoPlayerManager(requireContext(), app.settingsDataStore)
+        videoPlayerManager = FeedVideoPlayerManager(
+            context = requireContext(),
+            settingsDataStore = app.settingsDataStore,
+            onAutoplayChanged = { scheduleAutoplayCheck() },
+        )
         videoPlayerManager.restorePausedPostIds(
             savedInstanceState?.getLongArray(KEY_PAUSED_VIDEO_IDS) ?: longArrayOf()
         )
@@ -166,10 +171,10 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                         for (index in 0 until list.childCount) {
                             val holder =
                                 list.getChildViewHolder(list.getChildAt(index))
-                                        as? FeedAdapter.VideoPostViewHolder ?: continue
+                                    as? FeedAdapter.VideoPostViewHolder ?: continue
                             val post =
                                 (feedAdapter.currentList.getOrNull(holder.bindingAdapterPosition)
-                                        as? FeedItem.PostItem)
+                                    as? FeedItem.PostItem)
                                     ?.post ?: continue
                             holder.bindPlaybackProgress(
                                 videoPlayerManager.getCurrentPosition(post.id),
@@ -204,10 +209,9 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                 onStoryClick = { story ->
                     Toast.makeText(
                         requireContext(),
-                        "Xem story: ${story.user.displayName}",
+                        getString(R.string.feed_view_story, story.user.displayName),
                         Toast.LENGTH_SHORT,
-                    )
-                        .show()
+                    ).show()
                 },
                 onAddStoryClick = {
                     pauseAllMedia()
@@ -226,8 +230,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                         requireContext(),
                         getString(R.string.audio_speed_format, newSpeed.toString()),
                         Toast.LENGTH_SHORT,
-                    )
-                        .show()
+                    ).show()
                 },
                 onVideoMuteToggle = { post, playerView ->
                     videoPlayerManager.attachPlayer(
@@ -240,11 +243,13 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                     feedAdapter.updateVideoMuteState(muted)
                     Toast.makeText(
                         requireContext(),
-                        if (muted) getString(R.string.sound_muted)
-                        else getString(R.string.sound_unmuted),
+                        if (muted) {
+                            getString(R.string.sound_muted)
+                        } else {
+                            getString(R.string.sound_unmuted)
+                        },
                         Toast.LENGTH_SHORT,
-                    )
-                        .show()
+                    ).show()
                 },
                 onVideoFullscreenClick = { post -> openVideoFullscreen(post) },
                 onFooterRetryClick = viewModel::retryFeed,
@@ -266,11 +271,13 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                     super.onScrolled(recyclerView, dx, dy)
                     if (bindingOrNull?.rvFeed !== recyclerView) return
-                    val totalItemCount = layoutManager.itemCount
-                    val lastVisibleItem = layoutManager.findLastVisibleItemPosition()
+                    if (dy > 0) {
+                        val totalItemCount = layoutManager.itemCount
+                        val lastVisibleItem = layoutManager.findLastVisibleItemPosition()
 
-                    if (totalItemCount > 0 && lastVisibleItem >= totalItemCount - 3) {
-                        viewModel.loadNextPage()
+                        if (totalItemCount > 0 && lastVisibleItem >= totalItemCount - 3) {
+                            viewModel.loadNextPage()
+                        }
                     }
 
                     // Tạm dừng ngay nếu video đang phát bị cuộn khỏi tầm nhìn (F20)
@@ -302,14 +309,18 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
             input.post {
                 if (bindingOrNull?.etFeedSearch !== input) return@post
                 (requireContext().getSystemService(Context.INPUT_METHOD_SERVICE)
-                        as InputMethodManager)
+                    as InputMethodManager)
                     .showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
             }
         }
 
         // Nút Thông báo
         binding.btnNotifications.setOnClickListener {
-            Toast.makeText(requireContext(), "Thông báo", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.feed_notifications),
+                Toast.LENGTH_SHORT,
+            ).show()
         }
     }
 
@@ -350,12 +361,14 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
             if (action == EditorInfo.IME_ACTION_SEARCH) {
                 hideSearchKeyboard()
                 true
-            } else false
+            } else {
+                false
+            }
         }
         binding.btnCloseFeedSearch.setOnClickListener { closeSearch() }
         setSearchOpen(
             savedInstanceState?.getBoolean(KEY_SEARCH_OPEN) == true ||
-                    viewModel.searchQuery.value.isNotEmpty()
+                viewModel.searchQuery.value.isNotEmpty()
         )
     }
 
@@ -387,9 +400,11 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                 viewModel.appliedSearchQuery.value.isNotEmpty() &&
                 feedAdapter.currentList.isEmpty() &&
                 !viewModel.isRefreshing.value
-            )
+            ) {
                 View.VISIBLE
-            else View.GONE
+            } else {
+                View.GONE
+            }
     }
 
     private fun observeViewModel() {
@@ -402,13 +417,15 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                     viewModel.feedItems.collectLatest { items ->
                         val appliedQuery = viewModel.appliedSearchQuery.value
                         feedAdapter.submitList(items) {
-                            if (owner.lifecycle.currentState == Lifecycle.State.DESTROYED)
+                            if (owner.lifecycle.currentState == Lifecycle.State.DESTROYED) {
                                 return@submitList
+                            }
                             val currentBinding = bindingOrNull ?: return@submitList
                             // Callback cũ không được cuộn hoặc đổi trạng thái rỗng của kết quả mới
                             // hơn.
-                            if (appliedQuery != viewModel.appliedSearchQuery.value)
+                            if (appliedQuery != viewModel.appliedSearchQuery.value) {
                                 return@submitList
+                            }
                             if (appliedQuery != lastRenderedSearchQuery) {
                                 if (appliedQuery.isEmpty()) {
                                     normalFeedScrollState?.let {
@@ -417,7 +434,9 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                                         )
                                     }
                                     normalFeedScrollState = null
-                                } else currentBinding.rvFeed.scrollToPosition(0)
+                                } else {
+                                    currentBinding.rvFeed.scrollToPosition(0)
+                                }
                                 lastRenderedSearchQuery = appliedQuery
                             }
                             updateSearchEmptyState()
@@ -462,7 +481,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                     }
                 }
 
-                // Quan sát thông báo lỗi / rollback snackbar (F10)
+                // Quan sát thông báo lỗi / rollback / kết quả xóa bài từ ViewModel (F10)
                 launch {
                     viewModel.snackbarMessage.collectLatest { msg ->
                         Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
@@ -488,7 +507,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
             voicePlayerManager.pauseVoice()
         } else {
             val audioUrl = post.media.firstOrNull()?.url ?: ""
-            val durationSec = ((post.media.firstOrNull()?.durationMs ?: 42000L) / 1000).toInt()
+            val durationSec = ((post.media.firstOrNull()?.durationMs ?: 0L) / 1000).toInt()
             voicePlayerManager.playVoice(post.id, audioUrl, durationSec)
         }
     }
@@ -593,15 +612,22 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                 action = Intent.ACTION_SEND
                 putExtra(
                     Intent.EXTRA_TEXT,
-                    "Xem bài viết của ${post.author.displayName} trên MomentBox: momentbox://post/${post.id}",
+                    getString(R.string.feed_share_text, post.author.displayName, post.id),
                 )
                 type = "text/plain"
             }
-        startActivity(Intent.createChooser(sendIntent, "Chia sẻ bài viết qua"))
+        startActivity(Intent.createChooser(sendIntent, getString(R.string.feed_share_chooser)))
     }
 
     private fun showPostMenuBottomSheet(post: Post) {
+        postMenuDialog?.dismiss()
         val dialog = BottomSheetDialog(requireContext())
+        postMenuDialog = dialog
+        dialog.setOnDismissListener {
+            if (postMenuDialog === dialog) {
+                postMenuDialog = null
+            }
+        }
         val sheetBinding = DialogPostMenuBottomSheetBinding.inflate(layoutInflater)
         dialog.setContentView(sheetBinding.root)
 
@@ -611,26 +637,31 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
             val clipboard =
                 requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("MomentBox Post", deepLink))
-            Toast.makeText(requireContext(), "Đã sao chép liên kết bài viết!", Toast.LENGTH_SHORT)
-                .show()
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.feed_link_copied),
+                Toast.LENGTH_SHORT,
+            ).show()
             dialog.dismiss()
         }
 
         // Báo cáo bài viết
         sheetBinding.menuReport.setOnClickListener {
-            Toast.makeText(requireContext(), "Đã gửi báo cáo cho quản trị viên", Toast.LENGTH_SHORT)
-                .show()
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.feed_report_sent),
+                Toast.LENGTH_SHORT,
+            ).show()
             dialog.dismiss()
         }
 
-        // Xóa bài viết (chỉ tác giả mới có quyền xóa bài)
-        lifecycleScope.launch {
+        // Xóa bài viết (chỉ tác giả mới có quyền xóa bài; thông báo kết quả do ViewModel phát)
+        viewLifecycleOwner.lifecycleScope.launch {
             val currentUserId = app.authRepository.getSavedUser()?.id
-            if (currentUserId != null && currentUserId == post.author.id) {
+            if (dialog.isShowing && currentUserId != null && currentUserId == post.author.id) {
                 sheetBinding.menuDelete.visibility = View.VISIBLE
                 sheetBinding.menuDelete.setOnClickListener {
                     viewModel.deletePost(post.id)
-                    Toast.makeText(requireContext(), "Đã xóa bài viết", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
                 }
             }
@@ -677,8 +708,9 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        if (::videoPlayerManager.isInitialized)
+        if (::videoPlayerManager.isInitialized) {
             outState.putLongArray(KEY_PAUSED_VIDEO_IDS, videoPlayerManager.pausedPostIds())
+        }
         fullscreenPostId?.let { outState.putLong(KEY_FULLSCREEN_POST_ID, it) }
         outState.putBoolean(KEY_SEARCH_OPEN, searchOpen)
         outState.putString(KEY_SEARCH_QUERY, viewModel.searchQuery.value)
@@ -686,8 +718,10 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
+        postMenuDialog?.dismiss()
+        postMenuDialog = null
         voicePlayerManager.release()
         videoPlayerManager.release()
+        super.onDestroyView()
     }
 }

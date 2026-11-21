@@ -13,7 +13,13 @@ data class Comment(
     val isSending: Boolean = false,
     val sendFailed: Boolean = false,
     val replies: List<Comment> = emptyList(),
-    val isRepliesExpanded: Boolean = false
+    val isRepliesExpanded: Boolean = false,
+    val nextReplyPage: Int? = 1,
+    val loadingReplies: Boolean = false,
+    val replyLoadFailed: Boolean = false,
+    val clientId: String? = null,
+    val serverParentReplyCount: Int? = null
 ) {
     val isReply: Boolean get() = parentId != null && parentId > 0
+    val isConfirmed: Boolean get() = id > 0 && !isSending && !sendFailed
 }

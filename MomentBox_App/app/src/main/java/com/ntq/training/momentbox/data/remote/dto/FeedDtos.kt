@@ -62,7 +62,10 @@ data class CommentDto(
     @SerializedName("likeCount") val likeCount: Int? = 0,
     @SerializedName("isLiked") val isLiked: Boolean? = false,
     @SerializedName("replyCount") val replyCount: Int? = 0,
-    @SerializedName("createdAt") val createdAt: String? = null
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("postCommentCount") val postCommentCount: Int? = null,
+    @SerializedName("clientId") val clientId: String? = null,
+    @SerializedName("parentReplyCount") val parentReplyCount: Int? = null
 )
 
 data class LikeResponseDto(
@@ -87,7 +90,8 @@ data class CommentLikeResponseDto(
 
 data class PostCommentRequest(
     @SerializedName("content") val content: String,
-    @SerializedName("parentId") val parentId: Long? = null
+    @SerializedName("parentId") val parentId: Long? = null,
+    @SerializedName("clientId") val clientId: String? = null
 )
 
 // === DummyJSON DTOs ===

@@ -12,10 +12,15 @@ data class VoicePlaybackState(
     val currentPositionMs: Int = 0,
     val durationMs: Int = 0,
     val speed: Float = 1.0f,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isPrepared: Boolean = false,
+    val speedsByPostId: Map<Long, Float> = emptyMap()
 ) {
     val progress: Float
         get() = if (durationMs > 0) currentPositionMs.toFloat() / durationMs else 0f
+
+    fun speedForPost(targetPostId: Long): Float =
+        if (postId == targetPostId) speed else (speedsByPostId[targetPostId] ?: 1.0f)
 }
 
 /** Một player cho Feed; engine và bộ hẹn giờ có thể thay thế trong unit test. */
@@ -40,6 +45,7 @@ class VoicePlayerManager internal constructor(
     private var userIntendedPlay = false
     private var currentSpeed = 1f
     private var expectedDurationMs = 0
+    private val postSpeeds = mutableMapOf<Long, Float>()
 
     private val updateProgress = object : Runnable {
         override fun run() {
@@ -65,10 +71,16 @@ class VoicePlayerManager internal constructor(
         currentPostId = postId
         this.audioUrl = audioUrl
         expectedDurationMs = durationSec * 1000
-        currentSpeed = 1f
+        currentSpeed = postSpeeds[postId] ?: 1f
         userIntendedPlay = true
-        _playbackState.value =
-            VoicePlaybackState(postId = postId, isLoading = true, durationMs = expectedDurationMs)
+        _playbackState.value = VoicePlaybackState(
+            postId = postId,
+            isLoading = true,
+            durationMs = expectedDurationMs,
+            speed = currentSpeed,
+            isPrepared = false,
+            speedsByPostId = postSpeeds.toMap()
+        )
         if (!audio.acquire(this, { pauseVoice() }, kind = AudioPlaybackKind.VOICE)) {
             fail("Không thể giành quyền phát âm thanh")
             return
@@ -87,9 +99,13 @@ class VoicePlayerManager internal constructor(
                             _playbackState.value = _playbackState.value.copy(
                                 isPlaying = true,
                                 isLoading = false,
+                                isPrepared = true,
                                 errorMessage = null,
+                                speed = currentSpeed,
                                 durationMs = candidate.duration.takeIf { it > 0 }
-                                    ?: expectedDurationMs)
+                                    ?: expectedDurationMs,
+                                speedsByPostId = postSpeeds.toMap()
+                            )
                             scheduler.schedule(updateProgress)
                         }.onFailure { fail(it.message ?: "Lỗi phát âm thanh") }
                     }
@@ -105,6 +121,7 @@ class VoicePlayerManager internal constructor(
                         _playbackState.value = _playbackState.value.copy(
                             isPlaying = false,
                             isLoading = false,
+                            isPrepared = false,
                             currentPositionMs = 0
                         )
                     }
@@ -128,7 +145,11 @@ class VoicePlayerManager internal constructor(
                 .onFailure { fail(it.message ?: "Lỗi tạm dừng âm thanh") }
         }
         audio.release(this)
-        _playbackState.value = _playbackState.value.copy(isPlaying = false, isLoading = false)
+        _playbackState.value = _playbackState.value.copy(
+            isPlaying = false,
+            isLoading = false,
+            isPrepared = prepared
+        )
     }
 
     fun resumeVoice() {
@@ -146,30 +167,52 @@ class VoicePlayerManager internal constructor(
         runCatching {
             engine?.start()
             engine?.setSpeed(currentSpeed)
-            _playbackState.value =
-                _playbackState.value.copy(isPlaying = true, isLoading = false, errorMessage = null)
+            _playbackState.value = _playbackState.value.copy(
+                isPlaying = true,
+                isLoading = false,
+                isPrepared = true,
+                speed = currentSpeed,
+                errorMessage = null
+            )
             scheduler.schedule(updateProgress)
         }.onFailure { fail(it.message ?: "Lỗi tiếp tục phát") }
     }
 
     fun seekTo(postId: Long, progressRatio: Float) {
-        if (currentPostId != postId || !prepared) return
+        if (currentPostId != postId || !prepared || _playbackState.value.durationMs <= 0) return
         val position = (_playbackState.value.durationMs * progressRatio.coerceIn(0f, 1f)).toInt()
         runCatching { engine?.seekTo(position) }
         _playbackState.value = _playbackState.value.copy(currentPositionMs = position)
     }
 
     fun cycleSpeed(postId: Long): Float {
-        if (currentPostId != postId) return 1f
-        currentSpeed = when (currentSpeed) {
+        val previousSpeed = if (currentPostId == postId) {
+            currentSpeed
+        } else {
+            postSpeeds[postId] ?: 1f
+        }
+        val nextSpeed = when (previousSpeed) {
             1f -> 1.5f
             1.5f -> 2f
             else -> 1f
         }
-        // PlaybackParams có thể tự start MediaPlayer; chỉ áp dụng lúc đang phát.
-        if (_playbackState.value.isPlaying) runCatching { engine?.setSpeed(currentSpeed) }
-        _playbackState.value = _playbackState.value.copy(speed = currentSpeed)
-        return currentSpeed
+        postSpeeds[postId] = nextSpeed
+        if (currentPostId == postId) {
+            currentSpeed = nextSpeed
+            // PlaybackParams có thể tự start MediaPlayer; chỉ áp dụng lúc đang phát.
+            if (_playbackState.value.isPlaying) {
+                runCatching { engine?.setSpeed(currentSpeed) }
+            }
+            _playbackState.value = _playbackState.value.copy(
+                speed = currentSpeed,
+                speedsByPostId = postSpeeds.toMap()
+            )
+        } else {
+            _playbackState.value = _playbackState.value.copy(
+                speedsByPostId = postSpeeds.toMap()
+            )
+        }
+        return nextSpeed
     }
 
     private fun disposeEngine() {
@@ -185,8 +228,12 @@ class VoicePlayerManager internal constructor(
         userIntendedPlay = false
         disposeEngine()
         audio.release(this)
-        _playbackState.value =
-            _playbackState.value.copy(isPlaying = false, isLoading = false, errorMessage = message)
+        _playbackState.value = _playbackState.value.copy(
+            isPlaying = false,
+            isLoading = false,
+            isPrepared = false,
+            errorMessage = message
+        )
     }
 
     fun stopVoice() {
@@ -195,6 +242,8 @@ class VoicePlayerManager internal constructor(
         disposeEngine()
         currentPostId = null
         audioUrl = ""
+        currentSpeed = 1f
+        postSpeeds.clear()
         audio.release(this)
         _playbackState.value = VoicePlaybackState()
     }

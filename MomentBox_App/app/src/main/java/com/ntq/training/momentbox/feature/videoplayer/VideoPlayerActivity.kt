@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.videoplayer
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
@@ -7,16 +8,18 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.GestureDetector
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.widget.SeekBar
-import android.widget.Toast
+import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
-import android.view.Gravity
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.core.net.toUri
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -25,15 +28,14 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.databinding.ActivityVideoPlayerBinding
-import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.bottomsheet.BottomSheetBehavior
 import java.text.NumberFormat
 import java.util.Locale
-
 
 class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
     ActivityVideoPlayerBinding::inflate,
@@ -52,7 +54,6 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
 
         /** Trả về ý định phát tiếp của người dùng */
         const val EXTRA_RETURN_PLAY_WHEN_READY = "EXTRA_RETURN_PLAY_WHEN_READY"
-
     }
 
     private var exoPlayer: ExoPlayer? = null
@@ -93,6 +94,7 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
 
     private val handler = Handler(Looper.getMainLooper())
     private var isScrubbingSeekBar = false
+    private var hasPlaybackError = false
 
     private val audio by lazy { AndroidPlaybackAudio.get(this) }
     private var screenStarted = false
@@ -123,6 +125,51 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
             }
             if (screenStarted && exoPlayer != null) handler.postDelayed(this, 500)
         }
+    }
+
+    override fun setupInsets() {
+        val topStart = binding.topControlsBar.paddingStart
+        val topTop = binding.topControlsBar.paddingTop
+        val topEnd = binding.topControlsBar.paddingEnd
+        val topBottom = binding.topControlsBar.paddingBottom
+
+        val bottomStart = binding.bottomControlsBar.paddingStart
+        val bottomTop = binding.bottomControlsBar.paddingTop
+        val bottomEnd = binding.bottomControlsBar.paddingEnd
+        val bottomBottom = binding.bottomControlsBar.paddingBottom
+
+        val unlockLayoutParams = binding.btnUnlockOverlay.layoutParams as? ViewGroup.MarginLayoutParams
+        val unlockTopMargin = unlockLayoutParams?.topMargin ?: 0
+        val unlockEndMargin = unlockLayoutParams?.marginEnd ?: 0
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.videoPlayerRoot) { root, insets ->
+            val safeInsets = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            val isRtl = root.layoutDirection == View.LAYOUT_DIRECTION_RTL
+            val startInset = if (isRtl) safeInsets.right else safeInsets.left
+            val endInset = if (isRtl) safeInsets.left else safeInsets.right
+
+            binding.topControlsBar.setPaddingRelative(
+                topStart + startInset,
+                topTop + safeInsets.top,
+                topEnd + endInset,
+                topBottom
+            )
+            binding.bottomControlsBar.setPaddingRelative(
+                bottomStart + startInset,
+                bottomTop,
+                bottomEnd + endInset,
+                bottomBottom + safeInsets.bottom
+            )
+            (binding.btnUnlockOverlay.layoutParams as? ViewGroup.MarginLayoutParams)?.let { params ->
+                params.topMargin = unlockTopMargin + safeInsets.top
+                params.marginEnd = unlockEndMargin + endInset
+                binding.btnUnlockOverlay.layoutParams = params
+            }
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.videoPlayerRoot)
     }
 
     override fun initViews() {
@@ -158,6 +205,13 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
 
     private fun setupGestureDetector() {
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                binding.videoPlayerRoot.performClick()
+                return true
+            }
+
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 if (isLocked) return false
                 val screenWidth = resources.displayMetrics.widthPixels
@@ -178,9 +232,11 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
                         Toast.makeText(this@VideoPlayerActivity, "+10s", Toast.LENGTH_SHORT).show()
                     }
                 }
+                if (binding.overlayControls.isVisible) {
+                    resetAutoHideTimer()
+                }
                 return true
             }
-
         })
     }
 
@@ -192,6 +248,7 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
         return getString(R.string.video_speed_label, formatted)
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private fun setupViews() {
         with(binding) {
             tvVideoTitle.text = postTitle
@@ -209,13 +266,18 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
                 if (isLocked) {
                     btnUnlockOverlay.visibility = View.VISIBLE
                     resetAutoHideTimer()
-                } else if (overlayControls.isVisible) hideOverlayControls()
-                else showOverlayControls()
+                } else if (hasPlaybackError) {
+                    overlayControls.visibility = View.VISIBLE
+                    handler.removeCallbacks(hideControlsRunnable)
+                } else if (overlayControls.isVisible) {
+                    hideOverlayControls()
+                } else {
+                    showOverlayControls()
+                }
             }
-            videoPlayerRoot.setOnTouchListener { view, event ->
+            videoPlayerRoot.setOnTouchListener { _, event ->
+                // GestureDetector phân biệt single-tap và double-tap seek; click chuẩn vẫn dùng qua TalkBack/keyboard.
                 gestureDetector.onTouchEvent(event)
-                // GestureDetector giữ double-tap seek; click chuẩn cũng dùng được qua TalkBack/keyboard.
-                if (event.actionMasked == MotionEvent.ACTION_UP) view.performClick()
                 true
             }
 
@@ -241,8 +303,9 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
                 if (isLocked) return@setOnClickListener
                 exoPlayer?.let { player ->
                     val duration = player.duration
-                    val target =
-                        (player.currentPosition + 10000L).coerceAtMost(if (duration > 0) duration else Long.MAX_VALUE)
+                    val target = (player.currentPosition + 10000L).coerceAtMost(
+                        if (duration > 0) duration else Long.MAX_VALUE
+                    )
                     player.seekTo(target)
                 }
                 resetAutoHideTimer()
@@ -325,6 +388,13 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
         updateVolumeUi()
     }
 
+    private fun clearPlaybackErrorUi() {
+        if (!hasPlaybackError) return
+        hasPlaybackError = false
+        binding.tvVideoAuthorViews.text = getString(R.string.media_video_author, authorName)
+        binding.tvVideoAuthorViews.setOnClickListener(null)
+    }
+
     private fun initExoPlayer() {
         if (exoPlayer != null) return
 
@@ -336,6 +406,7 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
+                        clearPlaybackErrorUi()
                         binding.tvTotalDuration.text = formatTime(duration)
                     } else if (playbackState == Player.STATE_ENDED) {
                         pauseVideo(userInitiated = true)
@@ -349,13 +420,17 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
+                    hasPlaybackError = true
                     pauseVideo(userInitiated = true)
                     binding.tvVideoAuthorViews.text = getString(R.string.media_video_error_retry)
                     binding.tvVideoAuthorViews.setOnClickListener {
-                        binding.tvVideoAuthorViews.text =
-                            getString(R.string.media_video_author, authorName)
-                        binding.tvVideoAuthorViews.setOnClickListener(null)
+                        clearPlaybackErrorUi()
                         playVideo()
+                        resetAutoHideTimer()
+                    }
+                    handler.removeCallbacks(hideControlsRunnable)
+                    if (!isLocked) {
+                        binding.overlayControls.visibility = View.VISIBLE
                     }
                 }
             })
@@ -395,8 +470,18 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
             pauseVideo(userInitiated = true)
             return
         }
+        clearPlaybackErrorUi()
         // Sau lỗi, ExoPlayer ở STATE_IDLE: phải prepare lại trước khi play.
-        if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        // Khi video đã phát hết (STATE_ENDED), tua về đầu để nút Play phát lại sạch sẽ.
+        when (player.playbackState) {
+            Player.STATE_IDLE -> player.prepare()
+            Player.STATE_ENDED -> {
+                currentPositionMs = 0L
+                player.seekTo(0L)
+            }
+            Player.STATE_BUFFERING,
+            Player.STATE_READY -> Unit
+        }
         player.play()
     }
 
@@ -414,21 +499,27 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val padding = (24 * resources.displayMetrics.density).toInt()
         for (speed in listOf(0.5f, 1f, 1.25f, 1.5f, 2f)) {
-            content.addView(TextView(this).apply {
-                text = playbackSpeedLabel(speed)
-                textSize = 16f
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(padding, padding / 2, padding, padding / 2)
-                minimumHeight = (48 * resources.displayMetrics.density).toInt()
-                isSelected = currentSpeed == speed
-                isFocusable = true
-                setOnClickListener {
-                    currentSpeed = speed
-                    exoPlayer?.setPlaybackSpeed(speed)
-                    binding.tvSpeedText.text = playbackSpeedLabel(speed)
-                    sheet.dismiss()
-                }
-            }, LinearLayout.LayoutParams(-1, -2))
+            content.addView(
+                TextView(this).apply {
+                    text = playbackSpeedLabel(speed)
+                    textSize = 16f
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(padding, padding / 2, padding, padding / 2)
+                    minimumHeight = (48 * resources.displayMetrics.density).toInt()
+                    isSelected = currentSpeed == speed
+                    isFocusable = true
+                    setOnClickListener {
+                        currentSpeed = speed
+                        exoPlayer?.setPlaybackSpeed(speed)
+                        binding.tvSpeedText.text = playbackSpeedLabel(speed)
+                        sheet.dismiss()
+                    }
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
         }
         sheet.setContentView(content)
         sheet.setOnDismissListener {
@@ -502,12 +593,17 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
     }
 
     private fun hideOverlayControls() {
+        if (!isLocked && hasPlaybackError) {
+            binding.overlayControls.visibility = View.VISIBLE
+            return
+        }
         binding.overlayControls.visibility = View.GONE
         binding.btnUnlockOverlay.visibility = View.GONE
     }
 
     private fun resetAutoHideTimer() {
         handler.removeCallbacks(hideControlsRunnable)
+        if (!isLocked && hasPlaybackError) return
         handler.postDelayed(hideControlsRunnable, 3000)
     }
 
@@ -522,6 +618,8 @@ class VideoPlayerActivity : BaseActivity<ActivityVideoPlayerBinding>(
      * Xử lý điều hướng Back: Nếu đang nằm ngang thì xoay về dọc trước (F17),
      * nếu đang ở màn hình dọc thì bàn giao vị trí phát về FeedFragment (F15) rồi đóng màn hình.
      */
+    // BA F17 yêu cầu nhấn Back khi toàn màn hình ngang sẽ xoay về dọc thay vì đóng trình phát.
+    @SuppressLint("SourceLockedOrientationActivity")
     private fun handleBack() {
         val currentOrientation = resources.configuration.orientation
         if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {

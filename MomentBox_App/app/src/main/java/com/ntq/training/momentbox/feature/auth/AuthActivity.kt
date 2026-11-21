@@ -1,10 +1,11 @@
 package com.ntq.training.momentbox.feature.auth
 
 import android.content.Intent
-import com.ntq.training.momentbox.feature.postdetail.PostDetailActivity
 import android.os.Bundle
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
+import android.view.MotionEvent
+import android.view.View
 import android.view.inputmethod.EditorInfo
 import androidx.activity.viewModels
 import androidx.core.view.ViewCompat
@@ -13,41 +14,49 @@ import androidx.core.view.isGone
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
-import androidx.lifecycle.AbstractSavedStateViewModelFactory
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.ntq.training.momentbox.MainActivity
-import com.ntq.training.momentbox.MomentBoxApp
-import com.ntq.training.momentbox.core.base.BaseActivity
-import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
+import androidx.lifecycle.viewmodel.CreationExtras
 import com.google.android.material.snackbar.Snackbar
 import com.ntq.training.momentbox.BuildConfig
+import com.ntq.training.momentbox.MainActivity
+import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.base.BaseActivity
+import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import com.ntq.training.momentbox.databinding.ActivityAuthBinding
 import com.ntq.training.momentbox.debug.DebugToolsEntry
+import com.ntq.training.momentbox.feature.postdetail.PostDetailActivity
+import com.ntq.training.momentbox.feature.profile.ProfileActivity
 import com.ntq.training.momentbox.feature.reminder.ReminderJournalRoute
 import kotlinx.coroutines.launch
-import kotlin.getValue
 
 class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::inflate) {
+
+    companion object {
+        const val EXTRA_REDIRECT_POST_ID = "EXTRA_REDIRECT_POST_ID"
+        const val EXTRA_REDIRECT_USER_ID = "EXTRA_REDIRECT_USER_ID"
+        private const val KEY_PASSWORD_VISIBLE = "key_password_visible"
+    }
 
     /** Khởi tạo [LoginViewModel] kèm [SavedStateHandle] qua SavedStateViewModelFactory */
     private val viewModel: LoginViewModel by viewModels {
         val app = MomentBoxApp.instance
-        object : AbstractSavedStateViewModelFactory(this, null) {
+        object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(
-                key: String,
                 modelClass: Class<T>,
-                handle: SavedStateHandle
+                extras: CreationExtras
             ): T {
                 return LoginViewModel(
                     authRepository = app.authRepository,
                     settingsDataStore = app.settingsDataStore,
-                    savedStateHandle = handle
+                    savedStateHandle = extras.createSavedStateHandle()
                 ) as T
             }
         }
@@ -55,6 +64,14 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
 
     /** Trạng thái ẩn/hiện mật khẩu trong ô nhập liệu */
     private var isPasswordVisible: Boolean = false
+    private var isSyncingForm: Boolean = false
+    private var pressedDisabledLoginButton: Boolean = false
+    private val viewLocation = IntArray(2)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        isPasswordVisible = savedInstanceState?.getBoolean(KEY_PASSWORD_VISIBLE, false) ?: false
+        super.onCreate(savedInstanceState)
+    }
 
     override fun setupInsets() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.authRoot) { v, insets ->
@@ -79,15 +96,25 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
             intent.removeExtra("logoutCleanupFailed")
         }
 
-        // Bind initial values from ViewModel
+        // Bind initial values from ViewModel without triggering text listeners
         val form = viewModel.formState.value
-        if (binding.etEmail.text.isNullOrEmpty() && form.email.isNotEmpty()) {
-            binding.etEmail.setText(form.email)
+        isSyncingForm = true
+        try {
+            if (binding.etEmail.text.isNullOrEmpty() && form.email.isNotEmpty()) {
+                binding.etEmail.setText(form.email)
+            }
+            if (binding.etPassword.text.isNullOrEmpty() && form.password.isNotEmpty()) {
+                binding.etPassword.setText(form.password)
+            }
+            binding.cbRememberMe.isChecked = form.rememberMe
+            applyPasswordVisibility(keepSelection = false)
+        } finally {
+            isSyncingForm = false
         }
-        binding.cbRememberMe.isChecked = form.rememberMe
 
         // Input listeners
         binding.etEmail.doAfterTextChanged {
+            if (isSyncingForm) return@doAfterTextChanged
             viewModel.onEmailChanged(it?.toString().orEmpty())
         }
 
@@ -102,7 +129,11 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         }
 
         binding.etPassword.doAfterTextChanged {
-            viewModel.onPasswordChanged(it?.toString().orEmpty())
+            if (isSyncingForm) return@doAfterTextChanged
+            viewModel.onPasswordChanged(
+                it?.toString().orEmpty(),
+                getString(R.string.login_password_error_length)
+            )
         }
 
         binding.etPassword.setOnFocusChangeListener { _, hasFocus ->
@@ -120,7 +151,7 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
 
         binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
-                viewModel.login()
+                submitLogin()
                 true
             } else {
                 false
@@ -132,11 +163,12 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         }
 
         binding.cbRememberMe.setOnCheckedChangeListener { _, isChecked ->
+            if (isSyncingForm) return@setOnCheckedChangeListener
             viewModel.onRememberMeChanged(isChecked)
         }
 
         binding.btnLogin.setOnClickListener {
-            viewModel.login()
+            submitLogin()
         }
 
         binding.btnDemoAccount.setOnClickListener {
@@ -154,6 +186,53 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
         binding.chipApiSource.setOnClickListener {
             DebugToolsEntry.intent(this, sourceOnly = true)?.let(::startActivity)
         }
+
+        renderFormErrors(form)
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (!binding.btnLogin.isEnabled && viewModel.uiState.value !is LoginUiState.Loading) {
+            val insideLoginButton = isPointInsideView(ev.rawX, ev.rawY, binding.btnLogin)
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    pressedDisabledLoginButton = insideLoginButton
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    if (pressedDisabledLoginButton && insideLoginButton) {
+                        viewModel.validateForm(
+                            emptyEmailErrorMsg = getString(R.string.login_email_error_empty),
+                            invalidEmailErrorMsg = getString(R.string.login_email_error_invalid),
+                            passwordLengthErrorMsg = getString(R.string.login_password_error_length)
+                        )
+                    }
+                    pressedDisabledLoginButton = false
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    pressedDisabledLoginButton = false
+                }
+            }
+        } else if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+            pressedDisabledLoginButton = false
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun isPointInsideView(rawX: Float, rawY: Float, view: View): Boolean {
+        view.getLocationOnScreen(viewLocation)
+        val left = viewLocation[0]
+        val top = viewLocation[1]
+        return rawX >= left && rawX <= left + view.width &&
+            rawY >= top && rawY <= top + view.height
+    }
+
+    private fun submitLogin() {
+        viewModel.login(
+            emptyEmailErrorMsg = getString(R.string.login_email_error_empty),
+            invalidEmailErrorMsg = getString(R.string.login_email_error_invalid),
+            passwordLengthErrorMsg = getString(R.string.login_password_error_length)
+        )
     }
 
     override fun observeData() {
@@ -175,18 +254,27 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
     }
 
     private fun renderForm(form: LoginFormState) {
-        // Sync email if updated externally (e.g. demo credentials button)
-        val currentEmailText = binding.etEmail.text?.toString() ?: ""
-        if (currentEmailText != form.email) {
-            binding.etEmail.setText(form.email)
-            binding.etEmail.setSelection(form.email.length)
-        }
+        isSyncingForm = true
+        try {
+            // Sync email if updated externally (e.g. demo credentials button or rotation)
+            val currentEmailText = binding.etEmail.text?.toString() ?: ""
+            if (currentEmailText != form.email) {
+                binding.etEmail.setText(form.email)
+                binding.etEmail.setSelection(form.email.length)
+            }
 
-        // Sync password if updated externally (e.g. demo credentials button)
-        val currentPasswordText = binding.etPassword.text?.toString() ?: ""
-        if (currentPasswordText != form.password) {
-            binding.etPassword.setText(form.password)
-            binding.etPassword.setSelection(form.password.length)
+            // Sync password if updated externally (e.g. demo credentials button or rotation)
+            val currentPasswordText = binding.etPassword.text?.toString() ?: ""
+            if (currentPasswordText != form.password) {
+                binding.etPassword.setText(form.password)
+                binding.etPassword.setSelection(form.password.length)
+            }
+
+            if (binding.cbRememberMe.isChecked != form.rememberMe) {
+                binding.cbRememberMe.isChecked = form.rememberMe
+            }
+        } finally {
+            isSyncingForm = false
         }
 
         renderFormErrors(form)
@@ -200,7 +288,13 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
             binding.layoutEmailField.setBackgroundResource(R.drawable.bg_field_error)
         } else {
             binding.layoutEmailError.isGone = true
-            binding.layoutEmailField.setBackgroundResource(if (binding.etEmail.hasFocus()) R.drawable.bg_field_focused else R.drawable.bg_field_default)
+            binding.layoutEmailField.setBackgroundResource(
+                if (binding.etEmail.hasFocus()) {
+                    R.drawable.bg_field_focused
+                } else {
+                    R.drawable.bg_field_default
+                }
+            )
         }
 
         // Password error
@@ -210,14 +304,22 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
             binding.layoutPasswordField.setBackgroundResource(R.drawable.bg_field_error)
         } else {
             binding.layoutPasswordError.isGone = true
-            binding.layoutPasswordField.setBackgroundResource(if (binding.etPassword.hasFocus()) R.drawable.bg_field_focused else R.drawable.bg_field_default)
+            binding.layoutPasswordField.setBackgroundResource(
+                if (binding.etPassword.hasFocus()) {
+                    R.drawable.bg_field_focused
+                } else {
+                    R.drawable.bg_field_default
+                }
+            )
         }
 
-        // Login button state: disabled when invalid, with visual feedback
-        binding.btnLogin.isEnabled =
-            form.isFormValid && viewModel.uiState.value !is LoginUiState.Loading
-        // Mockup dùng nền tím đầy đủ cả ở form lỗi; isEnabled vẫn chặn submit không hợp lệ.
-        binding.btnLogin.alpha = 1.0f
+        updateLoginButtonState(form.isFormValid, viewModel.uiState.value)
+    }
+
+    private fun updateLoginButtonState(isFormValid: Boolean, uiState: LoginUiState) {
+        val enabled = isFormValid && uiState !is LoginUiState.Loading
+        binding.btnLogin.isEnabled = enabled
+        binding.btnLogin.alpha = if (enabled) 1.0f else 0.5f
     }
 
     private fun renderUiState(state: LoginUiState) {
@@ -227,47 +329,61 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
             is LoginUiState.Idle -> {
                 binding.pbLoginLoading.isGone = true
                 binding.tvBtnLogin.isInvisible = false
-                binding.btnLogin.isEnabled = viewModel.formState.value.isFormValid
+                updateLoginButtonState(viewModel.formState.value.isFormValid, state)
             }
 
             is LoginUiState.Loading -> {
                 binding.pbLoginLoading.isVisible = true
                 binding.tvBtnLogin.isInvisible = true
-                binding.btnLogin.isEnabled = false
+                updateLoginButtonState(viewModel.formState.value.isFormValid, state)
             }
 
             is LoginUiState.Success -> {
                 binding.pbLoginLoading.isGone = true
                 binding.tvBtnLogin.isInvisible = false
 
-                val redirectPostId = intent.getLongExtra("EXTRA_REDIRECT_POST_ID", 0L)
-                if (redirectPostId > 0L) {
-                    val mainIntent = Intent(this, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                val redirectPostId = intent.getLongExtra(EXTRA_REDIRECT_POST_ID, 0L)
+                val redirectUserId = intent.getLongExtra(EXTRA_REDIRECT_USER_ID, 0L)
+                when {
+                    redirectPostId > 0L -> {
+                        val mainIntent = Intent(this, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        }
+                        val detailIntent = Intent(this, PostDetailActivity::class.java).apply {
+                            putExtra(PostDetailActivity.EXTRA_POST_ID, redirectPostId)
+                        }
+                        startActivities(arrayOf(mainIntent, detailIntent))
+                        finish()
                     }
-                    val detailIntent = Intent(this, PostDetailActivity::class.java).apply {
-                        putExtra(PostDetailActivity.EXTRA_POST_ID, redirectPostId)
+
+                    redirectUserId > 0L -> {
+                        val mainIntent = Intent(this, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        }
+                        val profileIntent = ProfileActivity.intent(this, redirectUserId)
+                        startActivities(arrayOf(mainIntent, profileIntent))
+                        finish()
                     }
-                    startActivities(arrayOf(mainIntent, detailIntent))
-                    finish()
-                } else {
-                    val intent = Intent(this, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+
+                    else -> {
+                        val mainIntent = Intent(this, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        }
+                        ReminderJournalRoute.copy(this@AuthActivity.intent, mainIntent)
+                        startActivity(mainIntent)
+                        finish()
                     }
-                    ReminderJournalRoute.copy(this@AuthActivity.intent,intent)
-                    startActivity(intent)
-                    finish()
                 }
             }
 
             is LoginUiState.Error -> {
                 binding.pbLoginLoading.isGone = true
                 binding.tvBtnLogin.isInvisible = false
-                binding.btnLogin.isEnabled = viewModel.formState.value.isFormValid
+                updateLoginButtonState(viewModel.formState.value.isFormValid, state)
 
                 if (state.isNetworkError) {
                     Snackbar.make(binding.root, state.message, Snackbar.LENGTH_LONG)
-                        .setAction(R.string.retry) { viewModel.login() }
+                        .setAction(R.string.retry) { submitLogin() }
                         .show()
                 } else {
                     Snackbar.make(binding.root, state.message, Snackbar.LENGTH_LONG).show()
@@ -279,6 +395,10 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
 
     private fun togglePasswordVisibility() {
         isPasswordVisible = !isPasswordVisible
+        applyPasswordVisibility(keepSelection = true)
+    }
+
+    private fun applyPasswordVisibility(keepSelection: Boolean) {
         if (isPasswordVisible) {
             binding.etPassword.transformationMethod = HideReturnsTransformationMethod.getInstance()
             binding.btnTogglePassword.setImageResource(R.drawable.ic_visibility)
@@ -286,7 +406,9 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
             binding.etPassword.transformationMethod = PasswordTransformationMethod.getInstance()
             binding.btnTogglePassword.setImageResource(R.drawable.ic_visibility_off)
         }
-        binding.etPassword.setSelection(binding.etPassword.text.length)
+        if (keepSelection) {
+            binding.etPassword.setSelection(binding.etPassword.text.length)
+        }
     }
 
     private fun updateApiSourceLabel() {
@@ -300,6 +422,11 @@ class AuthActivity : BaseActivity<ActivityAuthBinding>(ActivityAuthBinding::infl
                 else -> "API: Mock"
             }
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_PASSWORD_VISIBLE, isPasswordVisible)
     }
 
     override fun onResume() {

@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 
 class JournalRepositoryImpl(
@@ -298,6 +300,10 @@ class JournalRepositoryImpl(
                 Result.failure(e)
             }
         }
+
+    override suspend fun getStatsSnapshot(
+        previousStart: LocalDate, currentStart: LocalDate, currentEnd: LocalDate, today: LocalDate, zone: ZoneId
+    ) = journalDao.readStatsSnapshot(previousStart, currentStart, currentEnd, today, zone)
 
     override suspend fun getEntriesForStats(from: Long?, to: Long?): List<JournalEntryWithDetails> =
         withContext(dispatcher) {

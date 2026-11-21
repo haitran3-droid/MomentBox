@@ -7,7 +7,11 @@ import android.view.ViewConfiguration
 import androidx.recyclerview.widget.RecyclerView
 import kotlin.math.abs
 
-class JournalSwipeCallback(context: Context, private val onRevealChanged: (Boolean) -> Unit = {}) : RecyclerView.OnItemTouchListener {
+class JournalSwipeCallback(
+    context: Context,
+    private val onRevealChanged: (Boolean) -> Unit = {}
+) : RecyclerView.OnItemTouchListener, RecyclerView.OnChildAttachStateChangeListener {
+
     private val width = 132f * context.resources.displayMetrics.density
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
     private var downX = 0f
@@ -17,6 +21,7 @@ class JournalSwipeCallback(context: Context, private val onRevealChanged: (Boole
     private var active = false
     private var opened: JournalEntriesAdapter.EntryViewHolder? = null
     private var consumeClose = false
+    private var isRevealed = false
 
     override fun onInterceptTouchEvent(rv: RecyclerView, event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -25,13 +30,17 @@ class JournalSwipeCallback(context: Context, private val onRevealChanged: (Boole
                 downY = event.y
                 active = false
                 consumeClose = false
-                candidate = rv.findChildViewUnder(event.x, event.y)?.let { rv.getChildViewHolder(it) } as? JournalEntriesAdapter.EntryViewHolder
-                if (opened != null && opened !== candidate) close(opened)
+                candidate = rv.findChildViewUnder(event.x, event.y)
+                    ?.let { rv.getChildViewHolder(it) } as? JournalEntriesAdapter.EntryViewHolder
+                if (opened != null && opened !== candidate) {
+                    close(opened)
+                }
                 candidate?.let { holder ->
                     val foreground = holder.binding.cardForeground
                     val right = holder.itemView.right + foreground.translationX
-                    if (opened === holder && event.x > right) candidate = null // underlay button owns this tap
-                    else if (opened === holder) {
+                    if (opened === holder && event.x > right) {
+                        candidate = null // Underlay button owns this tap.
+                    } else if (opened === holder) {
                         close(holder)
                         consumeClose = true
                     }
@@ -39,6 +48,7 @@ class JournalSwipeCallback(context: Context, private val onRevealChanged: (Boole
                 }
                 return consumeClose
             }
+
             MotionEvent.ACTION_MOVE -> {
                 if (candidate == null) return false
                 val dx = event.x - downX
@@ -54,10 +64,14 @@ class JournalSwipeCallback(context: Context, private val onRevealChanged: (Boole
                     return true
                 }
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> candidate = null
+
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                candidate = null
+            }
         }
         return false
     }
+
     override fun onTouchEvent(rv: RecyclerView, event: MotionEvent) {
         if (consumeClose) {
             if (event.actionMasked == MotionEvent.ACTION_UP) consumeClose = false
@@ -67,36 +81,112 @@ class JournalSwipeCallback(context: Context, private val onRevealChanged: (Boole
         when (event.actionMasked) {
             MotionEvent.ACTION_MOVE -> draw(holder, (base + event.x - downX).coerceIn(-width, 0f))
             MotionEvent.ACTION_UP -> {
-                val reveal = holder.binding.cardForeground.translationX <= -width / 2
+                val reveal = holder.binding.cardForeground.translationX <= -width / 2f
+                candidate = null
+                active = false
                 if (reveal) {
                     opened = holder
                     holder.binding.layoutUnderlayActions.visibility = View.VISIBLE
                     holder.binding.cardForeground.animate().translationX(-width).setDuration(160).start()
-                } else close(holder)
-                candidate = null
-                active = false
+                    notifyRevealChanged(true)
+                } else {
+                    close(holder)
+                }
             }
+
             MotionEvent.ACTION_CANCEL -> {
-                close(holder)
                 candidate = null
                 active = false
+                close(holder)
             }
         }
     }
+
     override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) = Unit
-    fun closeRevealed() { close(opened) }
+
+    override fun onChildViewAttachedToWindow(view: View) = Unit
+
+    override fun onChildViewDetachedFromWindow(view: View) {
+        var detachedTrackedHolder = false
+        val currentOpened = opened
+        if (currentOpened != null && currentOpened.itemView === view) {
+            resetHolderImmediately(currentOpened)
+            opened = null
+            detachedTrackedHolder = true
+        }
+        val currentCandidate = candidate
+        if (currentCandidate != null && currentCandidate.itemView === view) {
+            resetHolderImmediately(currentCandidate)
+            candidate = null
+            active = false
+            detachedTrackedHolder = true
+        }
+        if (detachedTrackedHolder && opened == null && candidate == null) {
+            isRevealed = false
+            onRevealChanged(false)
+        }
+    }
+
+    fun closeRevealed() {
+        val currentOpened = opened
+        val currentCandidate = candidate
+        opened = null
+        candidate = null
+        active = false
+        consumeClose = false
+
+        if (currentOpened != null) {
+            closeHolder(currentOpened)
+        }
+        if (currentCandidate != null && currentCandidate !== currentOpened) {
+            closeHolder(currentCandidate)
+        }
+        isRevealed = false
+        onRevealChanged(false)
+    }
+
     private fun draw(holder: JournalEntriesAdapter.EntryViewHolder, translation: Float) {
         holder.binding.cardForeground.animate().cancel()
         holder.binding.cardForeground.translationX = translation
-        onRevealChanged(translation < 0)
-        holder.binding.layoutUnderlayActions.visibility = if (translation < 0) View.VISIBLE else View.INVISIBLE
+        val revealed = translation < 0f
+        notifyRevealChanged(revealed)
+        holder.binding.layoutUnderlayActions.visibility = if (revealed) View.VISIBLE else View.INVISIBLE
     }
+
     private fun close(holder: JournalEntriesAdapter.EntryViewHolder?) {
-        if (holder == null) return
+        if (holder != null) {
+            if (opened === holder) opened = null
+            closeHolder(holder)
+        }
+        isRevealed = false
         onRevealChanged(false)
+    }
+
+    private fun closeHolder(holder: JournalEntriesAdapter.EntryViewHolder) {
+        val foreground = holder.binding.cardForeground
+        foreground.animate().cancel()
+        if (holder.itemView.isAttachedToWindow) {
+            foreground.animate()
+                .translationX(0f)
+                .setDuration(160)
+                .withEndAction {
+                    holder.binding.layoutUnderlayActions.visibility = View.INVISIBLE
+                }
+                .start()
+        } else {
+            resetHolderImmediately(holder)
+        }
+    }
+
+    private fun resetHolderImmediately(holder: JournalEntriesAdapter.EntryViewHolder) {
         holder.binding.cardForeground.animate().cancel()
-        holder.binding.cardForeground.animate().translationX(0f).setDuration(160)
-            .withEndAction { holder.binding.layoutUnderlayActions.visibility = View.INVISIBLE }.start()
-        if (opened === holder) opened = null
+        holder.binding.cardForeground.translationX = 0f
+        holder.binding.layoutUnderlayActions.visibility = View.INVISIBLE
+    }
+
+    private fun notifyRevealChanged(revealed: Boolean) {
+        if (isRevealed == revealed) return
+        isRevealed = revealed
+        onRevealChanged(revealed)
     }
 }

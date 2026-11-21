@@ -43,7 +43,13 @@ class JournalSegmentedGroup @JvmOverloads constructor(
 
     private fun updateCheckedAppearance(button: MaterialButton) {
         // Gán Typeface trực tiếp giữ đúng weight500/600 sau khi Material xử lý style mặc định.
-        button.typeface = if (button.isChecked) semibold else medium
-        button.elevation = if (button.isChecked) resources.displayMetrics.density else 0f
+        val targetTypeface = if (button.isChecked) semibold else medium
+        if (button.typeface !== targetTypeface) {
+            button.typeface = targetTypeface
+        }
+        val targetElevation = if (button.isChecked) resources.displayMetrics.density else 0f
+        if (button.elevation != targetElevation) {
+            button.elevation = targetElevation
+        }
     }
 }

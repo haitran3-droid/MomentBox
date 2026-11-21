@@ -27,6 +27,8 @@ internal class CanvasAccessibility(
     override fun onPopulateNodeForVirtualView(id: Int, node: AccessibilityNodeInfoCompat) {
         val item = nodes().firstOrNull { it.id == id }
         node.contentDescription = item?.description ?: " "
+        // ExploreByTouchHelper bắt buộc boundsInParent trước khi tự chuyển sang screen bounds.
+        @Suppress("DEPRECATION")
         node.setBoundsInParent(item?.bounds ?: Rect(0, 0, 1, 1))
         node.className = "android.widget.Button"
         node.isEnabled = item?.enabled ?: false

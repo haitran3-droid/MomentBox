@@ -14,12 +14,12 @@ import android.util.TypedValue
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import androidx.core.content.res.ResourcesCompat
-import androidx.core.graphics.toColorInt
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.feature.journal.stats.TrendPoint
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 class LineChartView @JvmOverloads constructor(
     context: Context,
@@ -38,7 +38,7 @@ class LineChartView @JvmOverloads constructor(
     // === CÔNG CỤ VẼ CANVAS ===
     private val gridLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        color = "#EEEEF4".toColorInt()
+        color = context.getColor(R.color.divider)
         strokeWidth = 1f * resources.displayMetrics.density
     }
 
@@ -81,6 +81,16 @@ class LineChartView @JvmOverloads constructor(
 
     private val linePath = Path()
     private val areaPath = Path()
+    private val yLevels = FloatArray(5)
+    private var coordX = FloatArray(0)
+    private var coordY = FloatArray(0)
+    private var coordMood = IntArray(0)
+    private var labelDays = IntArray(0)
+    private var cachedShaderHeight = -1f
+    private var cachedPrimaryColor = 0
+    private var cachedLocale: Locale? = null
+    private var monthFormatter: DateTimeFormatter? = null
+    private var dayMonthFormatter: DateTimeFormatter? = null
 
     fun setData(
         trendPoints: List<TrendPoint>,
@@ -91,6 +101,12 @@ class LineChartView @JvmOverloads constructor(
         periodStart = start
         points = trendPoints
         totalDaysInPeriod = daysInPeriod.coerceAtLeast(1)
+        if (coordX.size < trendPoints.size) {
+            coordX = FloatArray(trendPoints.size)
+            coordY = FloatArray(trendPoints.size)
+            coordMood = IntArray(trendPoints.size)
+        }
+        rebuildLabelDays()
 
         animator?.cancel()
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
@@ -117,7 +133,6 @@ class LineChartView @JvmOverloads constructor(
         val usableWidth = w - (2f * marginX)
 
         // 1. Vẽ 5 đường kẻ ngang cho 5 mức tâm trạng
-        val yLevels = FloatArray(5)
         for (k in 0 until 5) {
             val y =
                 8f * resources.displayMetrics.density + (k * (chartHeight - 16f * resources.displayMetrics.density) / 4f)
@@ -125,11 +140,11 @@ class LineChartView @JvmOverloads constructor(
             canvas.drawLine(0f, y, w, y, gridLinePaint)
         }
 
-        // 2. Nếu có ít nhất 1 điểm dữ liệu, tính toán tọa độ
-        if (points.isNotEmpty()) {
-            val coords = mutableListOf<Triple<Float, Float, Int>>() // X, Y, mood
-
-            for (p in points) {
+        // 2. Nếu có ít nhất 1 điểm dữ liệu, tính toán tọa độ trên buffer tái sử dụng
+        val count = points.size
+        if (count > 0) {
+            for (i in 0 until count) {
+                val p = points[i]
                 // [Intern]: Tọa độ X tỉ lệ theo số ngày tương đối so với periodStart (F19)
                 val dayFraction = if (totalDaysInPeriod > 1) {
                     (p.dayOffset.toFloat() / (totalDaysInPeriod - 1).toFloat()).coerceIn(0f, 1f)
@@ -144,78 +159,51 @@ class LineChartView @JvmOverloads constructor(
                 // Nội suy hiệu ứng xuất hiện từ đáy
                 val cy = chartHeight - ((chartHeight - targetY) * animationProgress)
 
-                coords.add(Triple(cx, cy, p.mood))
+                coordX[i] = cx
+                coordY[i] = cy
+                coordMood[i] = p.mood
             }
 
             // 3. Xây dựng đường Path và Vùng Area
             linePath.reset()
             areaPath.reset()
 
-            val first = coords.first()
-            linePath.moveTo(first.first, first.second)
-            areaPath.moveTo(first.first, chartHeight)
-            areaPath.lineTo(first.first, first.second)
+            linePath.moveTo(coordX[0], coordY[0])
+            areaPath.moveTo(coordX[0], chartHeight)
+            areaPath.lineTo(coordX[0], coordY[0])
 
-            for (i in 1 until coords.size) {
-                val pt = coords[i]
-                linePath.lineTo(pt.first, pt.second)
-                areaPath.lineTo(pt.first, pt.second)
+            for (i in 1 until count) {
+                linePath.lineTo(coordX[i], coordY[i])
+                areaPath.lineTo(coordX[i], coordY[i])
             }
 
-            val last = coords.last()
-            areaPath.lineTo(last.first, chartHeight)
+            areaPath.lineTo(coordX[count - 1], chartHeight)
             areaPath.close()
 
-            // Dải màu gradient vùng dưới biểu đồ
-            val primaryColor = context.getColor(R.color.primary)
-            val topColor = Color.argb(
-                46,
-                Color.red(primaryColor),
-                Color.green(primaryColor),
-                Color.blue(primaryColor)
-            )
-            val bottomColor = Color.argb(
-                0,
-                Color.red(primaryColor),
-                Color.green(primaryColor),
-                Color.blue(primaryColor)
-            )
-            areaPaint.shader = LinearGradient(
-                0f,
-                0f,
-                0f,
-                chartHeight,
-                topColor,
-                bottomColor,
-                Shader.TileMode.CLAMP
-            )
+            ensureAreaShader(chartHeight)
 
             canvas.drawPath(areaPath, areaPaint)
             canvas.drawPath(linePath, linePathPaint)
 
             // 4. Vẽ các vòng tròn điểm (Points)
             val pointRadius = 3.6f * resources.displayMetrics.density
-            for (pt in coords) {
-                pointFillPaint.color = getMoodColor(pt.third)
-                canvas.drawCircle(pt.first, pt.second, pointRadius, pointFillPaint)
-                canvas.drawCircle(pt.first, pt.second, pointRadius, pointStrokePaint)
+            for (i in 0 until count) {
+                pointFillPaint.color = getMoodColor(coordMood[i])
+                canvas.drawCircle(coordX[i], coordY[i], pointRadius, pointFillPaint)
+                canvas.drawCircle(coordX[i], coordY[i], pointRadius, pointStrokePaint)
             }
         }
 
         // 5. Vẽ nhãn các mốc ngày bên dưới trục X
-        val labelDays = if (totalDaysInPeriod <= 7) (1..totalDaysInPeriod).toList()
-        else if (totalDaysInPeriod > 31 && periodStart != null) {
-            (0..11).map { month ->
-                ChronoUnit.DAYS.between(
-                    periodStart,
-                    periodStart!!.plusMonths(month.toLong()).withDayOfMonth(1)
-                ).toInt() + 1
-            }
-                .filter { it in 1..totalDaysInPeriod }.filterIndexed { i, _ -> i % 2 == 0 }
-        } else listOf(1, 5, 10, 15, 20, 25, totalDaysInPeriod).distinct()
-            .filter { it <= totalDaysInPeriod }
-            .filter { it == totalDaysInPeriod || totalDaysInPeriod - it >= 3 }
-
+        if (labelDays.isEmpty()) {
+            rebuildLabelDays()
+        }
+        val locale = resources.configuration.locales[0]
+        if (cachedLocale != locale) {
+            cachedLocale = locale
+            monthFormatter = DateTimeFormatter.ofPattern("MMM", locale)
+            dayMonthFormatter = DateTimeFormatter.ofPattern("d/M", locale)
+        }
 
         val labelY = h - (2f * resources.displayMetrics.density)
         for (day in labelDays) {
@@ -228,23 +216,62 @@ class LineChartView @JvmOverloads constructor(
             val date = periodStart?.plusDays(day.toLong() - 1)
             val label = when {
                 date == null -> day.toString()
-                totalDaysInPeriod > 31 -> date.format(
-                    DateTimeFormatter.ofPattern(
-                        "MMM",
-                        resources.configuration.locales[0]
-                    )
-                )
-
-                totalDaysInPeriod <= 7 -> date.format(
-                    DateTimeFormatter.ofPattern(
-                        "d/M",
-                        resources.configuration.locales[0]
-                    )
-                )
-
+                totalDaysInPeriod > 31 -> date.format(monthFormatter)
+                totalDaysInPeriod <= 7 -> date.format(dayMonthFormatter)
                 else -> date.dayOfMonth.toString()
             }
             canvas.drawText(label, lx, labelY, labelTextPaint)
+        }
+    }
+
+    private fun ensureAreaShader(chartHeight: Float) {
+        val primaryColor = context.getColor(R.color.primary)
+        if (cachedShaderHeight == chartHeight && cachedPrimaryColor == primaryColor) return
+        cachedShaderHeight = chartHeight
+        cachedPrimaryColor = primaryColor
+        linePathPaint.color = primaryColor
+        val topColor = Color.argb(
+            46,
+            Color.red(primaryColor),
+            Color.green(primaryColor),
+            Color.blue(primaryColor)
+        )
+        val bottomColor = Color.argb(
+            0,
+            Color.red(primaryColor),
+            Color.green(primaryColor),
+            Color.blue(primaryColor)
+        )
+        areaPaint.shader = LinearGradient(
+            0f,
+            0f,
+            0f,
+            chartHeight,
+            topColor,
+            bottomColor,
+            Shader.TileMode.CLAMP
+        )
+    }
+
+    private fun rebuildLabelDays() {
+        val start = periodStart
+        labelDays = if (totalDaysInPeriod <= 7) {
+            (1..totalDaysInPeriod).toList().toIntArray()
+        } else if (totalDaysInPeriod > 31 && start != null) {
+            (0..11).map { month ->
+                ChronoUnit.DAYS.between(
+                    start,
+                    start.plusMonths(month.toLong()).withDayOfMonth(1)
+                ).toInt() + 1
+            }
+                .filter { it in 1..totalDaysInPeriod }
+                .filterIndexed { i, _ -> i % 2 == 0 }
+                .toIntArray()
+        } else {
+            listOf(1, 5, 10, 15, 20, 25, totalDaysInPeriod).distinct()
+                .filter { it <= totalDaysInPeriod }
+                .filter { it == totalDaysInPeriod || totalDaysInPeriod - it >= 3 }
+                .toIntArray()
         }
     }
 

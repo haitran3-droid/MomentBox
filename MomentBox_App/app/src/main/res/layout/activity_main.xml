@@ -4,8 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mainRoot"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/background">
+    android:layout_height="match_parent">
 
     <!-- Container chứa các Fragment -->
     <FrameLayout
@@ -119,22 +118,18 @@
             android:contentDescription="@string/nav_create"
             android:focusable="true">
 
-            <FrameLayout
+            <ImageView
                 android:id="@+id/btnNavCreate"
                 android:layout_width="54dp"
                 android:layout_height="46dp"
                 android:layout_gravity="center"
                 android:background="@drawable/bg_nav_create"
-                android:elevation="4dp">
-
-                <ImageView
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
-                    android:layout_gravity="center"
-                    android:contentDescription="@null"
-                    android:src="@drawable/ic_add"
-                    app:tint="@color/white" />
-            </FrameLayout>
+                android:contentDescription="@null"
+                android:elevation="4dp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="10dp"
+                android:src="@drawable/ic_add"
+                app:tint="@color/white" />
         </FrameLayout>
 
         <!-- Tab 3: Tin nhắn (Chat) -->

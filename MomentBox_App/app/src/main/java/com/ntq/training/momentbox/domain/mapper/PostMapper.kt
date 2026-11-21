@@ -94,7 +94,8 @@ class PostMapper : Mapper<PostDto, Post> {
             allowComments = true,
             media = mediaList,
             likeCount = dto.reactions?.likes ?: 0,
-            commentCount = dto.views ?: 0,
+            // DummyJSON /posts chỉ trả lượt xem (views), không có tổng bình luận.
+            commentCount = 0,
             isLiked = false,
             isBookmarked = false,
             createdAt = "Hôm nay"

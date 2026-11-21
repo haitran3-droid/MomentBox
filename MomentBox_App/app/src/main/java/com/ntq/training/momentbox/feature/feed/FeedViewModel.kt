@@ -3,6 +3,7 @@ package com.ntq.training.momentbox.feature.feed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.realtime.SocketManager
 import com.ntq.training.momentbox.data.local.db.AppDatabase
 import com.ntq.training.momentbox.data.local.db.NotificationDao
@@ -11,22 +12,21 @@ import com.ntq.training.momentbox.domain.model.FeedItem
 import com.ntq.training.momentbox.domain.model.Post
 import com.ntq.training.momentbox.domain.model.User
 import com.ntq.training.momentbox.feature.profile.ProfileFeedProjection
-import com.ntq.training.momentbox.R
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class FeedViewModel(
@@ -147,11 +147,13 @@ class FeedViewModel(
                                     item.users.map { user ->
                                         // POST S04 đang chạy thì giữ optimistic state, còn lại nhận
                                         // confirmed từ S05/GET.
-                                        if (user.id in followOperations) user
-                                        else
+                                        if (user.id in followOperations) {
+                                            user
+                                        } else {
                                             followingMap[user.id]?.let {
                                                 user.copy(isFollowing = it)
                                             } ?: user
+                                        }
                                     }
                             )
                         )
@@ -175,6 +177,7 @@ class FeedViewModel(
      * được tìm theo caption/hashtag, dữ liệu gốc, story và gợi ý vẫn được giữ để khôi phục.
      */
     private val ownProfile = MutableStateFlow<User?>(null)
+
     fun updateOwnProfile(user: User?) {
         val old = ownProfile.value
         if (old != null && old.id != user?.id) {
@@ -195,19 +198,20 @@ class FeedViewModel(
         feedRepository.postsMapFlow,
         ownProfile
     ) { loaded, query, created, cache, own ->
-        val createdIds = created.map { it.id }.toSet()
-        val items =
-            ProfileFeedProjection.apply(created.map {
-                FeedItem.PostItem(cache[it.id] ?: it)
-            } + loaded.filterNot { it is FeedItem.PostItem && it.post.id in createdIds }, own)
-        if (query.isEmpty()) items else items.filter { item ->
-            item is FeedItem.PostItem && (
+        val latestCreated = created.map { cache[it.id] ?: it }
+        val items = ProfileFeedProjection.apply(withCreatedPosts(loaded, latestCreated), own)
+        if (query.isEmpty()) {
+            items
+        } else {
+            items.filter { item ->
+                item is FeedItem.PostItem && (
                     item.post.caption.contains(query, ignoreCase = true) ||
-                            item.post.tags.any { tag ->
-                                tag.removePrefix("#")
-                                    .contains(query.removePrefix("#"), ignoreCase = true)
-                            }
+                        item.post.tags.any { tag ->
+                            tag.removePrefix("#")
+                                .contains(query.removePrefix("#"), ignoreCase = true)
+                        }
                     )
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -236,8 +240,9 @@ class FeedViewModel(
                 footerFallbackResource = null
 
                 val result = feedRepository.getFeed(page = 1, pageSize = 10)
-                if (gen != feedGeneration)
+                if (gen != feedGeneration) {
                     return@launch // Request cũ đã bị thay thế bởi refresh mới
+                }
                 _isRefreshing.value = false
 
                 if (result.isSuccess) {
@@ -267,17 +272,22 @@ class FeedViewModel(
     }
 
     fun retryFeed() {
-        if (currentPage == 0) loadInitialData() else loadNextPage()
+        if (currentPage == 0) {
+            loadInitialData()
+        } else {
+            loadNextPage(isRetry = true)
+        }
     }
 
     /**
      * Tải trang bài viết tiếp theo khi người dùng cuộn xuống đáy danh sách. Khử trùng lặp bài viết
      * (Deduplication) và bảo vệ thế hệ phân trang (F05).
      */
-    fun loadNextPage() {
+    fun loadNextPage(isRetry: Boolean = false) {
         // Danh sách lọc ngắn có thể phát onScrolled ngay khi submitList, chặn cả thời gian
         // debounce.
         if (_searchQuery.value.isNotBlank() || appliedSearchQuery.value.isNotEmpty()) return
+        if (!isRetry && _footerError.value != null) return
         if (currentPage == 0 || _isLoadingMore.value || !hasMorePages || _isRefreshing.value) return
 
         val gen = feedGeneration
@@ -290,8 +300,9 @@ class FeedViewModel(
                 val nextPage = currentPage + 1
 
                 val result = feedRepository.getFeed(page = nextPage, pageSize = 10)
-                if (gen != feedGeneration)
+                if (gen != feedGeneration) {
                     return@launch // Phiên làm mới mới đã diễn ra, bỏ qua kết quả trang cũ
+                }
                 _isLoadingMore.value = false
 
                 if (result.isSuccess) {
@@ -365,8 +376,9 @@ class FeedViewModel(
                 val result = feedRepository.toggleFollowUser(user.id, previousFollowing)
                 if (followOperations[user.id] != operation) return@launch
                 // Repository loại phản hồi khác session/source, không rollback lên tài khoản mới.
-                if (result.exceptionOrNull() is CancellationException)
+                if (result.exceptionOrNull() is CancellationException) {
                     return@launch
+                }
                 if (result.isFailure) {
                     // Chỉ hoàn tác trường theo dõi, không khôi phục bài đã xóa hoặc ghi đè trang
                     // mới.
@@ -387,14 +399,16 @@ class FeedViewModel(
         followStates[userId] = FollowState(++followRevision, following)
         _rawFeedItems.value =
             _rawFeedItems.value.map { item ->
-                if (item is FeedItem.Suggestions)
+                if (item is FeedItem.Suggestions) {
                     item.copy(
                         users =
                             item.users.map { user ->
                                 if (user.id == userId) user.copy(isFollowing = following) else user
                             }
                     )
-                else item
+                } else {
+                    item
+                }
             }
     }
 
@@ -405,7 +419,7 @@ class FeedViewModel(
      */
     private fun reconcileFollowing(items: List<FeedItem>, readRevision: Long): List<FeedItem> =
         items.map { item ->
-            if (item is FeedItem.Suggestions)
+            if (item is FeedItem.Suggestions) {
                 item.copy(
                     users =
                         item.users.map { user ->
@@ -415,10 +429,14 @@ class FeedViewModel(
                                 (state.revision > readRevision || user.id in followOperations)
                             ) {
                                 user.copy(isFollowing = state.following)
-                            } else user
+                            } else {
+                                user
+                            }
                         }
                 )
-            else item
+            } else {
+                item
+            }
         }
 
     /** Bỏ qua thẻ gợi ý khỏi danh sách. */
@@ -460,7 +478,8 @@ class FeedViewModel(
     override fun onCleared() {
         loadJob?.cancel()
         paginationJob?.cancel()
-        socketManager.disconnect()
+        // Không gọi socketManager.disconnect() ở đây: SocketManager là singleton toàn app
+        // dùng chung với ChatRuntime (giữ kết nối nền 5 phút và chat trực tiếp).
     }
 
     class Factory(
@@ -477,4 +496,14 @@ class FeedViewModel(
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
     }
+}
+
+internal fun withCreatedPosts(loaded: List<FeedItem>, created: List<Post>): List<FeedItem> {
+    if (created.isEmpty()) return loaded
+    val createdIds = created.map { it.id }.toSet()
+    val rows =
+        loaded.filterNot { it is FeedItem.PostItem && it.post.id in createdIds }.toMutableList()
+    val firstPostIndex = if (rows.firstOrNull() is FeedItem.StoryBar) 1 else 0
+    rows.addAll(firstPostIndex, created.map { FeedItem.PostItem(it) })
+    return rows
 }

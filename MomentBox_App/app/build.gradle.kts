@@ -1,3 +1,4 @@
+import com.android.build.api.variant.BuildConfigField
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.net.URI
 
@@ -50,7 +51,6 @@ android {
             buildConfigField("String", "DUMMY_JSON_URL", "\"https://dummyjson.com/\"")
         }
         release {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:3000/\"")
             buildConfigField("String", "DUMMY_JSON_URL", "\"https://dummyjson.com/\"")
             optimization {
                 enable = true
@@ -66,6 +66,26 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+}
+
+androidComponents.onVariants(androidComponents.selector().withBuildType("release")) { variant ->
+    val releaseUrl = providers.gradleProperty("momentboxReleaseBaseUrl")
+        .orElse(providers.environmentVariable("MOMENTBOX_RELEASE_BASE_URL"))
+        .orElse("")
+    checkNotNull(variant.buildConfigFields).put("BASE_URL", releaseUrl.map { value ->
+        val uri = try { URI(value) } catch (_: java.net.URISyntaxException) { null }
+        require(uri != null && uri.scheme.equals("https", ignoreCase = true) && uri.host != null &&
+                uri.userInfo == null && uri.query == null && uri.fragment == null &&
+                uri.rawPath.endsWith("/") && uri.port in -1..65535 && uri.port != 0) {
+            "Set momentboxReleaseBaseUrl or MOMENTBOX_RELEASE_BASE_URL to an HTTPS base URL ending in / without credentials, query or fragment."
+        }
+        BuildConfigField("String", "\"${uri.toASCIIString()}\"", null)
+    })
 }
 
 dependencies {

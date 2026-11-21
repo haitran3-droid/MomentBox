@@ -10,9 +10,9 @@ import androidx.fragment.app.DialogFragment
 
 class ReminderTimeDialog : DialogFragment() {
     private var minute = 21 * 60
-    override fun onCreateDialog(saved: Bundle?): Dialog {
-        minute = saved?.getInt("minute") ?: requireArguments().getInt("minute", 1260)
-        return TimePickerDialog(
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        minute = savedInstanceState?.getInt("minute") ?: requireArguments().getInt("minute", 1260)
+        return object : TimePickerDialog(
             requireContext(),
             { _, hour, min ->
                 parentFragmentManager.setFragmentResult(
@@ -23,22 +23,17 @@ class ReminderTimeDialog : DialogFragment() {
             minute / 60,
             minute % 60,
             DateFormat.is24HourFormat(requireContext())
-        )
+        ) {
+            override fun onTimeChanged(view: TimePicker?, hourOfDay: Int, minute: Int) {
+                super.onTimeChanged(view, hourOfDay, minute)
+                this@ReminderTimeDialog.minute = hourOfDay * 60 + minute
+            }
+        }
     }
 
-    override fun onSaveInstanceState(out: Bundle) {
-        super.onSaveInstanceState(out)
-        (dialog as? TimePickerDialog)?.let { d ->
-            val picker = d.findViewById<TimePicker>(
-                resources.getIdentifier(
-                    "timePicker",
-                    "id",
-                    "android"
-                )
-            )
-            if (picker != null) minute = picker.hour * 60 + picker.minute
-        }
-        out.putInt("minute", minute)
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt("minute", minute)
     }
 
     companion object {

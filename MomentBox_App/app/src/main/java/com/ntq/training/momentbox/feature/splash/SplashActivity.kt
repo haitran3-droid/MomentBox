@@ -1,27 +1,30 @@
 package com.ntq.training.momentbox.feature.splash
 
-import com.ntq.training.momentbox.MainActivity
-import com.ntq.training.momentbox.feature.auth.AuthActivity
-import com.ntq.training.momentbox.feature.onboarding.OnboardingActivity
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.ntq.training.momentbox.MomentBoxApp
-import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.BuildConfig
+import com.ntq.training.momentbox.MainActivity
+import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.databinding.ActivitySplashBinding
+import com.ntq.training.momentbox.feature.auth.AuthActivity
+import com.ntq.training.momentbox.feature.onboarding.OnboardingActivity
 import kotlinx.coroutines.launch
 
+// Màn S01 yêu cầu splash thương hiệu riêng trong lúc đồng bộ cấu hình ban đầu.
+@SuppressLint("CustomSplashScreen")
 class SplashActivity : BaseActivity<ActivitySplashBinding>(ActivitySplashBinding::inflate) {
 
     /** Khởi tạo [SplashViewModel] thông qua Factory để tiêm thủ công các Repository & Storage */
@@ -33,6 +36,9 @@ class SplashActivity : BaseActivity<ActivitySplashBinding>(ActivitySplashBinding
             settingsDataStore = app.settingsDataStore
         )
     }
+
+    private var updateRequiredDialog: AlertDialog? = null
+    private var hasNavigated: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -109,20 +115,37 @@ class SplashActivity : BaseActivity<ActivitySplashBinding>(ActivitySplashBinding
     }
 
     private fun showUpdateRequiredDialog() {
-        AlertDialog.Builder(this)
+        if (isFinishing || isDestroyed) return
+        if (updateRequiredDialog?.isShowing == true) return
+
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.splash_update_required_title)
             .setMessage(R.string.splash_update_required_message)
             .setCancelable(false)
             .setPositiveButton(R.string.splash_update_button) { _, _ ->
-                // Keep dialog open or exit
                 finish()
             }
-            .show()
+            .create()
+        dialog.setOnDismissListener {
+            if (updateRequiredDialog === dialog) {
+                updateRequiredDialog = null
+            }
+        }
+        updateRequiredDialog = dialog
+        dialog.show()
     }
 
     private fun navigateTo(destinationClass: Class<*>) {
+        if (hasNavigated || isFinishing) return
+        hasNavigated = true
         val intent = Intent(this, destinationClass)
         startActivity(intent)
         finish()
+    }
+
+    override fun onDestroy() {
+        updateRequiredDialog?.dismiss()
+        updateRequiredDialog = null
+        super.onDestroy()
     }
 }

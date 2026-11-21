@@ -36,7 +36,7 @@ class JournalStatsViewModel(
     private val journalRepository: JournalRepository,
     private val zoneId: ZoneId = ZoneId.systemDefault(),
     private val anchorDate: LocalDate = LocalDate.now(zoneId),
-    private val savedState: SavedStateHandle = SavedStateHandle(),
+    private val savedState: SavedStateHandle,
     private val clock: Clock = Clock.system(zoneId),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val calculationDispatcher: CoroutineDispatcher = Dispatchers.Default
@@ -117,10 +117,14 @@ class JournalStatsViewModel(
         }
         loadJob = viewModelScope.launch {
             try {
-                val entries = withContext(ioDispatcher) { journalRepository.getEntriesForStats() }
+                val (start, end) = calculator.getPeriodDateRange(period, safeAnchor)
+                val previousStart = calculator.getPeriodDateRange(period, start.minusDays(1)).first
+                val snapshot = withContext(ioDispatcher) {
+                    journalRepository.getStatsSnapshot(previousStart, start, minOf(end, today), today, zoneId)
+                }
                 val result = withContext(calculationDispatcher) {
                     calculator.calculateStats(
-                        entries,
+                        snapshot,
                         period,
                         safeAnchor,
                         today
@@ -160,11 +164,6 @@ class JournalStatsViewModel(
                     extras.createSavedStateHandle(),
                     clock
                 ) as T
-
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return JournalStatsViewModel(journalRepository, zoneId, anchorDate) as T
-            }
         }
     }
 }

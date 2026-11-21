@@ -20,6 +20,7 @@
             android:fontFamily="@font/be_vietnam_pro_bold"
             android:letterSpacing="-0.008333333"
             android:paddingStart="6dp"
+            android:paddingEnd="0dp"
             android:text="@string/m5_chat_title"
             android:textColor="@color/text_primary"
             android:textSize="24sp" />

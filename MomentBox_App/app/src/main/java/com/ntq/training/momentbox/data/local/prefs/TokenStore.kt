@@ -297,11 +297,19 @@ private class DataStoreTokenPersistence(private val context: Context) : TokenPer
         context.dataStore.edit { prefs ->
             prefs[TokenStore.KEY_REMEMBER_ME] = tokens.rememberMe
             prefs[TokenStore.KEY_SESSION_GENERATION] = tokens.generation
-            if (tokens.accessToken != null) prefs[TokenStore.KEY_ACCESS_TOKEN] = tokens.accessToken
-            else prefs.remove(TokenStore.KEY_ACCESS_TOKEN)
-            if (tokens.refreshToken != null) prefs[TokenStore.KEY_REFRESH_TOKEN] =
-                tokens.refreshToken
-            else prefs.remove(TokenStore.KEY_REFRESH_TOKEN)
+            if (tokens.accessToken != null) {
+                prefs[TokenStore.KEY_ACCESS_TOKEN] = tokens.accessToken
+            } else {
+                prefs.remove(TokenStore.KEY_ACCESS_TOKEN)
+            }
+            if (tokens.refreshToken != null) {
+                prefs[TokenStore.KEY_REFRESH_TOKEN] = tokens.refreshToken
+            } else {
+                prefs.remove(TokenStore.KEY_REFRESH_TOKEN)
+            }
+            if (!tokens.rememberMe) {
+                prefs.remove(SettingsDataStore.KEY_SAVED_USER_JSON)
+            }
         }
     }
 }

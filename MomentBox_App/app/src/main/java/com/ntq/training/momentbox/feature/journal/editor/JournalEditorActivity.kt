@@ -3,7 +3,6 @@ package com.ntq.training.momentbox.feature.journal.editor
 import android.R as AndroidR
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
@@ -37,7 +36,6 @@ import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.core.media.AudioPlaybackKind
-import com.ntq.training.momentbox.data.local.db.JournalAttachmentEntity
 import com.ntq.training.momentbox.databinding.ActivityJournalEditorBinding
 import com.ntq.training.momentbox.feature.create.CreateInput
 import com.ntq.training.momentbox.feature.create.CreateMediaContract
@@ -98,6 +96,7 @@ class JournalEditorActivity :
 
     private var attachmentVoicePlayer: MediaPlayer? = null
     private var isVoicePlaying = false
+    private var restoreDraftDialog: AlertDialog? = null
 
     private var voicePlaybackPosition: Int = 0
     private var voicePreparing = false
@@ -514,6 +513,9 @@ class JournalEditorActivity :
     }
 
     private fun setupAmbientBar() {
+        binding.tvAmbientTitle.setOnClickListener { showAmbientSoundPicker() }
+        binding.layoutAmbientBar.setOnClickListener { showAmbientSoundPicker() }
+
         binding.btnAmbientPlayPause.setOnClickListener {
             // [Intern]: Dừng voice khi bật ambient (F17)
             if (!ambientController.isPlaying() && (isVoicePlaying || voicePreparing)) {
@@ -603,7 +605,7 @@ class JournalEditorActivity :
         val currentIndex = sounds.indexOf(ambientController.getSound()).coerceAtLeast(0)
 
         MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.editor_ambient_rain)
+            .setTitle(R.string.editor_ambient_picker_title)
             .setSingleChoiceItems(soundOptions, currentIndex) { dialog, which ->
                 ambientController.setSound(sounds[which])
                 dialog.dismiss()
@@ -782,6 +784,9 @@ class JournalEditorActivity :
         // Check if restore draft dialog should be displayed
         if (state.showRestoreDraftDialog && state.restoredDraft != null) {
             showRestoreDraftDialog()
+        } else if (restoreDraftDialog?.isShowing == true) {
+            restoreDraftDialog?.dismiss()
+            restoreDraftDialog = null
         }
     }
 
@@ -845,7 +850,8 @@ class JournalEditorActivity :
     }
 
     private fun showRestoreDraftDialog() {
-        MaterialAlertDialogBuilder(this)
+        if (restoreDraftDialog?.isShowing == true || isFinishing || isDestroyed) return
+        restoreDraftDialog = MaterialAlertDialogBuilder(this)
             .setTitle(R.string.editor_restore_draft_title)
             .setMessage(R.string.editor_restore_draft_desc)
             .setPositiveButton(R.string.editor_restore_action) { _, _ -> viewModel.restoreDraft() }
@@ -853,7 +859,15 @@ class JournalEditorActivity :
                 viewModel.dismissRestoreDraftDialog()
             }
             .setCancelable(false)
-            .show()
+            .create()
+            .apply {
+                setOnDismissListener {
+                    if (restoreDraftDialog === this) {
+                        restoreDraftDialog = null
+                    }
+                }
+                show()
+            }
     }
 
     override fun onResume() {
@@ -877,6 +891,8 @@ class JournalEditorActivity :
     }
 
     override fun onDestroy() {
+        restoreDraftDialog?.dismiss()
+        restoreDraftDialog = null
         stopVoiceAttachmentPlayback()
         ambientController.release()
         super.onDestroy()

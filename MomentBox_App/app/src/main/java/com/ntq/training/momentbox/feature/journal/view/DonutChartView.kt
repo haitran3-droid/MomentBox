@@ -260,11 +260,13 @@ class DonutChartView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_UP) hitSector(
-            event.x,
-            event.y
-        )?.let { selectMood(it)
-        return true }
+        if (event.action == MotionEvent.ACTION_UP) {
+            hitSector(event.x, event.y)?.let {
+                selectMood(it)
+                performClick()
+            }
+            return true
+        }
         return true
     }
 

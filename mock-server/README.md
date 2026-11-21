@@ -310,3 +310,9 @@ Hook outage/transport và refresh giữ nguyên. Test thật: `node --test test/
 Avatar multipart dùng field `avatar`; response trả user sau ACK và `avatarUrl` có thể đọc bằng HTTP. Không có `updatedAt` giả trong DTO: client quản lý local cache version sau ACK. Posts dùng `/v1/users/{id}/posts?type=VIDEO&page=&pageSize=`; Saved chính chủ dùng `/v1/me/bookmarks`; tôn trọng `meta.hasMore/total/page`. Dữ liệu server vẫn RAM, mất khi restart.
 
 Regression: `node --test test/m5-profile.cjs` chạy server cách ly3111, fixture JPEG công khai và chỉ dọn file upload do chính test tạo.
+
+### Gửi lại bài đăng khi mất phản hồi
+
+Ứng dụng gửi UUID v4 trong multipart field `clientId` của `POST /v1/posts`. Lần đầu server trả `201`. Gửi lại cùng ID từ cùng tài khoản trả `200` cùng bài, dọn file multipart thừa và chỉ phát `feed:new` một lần. Nếu chủ bài đã xóa bài thì lần gửi lại trả `404`. Client cũ vẫn có thể đăng khi bỏ qua field này. Key tồn tại trong RAM cùng dữ liệu bài viết đến khi mock khởi động lại.
+
+Chạy `node --test test/post-retry.cjs` trong thư mục `mock-server` để kiểm tra mất phản hồi sau khi server đã nhận bài.

@@ -4,10 +4,12 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.view.ContextThemeWrapper
+import android.view.LayoutInflater
 import android.widget.FrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.databinding.ActivityPostDetailABinding
 import com.ntq.training.momentbox.domain.model.Author
 import com.ntq.training.momentbox.domain.model.Post
 import org.junit.Assert.assertEquals
@@ -16,6 +18,28 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class PostHeaderAdapterTest {
+    @Test
+    fun nestedLayoutHeaderRendersCaptionAndBothCountLabelsAfterAnUpdate() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            val context = ContextThemeWrapper(instrumentation.targetContext, R.style.Theme_MomentBox)
+            val header = ActivityPostDetailABinding.inflate(LayoutInflater.from(context)).headerPostA
+            val adapter = PostHeaderAdapter({}, {}, {}, {}, {})
+            try {
+                adapter.attachStandaloneHeader(header)
+                val post = Post(1, "TEXT", Author(2, "author", "Author", null),
+                    caption = "Loaded caption", createdAt = "2026-11-09T00:00:00Z")
+                adapter.setPost(post.copy(commentCount = 11))
+                adapter.setPost(post.copy(commentCount = 12))
+                assertEquals("Loaded caption", header.tvDetailCaption.text.toString())
+                assertEquals(context.getString(R.string.ui_integer_count, 12), header.tvDetailCommentCount.text.toString())
+                assertEquals(context.getString(R.string.comments_count_title, 12), header.tvCommentsTitle.text.toString())
+            } finally {
+                adapter.release()
+            }
+        }
+    }
+
     @Test
     fun likingPostRendersRedHeartOnTheSameHeader() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()

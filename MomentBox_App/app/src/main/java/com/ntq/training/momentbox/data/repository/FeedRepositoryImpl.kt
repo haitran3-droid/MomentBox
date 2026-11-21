@@ -115,6 +115,9 @@ class FeedRepositoryImpl(
     private val fieldVersions = mutableMapOf<Pair<Long, String>, Long>()
     private val activeMutations = mutableSetOf<Pair<Long, String>>()
     private val deletedVersions = mutableMapOf<Long, Long>()
+    private val dummyLikedOverlay = mutableMapOf<Long, Boolean>()
+    private val dummyLikeDeltaOverlay = mutableMapOf<Long, Int>()
+    private val dummyBookmarkedOverlay = mutableMapOf<Long, Boolean>()
     private val _deletedPostIds = MutableStateFlow<Set<Long>>(emptySet())
     override val deletedPostIds = _deletedPostIds.asStateFlow()
     private val mutationLocks = ConcurrentHashMap<String, Mutex>()
@@ -153,6 +156,9 @@ class FeedRepositoryImpl(
         fieldVersions.clear()
         activeMutations.clear()
         deletedVersions.clear()
+        dummyLikedOverlay.clear()
+        dummyLikeDeltaOverlay.clear()
+        dummyBookmarkedOverlay.clear()
         _deletedPostIds.value = emptySet()
     }
 
@@ -318,7 +324,7 @@ class FeedRepositoryImpl(
                         val mappedPosts = dummyPosts.map { postMapper.mapFromDummyJson(it) }
 
                         // Cập nhật vào cache tập trung
-                        updatePostsCache(scope, mappedPosts)
+                        val cachedPosts = updatePostsCache(scope, mappedPosts)
 
                         val feedItems = mutableListOf<FeedItem>()
 
@@ -358,7 +364,7 @@ class FeedRepositoryImpl(
                         }
 
                         for (post in mappedPosts) {
-                            feedItems.add(FeedItem.PostItem(post))
+                            feedItems.add(FeedItem.PostItem(cachedPosts.getValue(post.id)))
                         }
 
                         return@scoped Result.success(feedItems)
@@ -420,9 +426,10 @@ class FeedRepositoryImpl(
                 }
 
                 // Đồng bộ toàn bộ bài viết mới tải vào cache tập trung
-                updatePostsCache(scope, newPosts)
-
-                Result.success(feedItems)
+                val cachedPosts = updatePostsCache(scope, newPosts)
+                Result.success(feedItems.map { item ->
+                    if (item is FeedItem.PostItem) FeedItem.PostItem(cachedPosts.getValue(item.post.id)) else item
+                })
             } else {
                 Result.failure(feedResult.exceptionOrNull() ?: Exception("Không thể tải bảng tin"))
             }
@@ -468,6 +475,11 @@ class FeedRepositoryImpl(
             // Bookmark
             commit(scope) {
                 mutationStarted(postId, "like")
+                if (scope.source == SettingsDataStore.SOURCE_DUMMY_JSON) {
+                    val deltaStep = if (targetLiked) 1 else -1
+                    dummyLikedOverlay[postId] = targetLiked
+                    dummyLikeDeltaOverlay[postId] = (dummyLikeDeltaOverlay[postId] ?: 0) + deltaStep
+                }
                 _postsMap.update { currentMap ->
                     val p = currentMap[postId] ?: currentPost
                     val updated = p.copy(isLiked = targetLiked, likeCount = targetCount)
@@ -548,6 +560,9 @@ class FeedRepositoryImpl(
             // 1. Cập nhật lạc quan chỉ trên trường Bookmark
             commit(scope) {
                 mutationStarted(postId, "bookmark")
+                if (scope.source == SettingsDataStore.SOURCE_DUMMY_JSON) {
+                    dummyBookmarkedOverlay[postId] = targetBookmarked
+                }
                 _postsMap.update { currentMap ->
                     val p = currentMap[postId] ?: currentPost
                     val updated = p.copy(isBookmarked = targetBookmarked)
@@ -635,6 +650,9 @@ class FeedRepositoryImpl(
             deletedVersions[postId] = ++cacheVersion
             _deletedPostIds.update { it + postId }
             _createdPosts.value = _createdPosts.value.filterNot { it.id == postId }
+            dummyLikedOverlay.remove(postId)
+            dummyLikeDeltaOverlay.remove(postId)
+            dummyBookmarkedOverlay.remove(postId)
             feedEpoch++
             _postsMap.update { it - postId }
         }
@@ -774,38 +792,59 @@ class FeedRepositoryImpl(
         postId: Long,
         content: String,
         parentId: Long?,
+        clientId: String?,
     ): Result<Comment> = scoped { scope ->
-        val source = scope.source
-
-        if (source == SettingsDataStore.SOURCE_DUMMY_JSON) {
-            val dummyComment =
-                Comment(
-                    id = System.currentTimeMillis(),
-                    postId = postId,
-                    parentId = parentId,
-                    author = Author(1, "me", "Tôi", null, false),
-                    content = content,
-                    likeCount = 0,
-                    isLiked = false,
-                    replyCount = 0,
-                    createdAt = "Vừa xong",
-                )
-            return@scoped Result.success(dummyComment)
-        }
-
-        val result: Result<CommentDto> =
-            safeApiCall(dispatcher = dispatcher, gson = gson) {
-                feedApi.postComment(
-                    postId,
-                    PostCommentRequest(content, parentId),
-                    SessionRequest(scope.generation),
-                )
+        mutationLock(scope, postId, "comments").withLock {
+            commit(scope) { mutationStarted(postId, "comments") }
+            try {
+                val result = if (scope.source == SettingsDataStore.SOURCE_DUMMY_JSON) {
+                    val comment = Comment(
+                        id = System.currentTimeMillis(),
+                        postId = postId,
+                        parentId = parentId,
+                        author = Author(1, "me", "Tôi", null, false),
+                        content = content,
+                        createdAt = "Vừa xong",
+                        clientId = clientId
+                    )
+                    Result.success(comment to null)
+                } else {
+                    safeApiCall(dispatcher = dispatcher, gson = gson) {
+                        val request = PostCommentRequest(content, parentId, clientId)
+                        val response = feedApi.postComment(
+                            id = postId,
+                            body = request,
+                            session = SessionRequest(scope.generation)
+                        )
+                        if (response.code() == 403) refreshCommentPermission(scope, postId)
+                        response
+                    }.map { dto -> commentMapper.map(dto) to dto.postCommentCount }
+                }
+                result.map { (comment, serverCount) ->
+                    commit(scope) {
+                        val post = _postsMap.value[postId]
+                        if (post != null) {
+                            val updatedCount = serverCount ?: (post.commentCount + 1)
+                            _postsMap.value = _postsMap.value + (postId to post.copy(commentCount = updatedCount))
+                        }
+                    }
+                    comment
+                }
+            } finally {
+                mutationFinished(scope, postId, "comments")
             }
-        if (result.isSuccess) {
-            val dto = result.getOrThrow()
-            Result.success(commentMapper.map(dto))
-        } else {
-            Result.failure(result.exceptionOrNull() ?: Exception("Không thể gửi bình luận"))
+        }
+    }
+
+    private suspend fun refreshCommentPermission(scope: Scope, postId: Long) {
+        val detail = safeApiCall(dispatcher = dispatcher, gson = gson) {
+            feedApi.getPostDetail(postId, SessionRequest(scope.generation))
+        }.getOrNull() ?: return
+        val allowed = detail.allowComments ?: return
+        commit(scope) {
+            val post = _postsMap.value[postId] ?: return@commit
+            fieldVersions[postId to "allowComments"] = ++cacheVersion
+            _postsMap.value = _postsMap.value + (postId to post.copy(allowComments = allowed))
         }
     }
 
@@ -884,7 +923,7 @@ class FeedRepositoryImpl(
             merged
         }
 
-    private suspend fun updatePostsCache(scope: Scope, posts: List<Post>) {
+    private suspend fun updatePostsCache(scope: Scope, posts: List<Post>): Map<Long, Post> =
         commit(scope) {
             if (posts.any { (deletedVersions[it.id] ?: -1L) > scope.cacheVersion })
                 throw InvalidScope()
@@ -894,6 +933,7 @@ class FeedRepositoryImpl(
                         val existing = current[incoming.id]
                         val like = incoming.id to "like"
                         val bookmark = incoming.id to "bookmark"
+                        val comments = incoming.id to "comments"
                         val preserveLike =
                             like in activeMutations ||
                                     (fieldVersions[like] ?: -1L) > scope.cacheVersion
@@ -901,18 +941,48 @@ class FeedRepositoryImpl(
                             bookmark in activeMutations ||
                                     (fieldVersions[bookmark] ?: -1L) > scope.cacheVersion
                         var post = incoming
-                        if (existing != null && preserveLike)
+                        if (existing != null && preserveLike) {
                             post =
                                 post.copy(
                                     isLiked = existing.isLiked,
                                     likeCount = existing.likeCount,
                                 )
-                        if (existing != null && preserveBookmark)
+                        } else if (
+                            scope.source == SettingsDataStore.SOURCE_DUMMY_JSON &&
+                            incoming.id in dummyLikedOverlay
+                        ) {
+                            val liked = dummyLikedOverlay.getValue(incoming.id)
+                            val delta = dummyLikeDeltaOverlay[incoming.id] ?: 0
+                            post =
+                                post.copy(
+                                    isLiked = liked,
+                                    likeCount = (incoming.likeCount + delta).coerceAtLeast(0),
+                                )
+                        }
+                        if (existing != null && preserveBookmark) {
                             post = post.copy(isBookmarked = existing.isBookmarked)
+                        } else if (
+                            scope.source == SettingsDataStore.SOURCE_DUMMY_JSON &&
+                            incoming.id in dummyBookmarkedOverlay
+                        ) {
+                            post =
+                                post.copy(
+                                    isBookmarked = dummyBookmarkedOverlay.getValue(incoming.id)
+                                )
+                        }
+                        // A feed/detail response started before the permission refresh may still say open.
+                        if (existing != null && (fieldVersions[incoming.id to "allowComments"] ?: -1L) > scope.cacheVersion)
+                            post = post.copy(allowComments = existing.allowComments)
+                        if (existing != null && (
+                                comments in activeMutations ||
+                                (fieldVersions[comments] ?: -1L) > scope.cacheVersion ||
+                                (scope.source != SettingsDataStore.SOURCE_MB_SERVER && comments in fieldVersions)
+                            ))
+                            post = post.copy(commentCount = existing.commentCount)
                         incoming.id to post
                     }
                 current + merged
             }
+            _postsMap.value
         }
-    }
 }

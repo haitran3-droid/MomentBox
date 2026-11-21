@@ -1,5 +1,7 @@
 package com.ntq.training.momentbox.feature.compose
 
+import android.app.Activity
+import android.content.Intent
 import android.graphics.Rect
 import android.media.MediaPlayer
 import android.os.Bundle
@@ -15,8 +17,6 @@ import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.setFragmentResult
-import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -25,15 +25,17 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.bumptech.glide.signature.ObjectKey
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.core.media.AudioPlaybackKind
+import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.data.repository.UploadPhase
 import com.ntq.training.momentbox.databinding.FragmentComposeBinding
+import com.ntq.training.momentbox.feature.create.CreateActivity
 import com.ntq.training.momentbox.feature.create.CreateViewModel
 import com.ntq.training.momentbox.feature.create.SelectedMedia
 import com.ntq.training.momentbox.feature.recorder.RecordAudioContract
@@ -49,9 +51,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
     private val model: ComposeViewModel by viewModels()
     private val create: CreateViewModel by activityViewModels()
     private var rendering = false
-
     private var player: MediaPlayer? = null
-
     private val owner = Any()
     private val shared by lazy { AndroidPlaybackAudio.get(requireContext()) }
     private val recorder =
@@ -61,7 +61,9 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
     override fun onViewCreated(view: View, state: Bundle?) {
         val b = FragmentComposeBinding.bind(view)
         binding = b
-        model.upload.beginCompose()
+        if (state == null) {
+            model.upload.beginCompose()
+        }
         adapter =
             ComposeMediaAdapter(
                 Glide.with(this),
@@ -70,8 +72,9 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                     create.setSelection(model.draft.value.media)
                 },
                 {
-                    if (!model.upload.postingBlocked)
+                    if (!model.upload.postingBlocked) {
                         parentFragmentManager.setFragmentResult("create_add_media", Bundle())
+                    }
                 },
             )
         b.composeMedia.layoutManager =
@@ -92,13 +95,13 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                     ): Boolean {
                         if (model.upload.postingBlocked) return false
                         val a = from.bindingAdapterPosition
-
                         val z = to.bindingAdapterPosition
                         if (
                             a !in model.draft.value.media.indices ||
                                 z !in model.draft.value.media.indices
-                        )
+                        ) {
                             return false
+                        }
                         model.update { it.move(a, z) }
                         create.setSelection(model.draft.value.media)
                         adapter.items = model.draft.value.media
@@ -129,7 +132,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                             scaleX = 1f
                             scaleY = 1f
                         }
-                        adapter.notifyDataSetChanged()
+                        adapter.notifyItemRangeChanged(0, adapter.items.size)
                     }
                 }
             )
@@ -152,13 +155,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
         }
         val launchIntent = requireActivity().intent
         launchIntent.getStringExtra("voice")?.let { json ->
-            runCatching {
-                    Gson()
-                        .fromJson(
-                            json,
-                            RecordedAudio::class.java,
-                        )
-                }
+            runCatching { Gson().fromJson(json, RecordedAudio::class.java) }
                 .getOrNull()
                 ?.let { audio ->
                     // Xóa extra sau khi import bền vững, giữ lại nếu lỗi để lần mở lại còn có thể
@@ -167,14 +164,11 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                 }
         }
         b.composePost.setOnClickListener {
-            if (model.upload.state.value.phase in listOf(UploadPhase.FAILED, UploadPhase.CANCELLED))
+            if (model.upload.state.value.phase in listOf(UploadPhase.FAILED, UploadPhase.CANCELLED)) {
                 b.composeCancelUpload.performClick()
-            else {
+            } else {
                 b.composeCaption.clearFocus()
-                WindowCompat.getInsetsController(
-                        requireActivity().window,
-                        b.root,
-                    )
+                WindowCompat.getInsetsController(requireActivity().window, b.root)
                     .hide(WindowInsetsCompat.Type.ime())
                 model.post()
             }
@@ -191,8 +185,9 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                 },
             )
         b.composeAdd.setOnClickListener {
-            if (!model.upload.postingBlocked)
+            if (!model.upload.postingBlocked) {
                 parentFragmentManager.setFragmentResult("create_add_media", Bundle())
+            }
         }
         b.composeRecord.setOnClickListener {
             if (!model.upload.postingBlocked) recorder.launch(Unit)
@@ -205,16 +200,14 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
         b.composePrivacy.setOnClickListener { option("privacy") }
         b.composeLocation.setOnClickListener { option("location", model.draft.value.location) }
         b.composeLocationRow.setOnClickListener { option("location", model.draft.value.location) }
-        // Label hủy gọn theo mockup nhưng mở rộng vùng chạm48dp trong thẻ cha.
+        // Label hủy gọn theo mockup nhưng mở rộng vùng chạm 48dp trong thẻ cha.
         b.composeCancelUpload.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             if (b.composeCancelUpload.width > 0) {
                 val hit = Rect()
                 b.composeCancelUpload.getHitRect(hit)
-
                 val extra = (10 * resources.displayMetrics.density).toInt()
                 hit.inset(0, -extra)
-                b.composeUploadBox.touchDelegate =
-                    TouchDelegate(hit, b.composeCancelUpload)
+                b.composeUploadBox.touchDelegate = TouchDelegate(hit, b.composeCancelUpload)
             }
         }
         b.composeComments.setOnCheckedChangeListener { _, checked ->
@@ -227,12 +220,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
             when (model.upload.state.value.phase) {
                 UploadPhase.JOURNAL_FAILED -> model.upload.retryJournal()
                 UploadPhase.FAILED,
-                UploadPhase.CANCELLED ->
-                    MaterialAlertDialogBuilder(requireContext())
-                        .setMessage(R.string.m4_retry_uncertain)
-                        .setNegativeButton(R.string.cancel, null)
-                        .setPositiveButton(R.string.m4_retry) { _, _ -> model.post() }
-                        .show()
+                UploadPhase.CANCELLED -> model.post()
 
                 else -> model.upload.cancel()
             }
@@ -245,7 +233,9 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
             data.getString("restore")?.let { choice ->
                 viewLifecycleOwner.lifecycleScope.launch {
                     try {
-                        val selected = model.resolveRestore(choice == "keep", create.items.value)
+                        val keep = choice == "keep"
+                        if (!keep) model.upload.clearTerminalFailure()
+                        val selected = model.resolveRestore(keep, create.items.value)
                         create.restoreSelection(selected)
                         model.importMedia(selected, ::acceptPrepared)
                     } catch (e: CancellationException) {
@@ -258,7 +248,12 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
             data.getString("close")?.let { value ->
                 viewLifecycleOwner.lifecycleScope.launch {
                     try {
-                        if (value == "save") model.save() else model.discard()
+                        if (value == "save") {
+                            model.save()
+                        } else {
+                            model.upload.clearTerminalFailure()
+                            model.discard()
+                        }
                         requireActivity().finish()
                     } catch (_: Exception) {
                         Snackbar.make(b.root, R.string.m4_draft_error, Snackbar.LENGTH_LONG).show()
@@ -276,13 +271,27 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                     ?.filter { it.isNotBlank() }
                     ?.takeLast(2)
                     ?.joinToString("") { it.take(1).uppercase() } ?: "MB"
+            val avatarModel =
+                user?.avatarUrl?.takeIf { it.isNotBlank() }?.let {
+                    MediaImageModel.resolve(requireContext(), it)
+                }
+            if (avatarModel != null) {
+                Glide.with(this@ComposeFragment)
+                    .load(avatarModel)
+                    .signature(ObjectKey(user.avatarVersion))
+                    .circleCrop()
+                    .into(b.composeAvatarImage)
+            } else {
+                Glide.with(this@ComposeFragment).clear(b.composeAvatarImage)
+            }
         }
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     create.items.collect {
-                        if (it.isNotEmpty() || create.hasSubmitted)
+                        if (it.isNotEmpty() || create.hasSubmitted) {
                             model.importMedia(it, ::acceptPrepared)
+                        }
                     }
                 }
                 launch {
@@ -291,27 +300,30 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                             !needed && !model.upload.postingBlocked && model.draft.value.canPost
                         if (
                             needed &&
-                                childFragmentManager.findFragmentByTag("restore-draft") == null &&
-                                !childFragmentManager.isStateSaved
-                        )
+                                !childFragmentManager.isStateSaved &&
+                                childFragmentManager.findFragmentByTag("restore-draft") == null
+                        ) {
                             ComposeOptionsDialog()
                                 .apply {
                                     arguments = Bundle().apply { putString("type", "restore") }
                                 }
                                 .show(childFragmentManager, "restore-draft")
+                        }
                     }
                 }
                 launch {
                     model.draft.collect { draft ->
                         rendering = true
-                        if (b.composeCaption.text.toString() != draft.caption)
+                        if (b.composeCaption.text.toString() != draft.caption) {
                             b.composeCaption.setText(draft.caption)
-                        b.composeCounter.text = getString(
-                            R.string.compose_character_counter,
-                            draft.caption.length,
-                            NumberFormat.getIntegerInstance(resources.configuration.locales[0])
-                                .format(2200),
-                        )
+                        }
+                        b.composeCounter.text =
+                            getString(
+                                R.string.compose_character_counter,
+                                draft.caption.length,
+                                NumberFormat.getIntegerInstance(resources.configuration.locales[0])
+                                    .format(2200),
+                            )
                         b.composePrivacy.setText(
                             when (draft.privacy) {
                                 "friends" -> R.string.m4_friends
@@ -339,8 +351,7 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                                     )
                                 }
                                 .orEmpty()
-                        adapter.items = draft.media
-                        adapter.notifyDataSetChanged()
+                        adapter.submitMedia(draft.media)
                         b.composePost.isEnabled =
                             draft.canPost && !model.upload.postingBlocked && !model.restoring.value
                         rendering = false
@@ -348,9 +359,10 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                 }
                 launch {
                     model.error.collect {
-                        if (it)
+                        if (it) {
                             Snackbar.make(b.root, R.string.m4_draft_error, Snackbar.LENGTH_LONG)
                                 .show()
+                        }
                     }
                 }
                 launch {
@@ -381,9 +393,11 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                                         UploadPhase.UPLOADING,
                                         UploadPhase.AWAITING_SERVER,
                                     )
-                            )
+                            ) {
                                 "${b.composeProgress.progress}%"
-                            else ""
+                            } else {
+                                ""
+                            }
                         b.composeUploadText.text =
                             when (s.phase) {
                                 UploadPhase.SUCCEEDED -> getString(R.string.m4_posted)
@@ -402,11 +416,19 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                                         UploadPhase.CANCELLED,
                                         UploadPhase.JOURNAL_FAILED,
                                     )
-                            )
+                            ) {
                                 R.string.m4_retry
-                            else R.string.cancel
+                            } else {
+                                R.string.cancel
+                            }
                         )
-                        if (s.phase == UploadPhase.SUCCEEDED) requireActivity().finish()
+                        if (s.phase == UploadPhase.SUCCEEDED) {
+                            requireActivity().setResult(
+                                Activity.RESULT_OK,
+                                Intent().putExtra(CreateActivity.EXTRA_PUBLISHED_POST, true),
+                            )
+                            requireActivity().finish()
+                        }
                     }
                 }
             }
@@ -416,32 +438,44 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
     /**
      * Copy xong khi Gallery đang mở chỉ cập nhật draft, không ghi đè lựa chọn tạm của người dùng.
      */
-    private fun acceptPrepared(
-        items: List<SelectedMedia>
-    ) {
+    private fun acceptPrepared(items: List<SelectedMedia>) {
         if (
             binding != null &&
                 viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-        )
+        ) {
             create.restoreSelection(items)
+        }
     }
 
     private fun option(type: String, value: String = "") {
-        if (!model.upload.postingBlocked)
-            ComposeOptionsDialog()
-                .apply {
-                    arguments =
-                        Bundle().apply {
-                            putString("type", type)
-                            putString("value", value)
-                        }
-                }
-                .show(childFragmentManager, "compose-options")
+        val tag = "compose-options"
+        if (
+            model.upload.postingBlocked ||
+                childFragmentManager.isStateSaved ||
+                childFragmentManager.findFragmentByTag(tag) != null
+        ) {
+            return
+        }
+        ComposeOptionsDialog()
+            .apply {
+                arguments =
+                    Bundle().apply {
+                        putString("type", type)
+                        putString("value", value)
+                    }
+            }
+            .show(childFragmentManager, tag)
     }
 
     private fun close() {
-        if (model.upload.postingBlocked) requireActivity().finish()
-        else if (model.draft.value.canPost) option("close") else requireActivity().finish()
+        if (model.upload.postingBlocked) {
+            requireActivity().finish()
+        } else if (model.draft.value.canPost) {
+            option("close")
+        } else {
+            model.upload.clearTerminalFailure()
+            requireActivity().finish()
+        }
     }
 
     private fun playVoice() {
@@ -456,8 +490,9 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                 { requireActivity().runOnUiThread { stopVoice() } },
                 kind = AudioPlaybackKind.VOICE,
             )
-        )
+        ) {
             return
+        }
         try {
             player =
                 MediaPlayer().apply {
@@ -487,7 +522,10 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
     }
 
     override fun onDestroyView() {
-        binding?.composeMedia?.adapter = null
+        binding?.let {
+            Glide.with(this).clear(it.composeAvatarImage)
+            it.composeMedia.adapter = null
+        }
         binding = null
         super.onDestroyView()
     }

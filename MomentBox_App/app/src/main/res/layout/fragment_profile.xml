@@ -1,9 +1,11 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/profileRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/surface">
+    android:background="@color/surface"
+    tools:ignore="Overdraw">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/profileAppBar"
@@ -49,19 +51,20 @@
                             android:background="@drawable/bg_s21_cover_overlay" />
                     </FrameLayout>
 
-                    <LinearLayout
+                    <RelativeLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="-46dp"
-                        android:baselineAligned="false"
                         android:clipChildren="false"
-                        android:gravity="top"
                         android:paddingStart="16dp"
                         android:paddingEnd="16dp">
 
                         <FrameLayout
+                            android:id="@+id/profileAvatarFrame"
                             android:layout_width="88dp"
                             android:layout_height="94dp"
+                            android:layout_alignParentStart="true"
+                            android:layout_alignParentTop="true"
                             android:clipChildren="false">
 
                             <FrameLayout
@@ -104,12 +107,13 @@
 
                         <!-- The avatar row begins 46dp above the cover edge. Keep the stats 12dp below it. -->
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_alignParentTop="true"
                             android:layout_marginStart="12dp"
                             android:layout_marginTop="58dp"
                             android:layout_marginBottom="8dp"
-                            android:layout_weight="1"
+                            android:layout_toEndOf="@id/profileAvatarFrame"
                             android:baselineAligned="false">
 
                             <LinearLayout
@@ -190,7 +194,7 @@
                                     android:textSize="11.5sp" />
                             </LinearLayout>
                         </LinearLayout>
-                    </LinearLayout>
+                    </RelativeLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"

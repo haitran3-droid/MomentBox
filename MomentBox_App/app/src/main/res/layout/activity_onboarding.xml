@@ -4,8 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/onboardingRoot"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/surface">
+    android:layout_height="match_parent">
 
     <!-- Thanh công cụ phía trên: Chip đổi ngôn ngữ và Nút Bỏ qua -->
     <LinearLayout
@@ -141,6 +140,7 @@
             android:orientation="horizontal"
             android:outlineAmbientShadowColor="#5B4BDB"
             android:outlineSpotShadowColor="#5B4BDB"
+            tools:targetApi="p"
             android:paddingStart="22dp"
             android:paddingEnd="22dp"
             app:layout_constraintBottom_toBottomOf="parent"

@@ -1,5 +1,6 @@
 package com.ntq.training.momentbox.feature.player
 
+import android.app.LocaleManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.graphics.drawable.Icon
 import android.media.AudioAttributes
 import android.media.AudioDeviceCallback
@@ -26,14 +28,19 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
+import android.os.LocaleList
 import android.os.PowerManager
 import android.os.Process
 import android.os.RemoteCallbackList
+import android.util.Xml
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.core.os.LocaleListCompat
 import com.ntq.training.momentbox.R
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import org.xmlpull.v1.XmlPullParser
 
 class PlayerService : Service() {
     companion object {
@@ -44,6 +51,9 @@ class PlayerService : Service() {
         const val NEXT = "player.NEXT"
         const val PREVIOUS = "player.PREVIOUS"
         const val CLOSE = "player.CLOSE"
+        private const val APP_LOCALES_RECORD_FILE =
+            "androidx.appcompat.app.AppCompatDelegate.application_locales_record_file"
+
         fun intent(context: Context, action: String) =
             Intent(context, PlayerService::class.java).setAction(action)
     }
@@ -69,6 +79,15 @@ class PlayerService : Service() {
 
     @Volatile
     private var closed = false
+
+    @Volatile
+    private var callbacksKilled = false
+
+    @Volatile
+    private var latestStartId = 0
+
+    @Volatile
+    private var reopenGeneration = 0L
     private var route = "unknown"
     private var sleepAt = 0L
     private var sleepDuration = 0L
@@ -80,15 +99,19 @@ class PlayerService : Service() {
 
     @Volatile
     private var snapshot = PlayerState(servicePid = Process.myPid())
-    private val callbacks = object : RemoteCallbackList<IPlayerCallback>() {
+
+    private fun createCallbacks() = object : RemoteCallbackList<IPlayerCallback>() {
         override fun onCallbackDied(callback: IPlayerCallback?) {
             handler.post { updatePositionTicker() }
         }
     }
+
+    private var callbacks: RemoteCallbackList<IPlayerCallback> = createCallbacks()
     private var handoverNonce = 0L
     private var pendingHandover = 0L
     private var handoverTimeout: Runnable? = null
-    private val peers = object : RemoteCallbackList<IAudioPeer>() {
+
+    private fun createPeers() = object : RemoteCallbackList<IAudioPeer>() {
         override fun onCallbackDied(peer: IAudioPeer?) {
             handler.post {
                 if (pendingHandover != 0L && registeredCallbackCount == 0) {
@@ -98,11 +121,18 @@ class PlayerService : Service() {
             }
         }
     }
+
+    private var peers: RemoteCallbackList<IAudioPeer> = createPeers()
+
     private val binder = object : IPlayerService.Stub() {
         override fun registerAudioPeer(peer: IAudioPeer?) = command {
             if (peer != null) {
                 peers.register(peer)
-                runCatching { peer.onPlaybackChanged(isPlaying() || (player != null && !prepared) || pendingHandover != 0L) }
+                runCatching {
+                    peer.onPlaybackChanged(
+                        isPlaying() || (player != null && !prepared) || pendingHandover != 0L
+                    )
+                }
             }
         }
 
@@ -125,37 +155,38 @@ class PlayerService : Service() {
             cancelHandover()
             if (transientLoss) {
                 focusPolicy.change(
-                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-                isPlaying() || (player != null && !prepared)
-            )
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+                    isPlaying() || (player != null && !prepared)
+                )
                 pause(false)
-            } else pause(true)
+            } else {
+                pause(true)
+            }
         }
 
         override fun setQueue(tracks: MutableList<Track>?, startIndex: Int) {
             enforceOwner()
-            val copy = tracks.orEmpty()
-                .map { it.copy(waveform = it.waveform.toList()) }
-                PlayerProtocol.validate(
-                copy,
-                startIndex
-            )
+            val copy = tracks.orEmpty().map { it.copy(waveform = it.waveform.toList()) }
+            PlayerProtocol.validate(copy, startIndex)
             command {
                 val old = queue.tracks.getOrNull(queue.index)
                 val selected = copy.getOrNull(startIndex)
-                val keep =
-                    old?.id == selected?.id && old?.uri == selected?.uri && old?.ownerScope == selected?.ownerScope && player != null
+                val keep = old?.id == selected?.id &&
+                    old?.uri == selected?.uri &&
+                    old?.ownerScope == selected?.ownerScope &&
+                    player != null
                 queue.replace(copy, startIndex)
                 if (!keep) {
                     focusPolicy.userPause()
                     releaseEngine()
                     abandonFocus()
                     duration = 0
-                    error =
-                        null
+                    error = null
                     // Hẹn phút giữ deadline khi chọn bài cùng thư viện; hết-bài chỉ gắn bài cũ.
                     // Đổi owner hoặc bỏ queue phải hủy timer để không áp dụng sang tài khoản khác.
-                    if (old?.ownerScope != selected?.ownerScope || selected == null || endOfTrack) cancelSleep()
+                    if (old?.ownerScope != selected?.ownerScope || selected == null || endOfTrack) {
+                        cancelSleep()
+                    }
                 }
                 publish()
             }
@@ -166,52 +197,64 @@ class PlayerService : Service() {
         override fun seekTo(positionMs: Long) = command { seek(positionMs) }
         override fun next() = command { advance(false, false) }
         override fun previous() = command { advance(true, false) }
+
         override fun setSpeed(value: Float) {
             require(value.isFinite() && value in .75f..2f)
             command {
                 speed = value
-                if (prepared && isPlaying()) player?.playbackParams =
-                PlaybackParams().setSpeed(speed)
+                if (prepared && isPlaying()) {
+                    player?.playbackParams = PlaybackParams().setSpeed(speed)
+                }
                 publish()
             }
         }
 
         override fun setSleepTimer(millis: Long) {
             require(millis == -1L || millis == 0L || millis in 1..30 * 60 * 1000)
-            command {
-                setSleep(
-                    millis
-                )
-            }
+            command { setSleep(millis) }
         }
 
         // Toggle/cycle được tính ngay trên thread sở hữu queue, không dựa snapshot UI đang trễ.
-        override fun toggleShuffle() = command { queue.shuffle = !queue.shuffle
-        publish() }
-        override fun cycleRepeat() =
-            command { queue.repeatMode = (queue.repeatMode + 1) % 3
-            publish() }
-
-        override fun setShuffle(enabled: Boolean) = command { queue.shuffle = enabled
-        publish() }
-        override fun setRepeatMode(mode: Int) {
-            require(mode in 0..2)
-            command { queue.repeatMode = mode
-            publish() }
+        override fun toggleShuffle() = command {
+            queue.shuffle = !queue.shuffle
+            publish()
         }
 
-        override fun setFavorite(trackId: String?, favorite: Boolean) =
-            command { trackId?.let { queue.favorite(it, favorite) }
-            publish() }
+        override fun cycleRepeat() = command {
+            queue.repeatMode = (queue.repeatMode + 1) % 3
+            publish()
+        }
+
+        override fun setShuffle(enabled: Boolean) = command {
+            queue.shuffle = enabled
+            publish()
+        }
+
+        override fun setRepeatMode(mode: Int) {
+            require(mode in 0..2)
+            command {
+                queue.repeatMode = mode
+                publish()
+            }
+        }
+
+        override fun setFavorite(trackId: String?, favorite: Boolean) = command {
+            trackId?.let { queue.favorite(it, favorite) }
+            publish()
+        }
 
         override fun close() = command { shutdown() }
+
         override fun getState(): PlayerState {
             enforceOwner()
             val done = CountDownLatch(1)
             handler.post {
-                if (prepared) snapshot = snapshot.copy(positionMs = runCatching {
-                    player?.currentPosition?.toLong() ?: 0
-                }.getOrDefault(0))
+                if (prepared) {
+                    snapshot = snapshot.copy(
+                        positionMs = runCatching { player?.currentPosition?.toLong() ?: 0 }
+                            .getOrDefault(0)
+                    )
+                }
                 done.countDown()
             }
             done.await(1, TimeUnit.SECONDS)
@@ -226,10 +269,12 @@ class PlayerService : Service() {
             }
         }
 
-        override fun unregisterCallback(callback: IPlayerCallback?) =
-            command { if (callback != null) callbacks.unregister(callback)
-            updatePositionTicker() }
+        override fun unregisterCallback(callback: IPlayerCallback?) = command {
+            if (callback != null) callbacks.unregister(callback)
+            updatePositionTicker()
+        }
     }
+
     private val noisy = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, intent: Intent?) {
             if (noisyRegistered && !closed && intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
@@ -237,6 +282,7 @@ class PlayerService : Service() {
             }
         }
     }
+
     private val devices = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) = updateRoute()
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) =
@@ -245,18 +291,10 @@ class PlayerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        thread =
-            HandlerThread("momentbox-player-owner").apply { start() }
-            handler =
-            Handler(thread.looper)
+        thread = HandlerThread("momentbox-player-owner").apply { start() }
+        handler = Handler(thread.looper)
         audio = getSystemService(AUDIO_SERVICE) as AudioManager
-        if (Build.VERSION.SDK_INT >= 26) (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
-            NotificationChannel(
-                CHANNEL,
-                getString(R.string.m5_player_channel),
-                NotificationManager.IMPORTANCE_LOW
-            )
-        )
+        ensurePlaybackChannel()
         session = MediaSession(this, "MomentBoxPlayer").apply {
             setCallback(object : MediaSession.Callback() {
                 override fun onPlay() {
@@ -265,68 +303,126 @@ class PlayerService : Service() {
                             this@PlayerService,
                             intent(this@PlayerService, PLAY)
                         )
-                    }.onFailure { error = "FGS_NOT_ALLOWED"
-                    publish() }
+                    }.onFailure {
+                        error = "FGS_NOT_ALLOWED"
+                        publish()
+                    }
                 }
+
                 override fun onPause() {
                     pause(true)
                 }
+
                 override fun onSkipToNext() {
                     advance(false, false)
                 }
+
                 override fun onSkipToPrevious() {
                     advance(true, false)
                 }
+
                 override fun onSeekTo(pos: Long) {
                     seek(pos)
                 }
+
                 override fun onStop() {
                     shutdown()
                 }
             }, handler)
         }
         audio.registerAudioDeviceCallback(devices, handler)
-        handler.post { updateRoute()
-        publish() }
+        handler.post {
+            updateRoute()
+            publish()
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        ensurePlaybackChannel()
+        if (::handler.isInitialized) {
+            handler.post {
+                if (foreground && !closed) {
+                    (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(
+                        NOTIFICATION,
+                        notification(snapshot)
+                    )
+                }
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = if (closed) null else binder
+
     override fun onUnbind(intent: Intent?): Boolean {
         handler.post { updatePositionTicker() }
         return true
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // User/notification command bắt đầu từforeground hợp lệ. Promote ngay trước bất kỳ prepare/focus.
-        if (intent?.action != CLOSE && !foreground) try {
-            val notice = notification(snapshot)
-            if (Build.VERSION.SDK_INT >= 29) startForeground(
-                NOTIFICATION,
-                notice,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-            ) else startForeground(NOTIFICATION, notice)
-            foreground = true
-        } catch (_: Exception) {
-            handler.post {
-                error = "FGS_NOT_ALLOWED"
-                publish()
+        latestStartId = startId
+        val action = intent?.action
+        val isClose = action == CLOSE
+        if (!isClose) {
+            if (closed) {
+                closed = false
+                if (snapshot.error == "PLAYER_CLOSED") {
+                    snapshot = snapshot.copy(error = null)
+                }
             }
-            stopSelf()
-            return START_NOT_STICKY
+            ++reopenGeneration
+            // User/notification command bắt đầu từ foreground hợp lệ. Promote ngay trước bất kỳ prepare/focus.
+            if (!foreground) {
+                try {
+                    val notice = notification(snapshot)
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        startForeground(
+                            NOTIFICATION,
+                            notice,
+                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                        )
+                    } else {
+                        startForeground(NOTIFICATION, notice)
+                    }
+                    foreground = true
+                } catch (_: Exception) {
+                    handler.post {
+                        reopenIfClosed()
+                        error = "FGS_NOT_ALLOWED"
+                        publish()
+                    }
+                    stopSelfResult(startId)
+                    return START_NOT_STICKY
+                }
+            }
         }
+        val expectedGen = reopenGeneration
         handler.post {
-            when (intent?.action) {
+            if (!isClose) reopenIfClosed()
+            when (action) {
                 PLAY -> play()
                 PAUSE -> pause(true)
-                NEXT -> advance(
-                false,
-                false
-            )
+                NEXT -> advance(false, false)
                 PREVIOUS -> advance(true, false)
-                CLOSE -> shutdown()
+                CLOSE -> shutdown(expectedGeneration = expectedGen, stopStartId = startId)
             }
         }
         return START_NOT_STICKY
+    }
+
+    private fun reopenIfClosed() {
+        if (closed || callbacksKilled) {
+            closed = false
+            if (callbacksKilled) {
+                callbacks = createCallbacks()
+                peers = createPeers()
+                callbacksKilled = false
+            }
+            if (error == "PLAYER_CLOSED") {
+                error = null
+                snapshot = snapshot.copy(error = null)
+            }
+        }
     }
 
     private fun enforceOwner() {
@@ -336,10 +432,12 @@ class PlayerService : Service() {
     private fun command(block: () -> Unit) {
         enforceOwner()
         handler.post {
-            if (!closed) try {
-                block()
-            } catch (_: Exception) {
-                fail("PLAYER_COMMAND_FAILED")
+            if (!closed) {
+                try {
+                    block()
+                } catch (_: Exception) {
+                    fail("PLAYER_COMMAND_FAILED")
+                }
             }
         }
     }
@@ -379,8 +477,7 @@ class PlayerService : Service() {
     private fun cancelHandover() {
         pendingHandover = 0
         handoverTimeout?.let { handler.removeCallbacks(it) }
-        handoverTimeout =
-            null
+        handoverTimeout = null
     }
 
     private fun playEngine() {
@@ -406,8 +503,7 @@ class PlayerService : Service() {
         if (player != null && prepared) {
             player?.setVolume(1f, 1f)
             player?.start()
-            player?.playbackParams =
-                PlaybackParams().setSpeed(speed)
+            player?.playbackParams = PlaybackParams().setSpeed(speed)
             registerNoisy()
             publish()
             return
@@ -424,28 +520,26 @@ class PlayerService : Service() {
         duration = 0
         try {
             engine.setAudioAttributes(
-                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
             )
             engine.setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
             val uri = track.uri.toUri()
-            if (uri.scheme == "file") engine.setDataSource(checkNotNull(uri.path)) else engine.setDataSource(
-                applicationContext,
-                uri
-            )
+            if (uri.scheme == "file") {
+                engine.setDataSource(checkNotNull(uri.path))
+            } else {
+                engine.setDataSource(applicationContext, uri)
+            }
             engine.setOnPreparedListener {
                 if (request != generation || player !== engine) return@setOnPreparedListener
                 prepared = true
-                duration =
-                runCatching { engine.duration.toLong() }.getOrDefault(0).coerceAtLeast(0)
+                duration = runCatching { engine.duration.toLong() }.getOrDefault(0).coerceAtLeast(0)
                 if (focusPolicy.wantsPlay && focus in setOf("GAIN", "DUCK")) {
                     engine.start()
-                    engine.playbackParams =
-                        PlaybackParams().setSpeed(speed)
-                    engine.setVolume(
-                        volume,
-                        volume
-                    )
+                    engine.playbackParams = PlaybackParams().setSpeed(speed)
+                    engine.setVolume(volume, volume)
                     registerNoisy()
                 }
                 publish()
@@ -456,13 +550,13 @@ class PlayerService : Service() {
                         cancelSleep()
                         pause(true)
                         seek(0)
-                    } else advance(false, true)
+                    } else {
+                        advance(false, true)
+                    }
                 }
             }
             engine.setOnErrorListener { _, _, _ ->
-                if (request == generation && player === engine) fail(
-                    "PLAYER_MEDIA_ERROR"
-                )
+                if (request == generation && player === engine) fail("PLAYER_MEDIA_ERROR")
                 true
             }
             engine.prepareAsync()
@@ -523,8 +617,7 @@ class PlayerService : Service() {
                             if (prepared) {
                                 player?.setVolume(1f, 1f)
                                 player?.start()
-                                player?.playbackParams =
-                                    PlaybackParams().setSpeed(speed)
+                                player?.playbackParams = PlaybackParams().setSpeed(speed)
                                 registerNoisy()
                             }
                         }
@@ -553,14 +646,19 @@ class PlayerService : Service() {
         val granted = if (Build.VERSION.SDK_INT >= 26) {
             val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(
-                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
-                ).setWillPauseWhenDucked(false).setOnAudioFocusChangeListener(listener, handler)
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                .setWillPauseWhenDucked(false)
+                .setOnAudioFocusChangeListener(listener, handler)
                 .build()
             focusRequest = request
             audio.requestAudioFocus(request)
         } else {
-            @Suppress("DEPRECATION") audio.requestAudioFocus(
+            @Suppress("DEPRECATION")
+            audio.requestAudioFocus(
                 listener,
                 AudioManager.STREAM_MUSIC,
                 AudioManager.AUDIOFOCUS_GAIN
@@ -572,8 +670,11 @@ class PlayerService : Service() {
 
     private fun abandonFocus() {
         ++focusGeneration
-        if (Build.VERSION.SDK_INT >= 26) focusRequest?.let { audio.abandonAudioFocusRequest(it) } else {
-            @Suppress("DEPRECATION") legacyFocus?.let { audio.abandonAudioFocus(it) }
+        if (Build.VERSION.SDK_INT >= 26) {
+            focusRequest?.let { audio.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            legacyFocus?.let { audio.abandonAudioFocus(it) }
         }
         focusRequest = null
         legacyFocus = null
@@ -608,8 +709,7 @@ class PlayerService : Service() {
         ++generation
         val old = player
         player = null
-        prepared =
-            false
+        prepared = false
         runCatching { old?.release() }
         unregisterNoisy()
     }
@@ -624,7 +724,9 @@ class PlayerService : Service() {
 
     private fun setSleep(millis: Long) {
         cancelSleep()
-        if (millis == -1L) endOfTrack = true else if (millis > 0) {
+        if (millis == -1L) {
+            endOfTrack = true
+        } else if (millis > 0) {
             sleepDuration = millis
             sleepAt = System.currentTimeMillis() + millis
             sleepJob = Runnable {
@@ -641,9 +743,8 @@ class PlayerService : Service() {
         sleepJob?.let { handler.removeCallbacks(it) }
         sleepJob = null
         sleepAt = 0
-        sleepDuration =
-            0
-            endOfTrack = false
+        sleepDuration = 0
+        endOfTrack = false
     }
 
     private fun updateRoute() {
@@ -655,8 +756,14 @@ class PlayerService : Service() {
                 (Build.VERSION.SDK_INT >= 26 && it.type == AudioDeviceInfo.TYPE_USB_HEADSET)
         }?.type
         route = when (type) {
-            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLE_SPEAKER -> "bluetooth"
-            AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_USB_HEADSET -> "headphones"
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+            AudioDeviceInfo.TYPE_BLE_HEADSET,
+            AudioDeviceInfo.TYPE_BLE_SPEAKER -> "bluetooth"
+
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_USB_HEADSET -> "headphones"
+
             else -> "speaker"
         }
         publish()
@@ -668,16 +775,19 @@ class PlayerService : Service() {
         try {
             repeat(peerCount) { i ->
                 runCatching {
-                    peers.getBroadcastItem(i)
-                        .onPlaybackChanged(isPlaying() || (player != null && !prepared) || pendingHandover != 0L)
+                    peers.getBroadcastItem(i).onPlaybackChanged(
+                        isPlaying() || (player != null && !prepared) || pendingHandover != 0L
+                    )
                 }
             }
         } finally {
             peers.finishBroadcast()
         }
-        val position = if (prepared) runCatching {
-            player?.currentPosition?.toLong() ?: 0
-        }.getOrDefault(0) else 0
+        val position = if (prepared) {
+            runCatching { player?.currentPosition?.toLong() ?: 0 }.getOrDefault(0)
+        } else {
+            0
+        }
         snapshot = PlayerState(
             queue.tracks.map { it.copy(waveform = it.waveform.toList()) },
             queue.index,
@@ -700,31 +810,45 @@ class PlayerService : Service() {
         val count = callbacks.beginBroadcast()
         try {
             repeat(count) { i ->
-                runCatching {
-                    callbacks.getBroadcastItem(i).onStateChanged(snapshot)
-                }
+                runCatching { callbacks.getBroadcastItem(i).onStateChanged(snapshot) }
             }
         } finally {
             callbacks.finishBroadcast()
         }
-        val state =
-            if (snapshot.playing) PlaybackState.STATE_PLAYING else if (snapshot.preparing) PlaybackState.STATE_BUFFERING else if (error != null) PlaybackState.STATE_ERROR else PlaybackState.STATE_PAUSED
+        val state = when {
+            snapshot.playing -> PlaybackState.STATE_PLAYING
+            snapshot.preparing -> PlaybackState.STATE_BUFFERING
+            error != null -> PlaybackState.STATE_ERROR
+            else -> PlaybackState.STATE_PAUSED
+        }
         session.setPlaybackState(
             PlaybackState.Builder()
-                .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_SEEK_TO or PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_STOP)
-                .setState(state, position, speed).build()
+                .setActions(
+                    PlaybackState.ACTION_PLAY or
+                        PlaybackState.ACTION_PAUSE or
+                        PlaybackState.ACTION_SEEK_TO or
+                        PlaybackState.ACTION_SKIP_TO_NEXT or
+                        PlaybackState.ACTION_SKIP_TO_PREVIOUS or
+                        PlaybackState.ACTION_STOP
+                )
+                .setState(state, position, speed)
+                .build()
         )
         queue.tracks.getOrNull(queue.index)?.let { track ->
             session.setMetadata(
-                MediaMetadata.Builder().putString(MediaMetadata.METADATA_KEY_TITLE, track.title)
-                    .putLong(MediaMetadata.METADATA_KEY_DURATION, duration).build()
+                MediaMetadata.Builder()
+                    .putString(MediaMetadata.METADATA_KEY_TITLE, track.title)
+                    .putLong(MediaMetadata.METADATA_KEY_DURATION, duration)
+                    .build()
             )
         }
         session.isActive = queue.tracks.isNotEmpty()
-        if (foreground) (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(
-            NOTIFICATION,
-            notification(snapshot)
-        )
+        if (foreground) {
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(
+                NOTIFICATION,
+                notification(snapshot)
+            )
+        }
         updatePositionTicker()
     }
 
@@ -751,10 +875,9 @@ class PlayerService : Service() {
 
     private fun updatePositionTicker() {
         handler.removeCallbacks(positionTick)
-        if (!closed && callbacks.registeredCallbackCount > 0 && isPlaying()) handler.postDelayed(
-            positionTick,
-            500
-        )
+        if (!closed && callbacks.registeredCallbackCount > 0 && isPlaying()) {
+            handler.postDelayed(positionTick, 500)
+        }
     }
 
     private fun pending(action: String, code: Int) = PendingIntent.getService(
@@ -764,31 +887,97 @@ class PlayerService : Service() {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
+    private fun ensurePlaybackChannel() {
+        if (Build.VERSION.SDK_INT >= 26) {
+            val localized = localizedContext()
+            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val channel = manager.getNotificationChannel(CHANNEL) ?: NotificationChannel(
+                CHANNEL,
+                localized.getString(R.string.m5_player_channel),
+                NotificationManager.IMPORTANCE_LOW
+            )
+            channel.name = localized.getString(R.string.m5_player_channel)
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun resolveAppLocales(): LocaleListCompat {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val systemLocales = getSystemService(LocaleManager::class.java)?.applicationLocales
+            if (systemLocales != null && !systemLocales.isEmpty) {
+                return LocaleListCompat.wrap(systemLocales)
+            }
+        }
+        val delegateLocales = AppCompatDelegate.getApplicationLocales()
+        if (!delegateLocales.isEmpty) return delegateLocales
+        val persisted = readPersistedAppLocales()
+        return if (!persisted.isNullOrBlank()) {
+            LocaleListCompat.forLanguageTags(persisted)
+        } else {
+            LocaleListCompat.getEmptyLocaleList()
+        }
+    }
+
+    private fun readPersistedAppLocales(): String? = runCatching {
+        openFileInput(APP_LOCALES_RECORD_FILE).bufferedReader().use { reader ->
+            val parser = Xml.newPullParser()
+            parser.setInput(reader)
+            var eventType = parser.eventType
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                if (eventType == XmlPullParser.START_TAG && parser.name == "locales") {
+                    return@use parser.getAttributeValue(null, "application_locales")
+                        ?.takeIf { it.isNotBlank() }
+                }
+                eventType = parser.next()
+            }
+            null
+        }
+    }.getOrNull()
+
+    private fun localizedContext(): Context {
+        val locales = resolveAppLocales()
+        if (locales.isEmpty) return this
+        val config = Configuration(resources.configuration)
+        config.setLocales(LocaleList.forLanguageTags(locales.toLanguageTags()))
+        return createConfigurationContext(config)
+    }
+
     private fun notification(state: PlayerState): Notification {
+        val localized = localizedContext()
         val content = PendingIntent.getActivity(
             this,
             18000,
-            Intent().setClassName(packageName, packageName + ".feature.player.PlayerActivity")
+            Intent()
+                .setClassName(packageName, packageName + ".feature.player.PlayerActivity")
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        @Suppress("DEPRECATION") val builder =
-            if (Build.VERSION.SDK_INT >= 26) Notification.Builder(
-                this,
-                CHANNEL
-            ) else Notification.Builder(this)
-        return builder.setSmallIcon(R.drawable.ic_mic).setContentTitle(
-            state.queue.getOrNull(state.index)?.title ?: getString(R.string.m5_player_title)
-        )
-            .setContentText(getString(if (state.playing) R.string.m5_player_playing else R.string.m5_player_paused))
-            .setContentIntent(content).setOnlyAlertOnce(true).setOngoing(state.playing)
+        @Suppress("DEPRECATION")
+        val builder = if (Build.VERSION.SDK_INT >= 26) {
+            Notification.Builder(this, CHANNEL)
+        } else {
+            Notification.Builder(this)
+        }
+        return builder
+            .setSmallIcon(R.drawable.ic_mic)
+            .setContentTitle(
+                state.queue.getOrNull(state.index)?.title
+                    ?: localized.getString(R.string.m5_player_title)
+            )
+            .setContentText(
+                localized.getString(
+                    if (state.playing) R.string.m5_player_playing else R.string.m5_player_paused
+                )
+            )
+            .setContentIntent(content)
+            .setOnlyAlertOnce(true)
+            .setOngoing(state.playing)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
             .addAction(
                 Notification.Action.Builder(
-                    Icon.createWithResource(
-                        this,
-                        R.drawable.ic_player_previous
-                    ), getString(R.string.m5_player_previous), pending(PREVIOUS, 18011)
+                    Icon.createWithResource(this, R.drawable.ic_player_previous),
+                    localized.getString(R.string.m5_player_previous),
+                    pending(PREVIOUS, 18011)
                 ).build()
             )
             .addAction(
@@ -797,34 +986,41 @@ class PlayerService : Service() {
                         this,
                         if (state.playing) R.drawable.ic_media_pause else R.drawable.ic_media_play
                     ),
-                    getString(if (state.playing) R.string.m5_player_pause else R.string.m5_player_play),
+                    localized.getString(
+                        if (state.playing) R.string.m5_player_pause else R.string.m5_player_play
+                    ),
                     pending(if (state.playing) PAUSE else PLAY, 18012)
                 ).build()
             )
             .addAction(
                 Notification.Action.Builder(
-                    Icon.createWithResource(
-                        this,
-                        R.drawable.ic_player_next
-                    ), getString(R.string.m5_player_next), pending(NEXT, 18013)
+                    Icon.createWithResource(this, R.drawable.ic_player_next),
+                    localized.getString(R.string.m5_player_next),
+                    pending(NEXT, 18013)
                 ).build()
             )
             .addAction(
                 Notification.Action.Builder(
-                    Icon.createWithResource(
-                        this,
-                        R.drawable.ic_close
-                    ), getString(R.string.m5_player_close), pending(CLOSE, 18014)
+                    Icon.createWithResource(this, R.drawable.ic_close),
+                    localized.getString(R.string.m5_player_close),
+                    pending(CLOSE, 18014)
                 ).build()
             )
             .setStyle(
-                Notification.MediaStyle().setMediaSession(session.sessionToken)
+                Notification.MediaStyle()
+                    .setMediaSession(session.sessionToken)
                     .setShowActionsInCompactView(0, 1, 2)
-            ).build()
+            )
+            .build()
     }
 
-    private fun shutdown() {
-        if (closed) return
+    private fun shutdown(
+        expectedGeneration: Long? = null,
+        stopStartId: Int? = null,
+        fromDestroy: Boolean = false
+    ) {
+        if (expectedGeneration != null && expectedGeneration != reopenGeneration) return
+        if (closed && callbacksKilled) return
         focusPolicy.userPause()
         cancelSleep()
         releaseEngine()
@@ -840,17 +1036,21 @@ class PlayerService : Service() {
         }
         peers.kill()
         closed = true
+        callbacksKilled = true
         handler.removeCallbacks(positionTick)
         callbacks.kill()
         session.isActive = false
         stopForeground(STOP_FOREGROUND_REMOVE)
         foreground = false
-        stopSelf()
+        if (!fromDestroy) {
+            val id = stopStartId ?: latestStartId
+            if (id != 0) stopSelfResult(id) else stopSelf()
+        }
     }
 
     override fun onDestroy() {
         handler.post {
-            shutdown()
+            shutdown(fromDestroy = true)
             audio.unregisterAudioDeviceCallback(devices)
             session.release()
             thread.quitSafely()

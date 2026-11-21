@@ -3,6 +3,7 @@ package com.ntq.training.momentbox.feature.create
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -15,21 +16,25 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.lifecycleScope
 import com.google.gson.Gson
 import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.media.OwnedImageFiles
 import com.ntq.training.momentbox.databinding.ActivityCreateBinding
 import com.ntq.training.momentbox.feature.camera.CameraFragment
 import com.ntq.training.momentbox.feature.compose.ComposeFragment
 import com.ntq.training.momentbox.feature.crop.CropFragment
 import com.ntq.training.momentbox.feature.editor.PhotoEditorFragment
 import com.ntq.training.momentbox.feature.gallery.GalleryFragment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 data class CreateInput(
     val imagesOnly: Boolean = false,
     val initial: List<SelectedMedia> = emptyList(),
     val start: String = "gallery",
     val maxItems: Int = 10,
-    val purpose: String = "default"
+    val purpose: String = "default",
 )
 
 /** Contract nội bộ: chỉ nhận kết quả OK có JSON đọc được, Cancel trả danh sách rỗng. */
@@ -43,8 +48,9 @@ class CreateMediaContract : ActivityResultContract<CreateInput, List<SelectedMed
             .putExtra("start", input.start)
 
     override fun parseResult(resultCode: Int, intent: Intent?): List<SelectedMedia> =
-        if (resultCode != Activity.RESULT_OK) emptyList()
-        else
+        if (resultCode != Activity.RESULT_OK) {
+            emptyList()
+        } else {
             runCatching {
                 Gson()
                     .fromJson(
@@ -54,17 +60,23 @@ class CreateMediaContract : ActivityResultContract<CreateInput, List<SelectedMed
                     .toList()
             }
                 .getOrDefault(emptyList())
+        }
 }
 
 /** Host standard, các bước trao đổi qua Fragment Result thay vì nhiều Activity. */
 class CreateActivity : AppCompatActivity() {
+    companion object {
+        const val EXTRA_PUBLISHED_POST = "published_post"
+    }
+
     val model: CreateViewModel by viewModels()
+    private lateinit var binding: ActivityCreateBinding
     private var navigationPending = false
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         enableEdgeToEdge()
-        val binding = ActivityCreateBinding.inflate(layoutInflater)
+        binding = ActivityCreateBinding.inflate(layoutInflater)
         setContentView(binding.root)
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val bars =
@@ -96,34 +108,45 @@ class CreateActivity : AppCompatActivity() {
                 }
                     .getOrDefault(emptyList())
             )
+            val initialFragment =
+                when (intent.getStringExtra("start")) {
+                    "text" -> ComposeFragment()
+                    "camera" -> CameraFragment()
+                    else -> GalleryFragment()
+                }
             supportFragmentManager
                 .beginTransaction()
                 .replace(
                     binding.root.id,
-                    when (intent.getStringExtra("start")) {
-                        "text" -> ComposeFragment()
-                        "camera" -> CameraFragment()
-                        else -> GalleryFragment()
-                    },
+                    initialFragment,
                     if (intent.getStringExtra("start") == "text") "compose" else "gallery",
                 )
                 .commit()
+            applySystemBars(initialFragment)
+        }
+        supportFragmentManager.addOnBackStackChangedListener {
+            rollbackPendingCaptureIfOnCamera()
+            applySystemBars()
         }
         // Màu vùng padding hệ thống theo màn đang hiển thị, không thay custom Splash của M1.
         supportFragmentManager.registerFragmentLifecycleCallbacks(
             object : FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentStarted(manager: FragmentManager, fragment: Fragment) {
+                    rollbackPendingCaptureIfOnCamera(fragment)
+                    applySystemBars(fragment)
+                }
+
                 override fun onFragmentResumed(manager: FragmentManager, fragment: Fragment) {
                     navigationPending = false
-                    val dark =
-                        fragment is CameraFragment || fragment is CropFragment || fragment is PhotoEditorFragment
-                    binding.root.setBackgroundColor(
-                        if (dark) 0xFF0E0E12.toInt() else getColor(R.color.surface)
-                    )
-                    WindowCompat.getInsetsController(window, binding.root).apply {
-                        isAppearanceLightStatusBars = !dark
-                        isAppearanceLightNavigationBars = !dark
-                    }
+                    rollbackPendingCaptureIfOnCamera(fragment)
+                    applySystemBars(fragment)
                     ViewCompat.requestApplyInsets(binding.root)
+                    // Re-apply after transition & SurfaceView detach settle on OEM SystemUI.
+                    window.decorView.post {
+                        if (!isDestroyed && !isFinishing) {
+                            applySystemBars()
+                        }
+                    }
                 }
             },
             false,
@@ -134,7 +157,7 @@ class CreateActivity : AppCompatActivity() {
                 override fun handleOnBackPressed() {
                     if (
                         model.hasAddBackup &&
-                        supportFragmentManager.findFragmentById(binding.root.id) is
+                            supportFragmentManager.findFragmentById(binding.root.id) is
                                 GalleryFragment
                     ) {
                         model.cancelAdd()
@@ -177,10 +200,14 @@ class CreateActivity : AppCompatActivity() {
             if (navigationPending) return@setFragmentResultListener
             if (model.items.value.size >= model.maxItems) {
                 Toast.makeText(
-                    this,
-                    resources.getQuantityString(R.plurals.m4_limit_remaining, model.maxItems, model.maxItems),
-                    Toast.LENGTH_SHORT,
-                )
+                        this,
+                        resources.getQuantityString(
+                            R.plurals.m4_limit_remaining,
+                            model.maxItems,
+                            model.maxItems,
+                        ),
+                        Toast.LENGTH_SHORT,
+                    )
                     .show()
                 return@setFragmentResultListener
             }
@@ -201,20 +228,37 @@ class CreateActivity : AppCompatActivity() {
                     mime,
                     if (mime.startsWith("video/")) result.getLong("duration") else null,
                 )
-            if (model.toggle(captured) == SelectionChange.ADDED) {
-                if (!captured.isVideo) {
-                    model.submitted()
-                    openCrop(captured)
-                    return@setFragmentResultListener
+            when (val change = model.beginCameraCapture(captured)) {
+                SelectionChange.ADDED -> {
+                    if (!captured.isVideo) {
+                        openCrop(captured)
+                        return@setFragmentResultListener
+                    }
+                    supportFragmentManager.setFragmentResult("gallery_reset", Bundle())
+                    if (supportFragmentManager.backStackEntryCount > 0) {
+                        supportFragmentManager.popBackStack()
+                    } else {
+                        supportFragmentManager
+                            .beginTransaction()
+                            .replace(binding.root.id, GalleryFragment(), "gallery")
+                            .commit()
+                    }
                 }
-                supportFragmentManager.setFragmentResult("gallery_reset", Bundle())
-                if (supportFragmentManager.backStackEntryCount > 0)
-                    supportFragmentManager.popBackStack()
-                else
-                    supportFragmentManager
-                        .beginTransaction()
-                        .replace(binding.root.id, GalleryFragment(), "gallery")
-                        .commit()
+                else -> {
+                    deleteOwnedMediaAsync(listOf(uri))
+                    val message =
+                        when (change) {
+                            SelectionChange.LIMIT ->
+                                resources.getQuantityString(
+                                    R.plurals.m4_limit_remaining,
+                                    model.maxItems,
+                                    model.maxItems,
+                                )
+                            SelectionChange.UNSUPPORTED_VIDEO -> getString(R.string.m4_video_invalid)
+                            else -> getString(R.string.m4_capture_error)
+                        }
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                }
             }
         }
         supportFragmentManager.setFragmentResultListener("create_selection", this) { _, _ ->
@@ -222,10 +266,12 @@ class CreateActivity : AppCompatActivity() {
             if (intent.getStringExtra("purpose") == "chat") {
                 setResult(
                     RESULT_OK,
-                    Intent().putExtra("media", Gson().toJson(model.items.value))
+                    Intent().putExtra("media", Gson().toJson(model.items.value)),
                 )
                 finish()
-            } else nextPhoto()
+            } else {
+                nextPhoto()
+            }
         }
         supportFragmentManager.setFragmentResultListener("create_cropped", this) { _, result ->
             supportFragmentManager
@@ -240,47 +286,92 @@ class CreateActivity : AppCompatActivity() {
         supportFragmentManager.setFragmentResultListener("create_edited", this) { _, result ->
             val id = result.getString("id") ?: return@setFragmentResultListener
             val uri = result.getString("uri") ?: return@setFragmentResultListener
+            val previousUri = model.items.value.firstOrNull { it.id == id }?.uri
+            val pendingCaptureUri = model.commitCameraCapture(id)
             model.edited(id, uri)
+            val remainingUris = model.items.value.map { it.uri }.toSet()
+            val obsoleteUris =
+                listOfNotNull(previousUri, pendingCaptureUri)
+                    .distinct()
+                    .filter { it != uri && it !in remainingUris }
+            deleteOwnedMediaAsync(obsoleteUris)
             supportFragmentManager.popBackStack("crop", FragmentManager.POP_BACK_STACK_INCLUSIVE)
             binding.root.post { nextPhoto() }
         }
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && ::binding.isInitialized) {
+            applySystemBars()
+        }
+    }
+
+    private fun applySystemBars(
+        fragment: Fragment? = supportFragmentManager.findFragmentById(binding.root.id)
+    ) {
+        val dark =
+            fragment is CameraFragment ||
+                fragment is CropFragment ||
+                fragment is PhotoEditorFragment
+        val isNightMode =
+            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+        val lightBars = !dark && !isNightMode
+        binding.root.setBackgroundColor(
+            if (dark) 0xFF0E0E12.toInt() else getColor(R.color.surface)
+        )
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = lightBars
+            isAppearanceLightNavigationBars = lightBars
+        }
+    }
+
+    private fun rollbackPendingCaptureIfOnCamera(
+        fragment: Fragment? = supportFragmentManager.findFragmentById(binding.root.id)
+    ) {
+        if (fragment is CameraFragment) {
+            model.rollbackPendingCameraCapture()?.let { abandonedUri ->
+                deleteOwnedMediaAsync(listOf(abandonedUri))
+            }
+        }
+    }
+
+    private fun deleteOwnedMediaAsync(uris: List<String>) {
+        if (uris.isEmpty()) return
+        val appContext = applicationContext
+        lifecycleScope.launch(Dispatchers.IO) {
+            uris.forEach { OwnedImageFiles.deleteOwnedMediaUri(appContext, it) }
+        }
+    }
+
     private fun nextPhoto() {
         val item = model.nextPhoto()
-        if (item != null) supportFragmentManager.beginTransaction().replace(
-            R.id.create_host,
-            CropFragment().apply {
-                arguments = Bundle().apply {
-                    putString("uri", item.uri)
-                    putString(
-                    "id",
-                    item.id
-                )
-                putBoolean("squareOnly", intent.getStringExtra("purpose") == "avatar")
-                }
-            }).addToBackStack("crop").commit()
-        else if (model.imagesOnly) {
+        if (item != null) {
+            openCrop(item)
+        } else if (model.imagesOnly) {
             setResult(
                 RESULT_OK,
-                Intent().putExtra("media", Gson().toJson(model.items.value))
+                Intent().putExtra("media", Gson().toJson(model.items.value)),
             )
             finish()
-        } else if ((0 until supportFragmentManager.backStackEntryCount).any {
-                supportFragmentManager.getBackStackEntryAt(
-                    it
-                ).name == "add-media"
-            }) {
+        } else if (
+            (0 until supportFragmentManager.backStackEntryCount).any {
+                supportFragmentManager.getBackStackEntryAt(it).name == "add-media"
+            }
+        ) {
             model.completeAdd()
             supportFragmentManager.popBackStack(
                 "add-media",
-                FragmentManager.POP_BACK_STACK_INCLUSIVE
+                FragmentManager.POP_BACK_STACK_INCLUSIVE,
             )
-        } else supportFragmentManager.beginTransaction().replace(
-            R.id.create_host,
-            ComposeFragment(),
-            "compose"
-        ).addToBackStack("compose").commit()
+        } else {
+            supportFragmentManager
+                .beginTransaction()
+                .replace(R.id.create_host, ComposeFragment(), "compose")
+                .addToBackStack("compose")
+                .commit()
+        }
     }
 
     private fun openCrop(item: SelectedMedia) {
@@ -293,6 +384,7 @@ class CreateActivity : AppCompatActivity() {
                         Bundle().apply {
                             putString("uri", item.uri)
                             putString("id", item.id)
+                            putBoolean("squareOnly", intent.getStringExtra("purpose") == "avatar")
                         }
                 },
             )

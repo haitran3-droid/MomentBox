@@ -12,6 +12,7 @@ import com.ntq.training.momentbox.data.local.prefs.JournalFilterState
 import com.ntq.training.momentbox.data.repository.JournalDayCount
 import com.ntq.training.momentbox.data.repository.JournalDeletionScheduler
 import com.ntq.training.momentbox.data.repository.JournalRepository
+import com.ntq.training.momentbox.feature.journal.stats.JournalStatsCalculator
 import java.time.Clock
 import java.time.temporal.TemporalAdjusters
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -59,7 +60,7 @@ sealed interface JournalEvent {
 @OptIn(ExperimentalCoroutinesApi::class)
 class JournalViewModel(
     private val journalRepository: JournalRepository,
-    private val savedState: SavedStateHandle = SavedStateHandle(),
+    private val savedState: SavedStateHandle,
     private val clock: Clock = Clock.systemDefaultZone()
 ) : ViewModel() {
 
@@ -131,15 +132,9 @@ class JournalViewModel(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val streakDaysFlow: StateFlow<Int> = journalRepository.observeWrittenDays().map { days ->
-        val dates =
-            days.map(LocalDate::parse).filterNot { it.isAfter(LocalDate.now(clock)) }.toSet()
-        var anchor = dates.maxOrNull()
-        var count = 0
-        while (anchor != null && anchor in dates) {
-            count++
-            anchor = anchor.minusDays(1)
-        }
-        count
+        val today = LocalDate.now(clock)
+        val dates = days.map(LocalDate::parse)
+        JournalStatsCalculator.calculateCurrentStreak(dates, today)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     // Repository production sở hữu scheduler ở Application; fake/in-memory dùng scope của VM.
@@ -184,8 +179,6 @@ class JournalViewModel(
             val result = journalRepository.softDelete(id)
             if (result.isSuccess) {
                 _events.emit(JournalEvent.ShowUndoSnackbar(id))
-
-
             }
         }
     }
@@ -366,11 +359,6 @@ class JournalViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T =
                 JournalViewModel(journalRepository, extras.createSavedStateHandle(), clock) as T
-
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return JournalViewModel(journalRepository, clock = clock) as T
-            }
         }
     }
 }

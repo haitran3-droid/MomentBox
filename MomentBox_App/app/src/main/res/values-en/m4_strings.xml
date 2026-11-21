@@ -55,6 +55,7 @@
     <string name="m4_discard_edits">Discard image changes?</string>
     <string name="m4_discard">Discard</string>
     <string name="m4_record_title">Recorder</string>
+    <string name="m4_start_recording">Start recording</string>
     <string name="m4_paused">Paused</string>
     <string name="m4_recording">Recording</string>
     <string name="m4_resume">Resume</string>
@@ -81,7 +82,6 @@
     <string name="m4_upload">Uploading</string>
     <string name="m4_posted">Posted</string>
     <string name="m4_save_draft">Save post draft?</string>
-    <string name="m4_retry_uncertain">The server may have accepted the previous request despite a lost response. Retrying may duplicate the post. Continue?</string>
     <string name="m4_retry">Retry</string>
     <string name="m4_journal_failed">Posted, but Journal save failed. Retry saves only to Journal.</string>
     <string name="m4_not_posted">Posting unconfirmed. Draft preserved.</string>

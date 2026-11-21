@@ -1,19 +1,19 @@
 package com.ntq.training.momentbox.feature.tabs
 
-import kotlinx.coroutines.flow.combine
 import android.content.Context
 import android.content.Intent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
+import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
+import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.ConcatAdapter
-import com.ntq.training.momentbox.databinding.ItemJournalOverviewBinding
-import com.ntq.training.momentbox.feature.journal.JournalStickyHeader
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
@@ -21,20 +21,24 @@ import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.base.BaseFragment
 import com.ntq.training.momentbox.databinding.FragmentJournalBinding
+import com.ntq.training.momentbox.databinding.ItemJournalOverviewBinding
 import com.ntq.training.momentbox.feature.journal.JournalEntriesAdapter
 import com.ntq.training.momentbox.feature.journal.JournalEvent
 import com.ntq.training.momentbox.feature.journal.JournalListItem
+import com.ntq.training.momentbox.feature.journal.JournalStickyHeader
 import com.ntq.training.momentbox.feature.journal.JournalSwipeCallback
 import com.ntq.training.momentbox.feature.journal.JournalViewModel
 import com.ntq.training.momentbox.feature.journal.editor.JournalEditorActivity
 import com.ntq.training.momentbox.feature.journal.filter.JournalFilterBottomSheetDialogFragment
 import com.ntq.training.momentbox.feature.journal.stats.JournalStatsActivity
-import kotlinx.coroutines.launch
+import com.ntq.training.momentbox.feature.journal.stats.JournalStatsCalculator
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 
 class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBinding::inflate) {
 
@@ -46,6 +50,8 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
     private lateinit var overview: ItemJournalOverviewBinding
     private lateinit var swipeCallback: JournalSwipeCallback
     private lateinit var adapter: JournalEntriesAdapter
+    private var searchBackCallback: OnBackPressedCallback? = null
+
     private val monthFormatter = DateTimeFormatter.ofPattern(
         if (Locale.getDefault().language == "vi") "LLLL, yyyy" else "LLLL yyyy",
         Locale.getDefault()
@@ -56,6 +62,24 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
         setupCalendarView()
         setupToolbarAndSearch()
         setupFab()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateSearchBackCallbackState()
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (hidden && ::swipeCallback.isInitialized) {
+            swipeCallback.closeRevealed()
+        }
+        updateSearchBackCallbackState()
+    }
+
+    override fun onDestroyView() {
+        searchBackCallback = null
+        super.onDestroyView()
     }
 
     private fun setupRecyclerView() {
@@ -77,10 +101,10 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
         )
 
         binding.rvJournalEntries.layoutManager = LinearLayoutManager(requireContext())
-        overview =
-            ItemJournalOverviewBinding.inflate(layoutInflater, binding.rvJournalEntries, false)
+        overview = ItemJournalOverviewBinding.inflate(layoutInflater, binding.rvJournalEntries, false)
         val overviewAdapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             override fun getItemCount() = 1
+
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
                 object : RecyclerView.ViewHolder(overview.root) {}
 
@@ -92,13 +116,22 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
         // Gắn thao tác vuốt sang trái lộ Ghim/Xóa
         swipeCallback = JournalSwipeCallback(requireContext()) { revealed ->
             // FAB che đúng tâm nút Ghim/Xóa ở cuối viewport: ẩn tạm khi đang reveal, không đổi kích thước list.
-            binding.fabWriteJournal.visibility = if (revealed) View.INVISIBLE else View.VISIBLE
+            val fab = bindingOrNull?.fabWriteJournal ?: return@JournalSwipeCallback
+            val targetVisibility = if (revealed) View.INVISIBLE else View.VISIBLE
+            if (fab.visibility != targetVisibility) {
+                fab.visibility = targetVisibility
+            }
         }
         binding.rvJournalEntries.addOnItemTouchListener(swipeCallback)
+        binding.rvJournalEntries.addOnChildAttachStateChangeListener(swipeCallback)
     }
 
     private fun setupCalendarView() {
         val calendarView = overview.moodCalendarView
+        calendarView.restoreCalendarState(
+            viewModel.calendarYearMonth.value,
+            viewModel.selectedCalendarDate.value
+        )
         updateCalendarHeader(calendarView.getYearMonth())
 
         calendarView.onMonthChangedListener = { yearMonth ->
@@ -159,32 +192,29 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
     }
 
     private fun setupToolbarAndSearch() {
+        val callback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                closeSearch()
+            }
+        }
+        searchBackCallback = callback
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, callback)
+
         binding.etSearchQuery.setText(viewModel.searchQuery.value)
         if (viewModel.searchQuery.value.isNotEmpty()) {
             binding.layoutNormalToolbar.visibility = View.GONE
             binding.layoutSearchInput.visibility = View.VISIBLE
         }
+        updateSearchBackCallbackState()
+
         // Nút mở tìm kiếm
-        binding.btnSearch.setOnClickListener {
-            binding.layoutNormalToolbar.visibility = View.GONE
-            binding.layoutSearchInput.visibility = View.VISIBLE
-            binding.etSearchQuery.requestFocus()
-            val imm =
-                requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-            imm?.showSoftInput(binding.etSearchQuery, InputMethodManager.SHOW_IMPLICIT)
-        }
+        binding.btnSearch.setOnClickListener { openSearch() }
 
         // Nút đóng tìm kiếm
-        binding.btnCloseSearch.setOnClickListener {
-            binding.etSearchQuery.setText("")
-            binding.layoutSearchInput.visibility = View.GONE
-            binding.layoutNormalToolbar.visibility = View.VISIBLE
-            val imm =
-                requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-            imm?.hideSoftInputFromWindow(binding.etSearchQuery.windowToken, 0)
-        }
+        binding.btnCloseSearch.setOnClickListener { closeSearch() }
 
         binding.etSearchQuery.doAfterTextChanged { text ->
+            swipeCallback.closeRevealed()
             viewModel.onSearchQueryChanged(text?.toString().orEmpty())
         }
 
@@ -196,12 +226,63 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
 
         // Nút mở Bộ lọc S07b
         binding.btnFilter.setOnClickListener {
+            swipeCallback.closeRevealed()
+            if (
+                !isAdded ||
+                parentFragmentManager.isStateSaved ||
+                parentFragmentManager.findFragmentByTag(JournalFilterBottomSheetDialogFragment.TAG) != null
+            ) {
+                return@setOnClickListener
+            }
             val currentQuery = viewModel.searchQuery.value.trim().ifEmpty { null }
             val filterBottomSheet = JournalFilterBottomSheetDialogFragment.newInstance(currentQuery)
-            filterBottomSheet.show(
+            filterBottomSheet.showNow(
                 parentFragmentManager,
                 JournalFilterBottomSheetDialogFragment.TAG
             )
+        }
+    }
+
+    private fun openSearch() {
+        swipeCallback.closeRevealed()
+        binding.layoutNormalToolbar.visibility = View.GONE
+        binding.layoutSearchInput.visibility = View.VISIBLE
+        binding.etSearchQuery.requestFocus()
+        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.showSoftInput(binding.etSearchQuery, InputMethodManager.SHOW_IMPLICIT)
+        updateSearchBackCallbackState()
+    }
+
+    private fun closeSearch() {
+        swipeCallback.closeRevealed()
+        binding.etSearchQuery.setText("")
+        binding.etSearchQuery.clearFocus()
+        binding.layoutSearchInput.visibility = View.GONE
+        binding.layoutNormalToolbar.visibility = View.VISIBLE
+        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.hideSoftInputFromWindow(binding.etSearchQuery.windowToken, 0)
+        viewModel.onSearchQueryChanged("")
+        updateSearchBackCallbackState()
+    }
+
+    private fun updateSearchBackCallbackState() {
+        val searchVisible = bindingOrNull?.layoutSearchInput?.isVisible == true
+        searchBackCallback?.isEnabled = !isHidden && searchVisible
+    }
+
+    private fun updateEmptyState(isEmpty: Boolean, hasActiveSearchOrFilter: Boolean) {
+        overview.layoutEmptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        if (!isEmpty) return
+        val textViews = (0 until overview.layoutEmptyState.childCount)
+            .mapNotNull { overview.layoutEmptyState.getChildAt(it) as? TextView }
+        val titleView = textViews.getOrNull(0)
+        val descView = textViews.getOrNull(1)
+        if (hasActiveSearchOrFilter) {
+            titleView?.setText(R.string.journal_empty_search_title)
+            descView?.setText(R.string.journal_empty_search_desc)
+        } else {
+            titleView?.setText(R.string.journal_empty_title)
+            descView?.setText(R.string.journal_empty_desc)
         }
     }
 
@@ -214,9 +295,15 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
         binding.rvJournalEntries.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 if (dy != 0) swipeCallback.closeRevealed()
-                if (dy > 12) binding.fabWriteJournal.shrink() else if (dy < -12) binding.fabWriteJournal.extend()
+                if (dy > 12) {
+                    binding.fabWriteJournal.shrink()
+                } else if (dy < -12) {
+                    binding.fabWriteJournal.extend()
+                }
                 val manager = recyclerView.layoutManager as LinearLayoutManager
-                if (dy > 0 && manager.findLastVisibleItemPosition() >= manager.itemCount - 5) viewModel.loadNextPage()
+                if (dy > 0 && manager.findLastVisibleItemPosition() >= manager.itemCount - 5) {
+                    viewModel.loadNextPage()
+                }
             }
         })
     }
@@ -226,11 +313,23 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.entriesFlow.collect { items ->
-                        adapter.submitList(items) { applyScrollTarget() }
-                        val isEmpty = items.isEmpty()
-                        overview.layoutEmptyState.visibility =
-                            if (isEmpty) View.VISIBLE else View.GONE
+                        swipeCallback.closeRevealed()
+                        adapter.submitList(items) {
+                            swipeCallback.closeRevealed()
+                            applyScrollTarget()
+                        }
+                    }
+                }
 
+                launch {
+                    combine(
+                        viewModel.entriesFlow,
+                        viewModel.searchQuery,
+                        viewModel.filterStateFlow
+                    ) { items, query, filter ->
+                        Triple(items.isEmpty(), query.isNotBlank(), filter.isNonDefault)
+                    }.collect { (isEmpty, hasQuery, hasFilter) ->
+                        updateEmptyState(isEmpty, hasQuery || hasFilter)
                     }
                 }
 
@@ -243,7 +342,9 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
                         updateCalendarHeader(month)
                     }
                 }
+
                 launch { viewModel.scrollTarget.collect { applyScrollTarget() } }
+
                 launch {
                     viewModel.calendarMoodsFlow.collect { moods ->
                         overview.moodCalendarView.setDayMoods(moods)
@@ -251,9 +352,20 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
                 }
 
                 launch {
-                    viewModel.streakDaysFlow.collect { streakDays ->
-                        overview.tvCalendarStreak.text =
-                            resources.getQuantityString(R.plurals.journal_streak_days, streakDays, streakDays)
+                    val app = requireActivity().application as MomentBoxApp
+                    app.journalRepository.observeWrittenDays().collect { writtenDays ->
+                        val dates = writtenDays.mapNotNull {
+                            runCatching { LocalDate.parse(it) }.getOrNull()
+                        }
+                        val streakDays = JournalStatsCalculator.calculateCurrentStreak(
+                            writtenDates = dates,
+                            today = LocalDate.now(app.journalClock)
+                        )
+                        overview.tvCalendarStreak.text = resources.getQuantityString(
+                            R.plurals.journal_streak_days,
+                            streakDays,
+                            streakDays
+                        )
                         overview.tvCalendarStreak.visibility =
                             if (streakDays > 0) View.VISIBLE else View.GONE
                     }
@@ -261,6 +373,7 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
 
                 launch {
                     viewModel.filterStateFlow.collect { filter ->
+                        swipeCallback.closeRevealed()
                         binding.viewFilterActiveDot.visibility =
                             if (filter.isNonDefault) View.VISIBLE else View.GONE
                     }
@@ -274,6 +387,7 @@ class JournalFragment : BaseFragment<FragmentJournalBinding>(FragmentJournalBind
                                 R.string.journal_calendar_entries_filtered_out,
                                 Snackbar.LENGTH_SHORT
                             ).show()
+
                             is JournalEvent.ShowUndoSnackbar -> {
                                 Snackbar.make(
                                     binding.root,

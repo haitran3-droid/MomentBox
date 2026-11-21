@@ -19,8 +19,11 @@ const AUDIO_DIR = path.join(__dirname, 'public', 'audio');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 
 const db = seed.create();
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let nextPostId = Math.max(0, ...db.posts.map(post => post.id)) + 1;
+const postIdByOperation = new Map(); // author:clientId -> post ID, retained on delete until mock reset
 let nextCommentId = Math.max(0, ...db.comments.map(comment => comment.id)) + 1;
+const commentIdByOperation = new Map(); // author:postId:clientId -> comment ID, retained until mock reset
 let outageUntil = 0; // set by /v1/debug/socket/drop?outageSeconds=N
 const audioFiles = ensureAudio(AUDIO_DIR);
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -109,10 +112,18 @@ function postDto(base, p, viewer) {
   };
 }
 function commentDto(base, c, viewer) {
+  const includeClientId = Boolean(c.clientId && viewer && viewer.id === c.authorId);
   return {
-    id: c.id, postId: c.postId, parentId: c.parentId, author: authorDto(base, findUser(c.authorId)), content: c.content,
-    likeCount: [...db.commentLikes].filter(k => k.endsWith(':' + c.id)).length, isLiked: db.commentLikes.has(`${viewer.id}:${c.id}`),
-    replyCount: db.comments.filter(x => x.parentId === c.id).length, createdAt: c.createdAt,
+    id: c.id,
+    postId: c.postId,
+    parentId: c.parentId,
+    author: authorDto(base, findUser(c.authorId)),
+    content: c.content,
+    likeCount: [...db.commentLikes].filter(k => k.endsWith(':' + c.id)).length,
+    isLiked: db.commentLikes.has(`${viewer.id}:${c.id}`),
+    replyCount: db.comments.filter(x => x.parentId === c.id).length,
+    createdAt: c.createdAt,
+    ...(includeClientId ? { clientId: c.clientId } : {}),
   };
 }
 function messageStatus(message, viewerId) {
@@ -215,6 +226,7 @@ async function removePostUploads(filenames) {
 
 // ---------------------------------------------------------------- config & auth
 app.get('/v1/config', (req, res) => ok(res, {
+  version: '1.0.0',
   minSupportedVersionCode: 1, latestVersionCode: 12,
   socketUrl: baseOf(req), socketPath: '/socket.io',
   accessTokenTtl: ACCESS_TTL,
@@ -238,9 +250,19 @@ app.post('/v1/auth/refresh', (req, res) => {
   ok(res, issueTokens(s.userId));
 });
 
-app.post('/v1/auth/logout', auth, (req, res) => {
-  db.accessTokens.delete(req.token);
-  if (req.body?.refreshToken) db.refreshTokens.delete(req.body.refreshToken);
+app.post('/v1/auth/logout', (req, res) => {
+  const header = req.get('Authorization') || '';
+  const accessToken = header.startsWith('Bearer ') ? header.slice(7).trim() : null;
+  const refreshToken = typeof req.body?.refreshToken === 'string' ? req.body.refreshToken.trim() : null;
+
+  const accessSession = accessToken ? db.accessTokens.get(accessToken) : null;
+  const refreshSession = refreshToken ? db.refreshTokens.get(refreshToken) : null;
+  if (!accessSession && !refreshSession) return fail(req, res, 401, 'UNAUTHORIZED');
+
+  if (accessToken && accessSession) db.accessTokens.delete(accessToken);
+  if (refreshToken && refreshSession && (!accessSession || refreshSession.userId === accessSession.userId)) {
+    db.refreshTokens.delete(refreshToken);
+  }
   ok(res, null);
 });
 
@@ -330,8 +352,21 @@ app.post('/v1/posts', auth, upload.fields([{ name: 'media', maxCount: 10 }, { na
   const caption = String(req.body.caption || '').trim();
   const files = (req.files && req.files.media) || [];
   const voice = req.files && req.files.voice && req.files.voice[0];
+  const filenames = [...files, ...(voice ? [voice] : [])].map(file => file.filename);
+  const clientId = req.body.clientId;
+  let operation;
+  if (clientId !== undefined) {
+    if (typeof clientId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientId))
+      return removePostUploads(filenames).then(() => fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['clientId'] }), next);
+    operation = req.user.id + ':' + clientId.toLowerCase();
+    if (postIdByOperation.has(operation)) {
+      return removePostUploads(filenames).then(() => {
+        const prior = findPost(postIdByOperation.get(operation));
+        return prior ? ok(res, postDto(baseOf(req), prior, req.user)) : fail(req, res, 404, 'NOT_FOUND');
+      }, next);
+    }
+  }
   if (caption.length > 2200) {
-    const filenames = [...files, ...(voice ? [voice] : [])].map(file => file.filename);
     return removePostUploads(filenames).then(
       () => fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['caption'], max: 2200 }), next);
   }
@@ -346,6 +381,7 @@ app.post('/v1/posts', auth, upload.fields([{ name: 'media', maxCount: 10 }, { na
     allowComments: req.body.allowComments !== 'false', createdAt: new Date().toISOString(),
   };
   db.posts.push(p);
+  if (operation) postIdByOperation.set(operation, p.id);
   const recipients = db.users.filter(user => user.id !== req.user.id && canViewPost(user, p));
   for (const user of recipients) io.to('user:' + user.id).emit('feed:new', { count: 1, postId: p.id });
   res.status(201);
@@ -391,23 +427,73 @@ app.get('/v1/posts/:id/comments', auth, requireVisiblePost, (req, res) => {
   ok(res, items.map(c => commentDto(baseOf(req), c, req.user)), meta);
 });
 
+function commentMutationDto(base, comment, post, viewer) {
+  const postCommentCount = db.comments.filter(item => item.postId === post.id).length;
+  const parentCounts = comment.parentId != null
+    ? { parentReplyCount: db.comments.filter(item => item.parentId === comment.parentId).length }
+    : {};
+
+  return {
+    ...commentDto(base, comment, viewer),
+    postCommentCount,
+    ...parentCounts,
+  };
+}
+
 app.post('/v1/posts/:id/comments', auth, requireVisiblePost, (req, res) => {
   const p = req.post;
   const content = String(req.body?.content || '').trim();
-  if (!content || content.length > 500) return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['content'], max: 500 });
-  if (!p.allowComments) return fail(req, res, 403, 'FORBIDDEN');
+  if (!content || content.length > 500) {
+    return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['content'], max: 500 });
+  }
+
+  let normalizedClientId = null;
+  let operation = null;
+  if (req.body?.clientId !== undefined && req.body?.clientId !== null) {
+    if (typeof req.body.clientId !== 'string' || !UUID_V4.test(req.body.clientId)) {
+      return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['clientId'] });
+    }
+    normalizedClientId = req.body.clientId.toLowerCase();
+    operation = `${req.user.id}:${p.id}:${normalizedClientId}`;
+  }
+
+  if (!p.allowComments) {
+    return fail(req, res, 403, 'FORBIDDEN');
+  }
+
   let parentId = null;
   if (req.body.parentId != null) {
     const value = req.body.parentId;
     parentId = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
-    if (!Number.isSafeInteger(parentId) || !db.comments.some(parent =>
-      parent.id === parentId && parent.postId === p.id && parent.parentId == null
-    )) return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['parentId'] });
+    const parentExists = db.comments.some(
+      parent => parent.id === parentId && parent.postId === p.id && parent.parentId == null
+    );
+    if (!Number.isSafeInteger(parentId) || !parentExists) {
+      return fail(req, res, 400, 'VALIDATION_ERROR', { fields: ['parentId'] });
+    }
   }
-  const c = { id: nextCommentId++, postId: p.id, parentId, authorId: req.user.id, content, createdAt: new Date().toISOString() };
+
+  // Idempotent retry: trả về đúng bản ghi đã lưu theo khóa (userId, postId, clientId).
+  if (operation && commentIdByOperation.has(operation)) {
+    const prior = db.comments.find(item => item.id === commentIdByOperation.get(operation));
+    if (!prior) return fail(req, res, 404, 'NOT_FOUND');
+    return ok(res, commentMutationDto(baseOf(req), prior, p, req.user));
+  }
+
+  const c = {
+    id: nextCommentId++,
+    postId: p.id,
+    parentId,
+    authorId: req.user.id,
+    content,
+    createdAt: new Date().toISOString(),
+    ...(normalizedClientId ? { clientId: normalizedClientId } : {}),
+  };
   db.comments.push(c);
+  if (operation) commentIdByOperation.set(operation, c.id);
+
   res.status(201);
-  ok(res, commentDto(baseOf(req), c, req.user));
+  ok(res, commentMutationDto(baseOf(req), c, p, req.user));
 });
 
 for (const method of ['post', 'delete']) {

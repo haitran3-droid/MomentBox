@@ -59,7 +59,7 @@ interface FeedRepository {
     suspend fun loadFollowingState(userId: Long): Result<Boolean> =
         Result.failure(IllegalStateException("Follow relationship is not available"))
 
-    suspend fun toggleFollowUser(userId: Long, currentFlowing: Boolean): Result<Boolean>
+    suspend fun toggleFollowUser(userId: Long, currentFollowing: Boolean): Result<Boolean>
 
     suspend fun getComments(
         postId: Long,
@@ -69,7 +69,12 @@ interface FeedRepository {
         parentId: Long? = null,
     ): Result<List<Comment>>
 
-    suspend fun postComment(postId: Long, content: String, parentId: Long? = null): Result<Comment>
+    suspend fun postComment(
+        postId: Long,
+        content: String,
+        parentId: Long? = null,
+        clientId: String? = null,
+    ): Result<Comment>
 
     suspend fun toggleLikeComment(commentId: Long, currentLiked: Boolean): Result<Boolean>
 

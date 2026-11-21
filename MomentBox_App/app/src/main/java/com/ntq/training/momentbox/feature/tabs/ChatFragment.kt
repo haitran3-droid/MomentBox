@@ -1,25 +1,20 @@
 package com.ntq.training.momentbox.feature.tabs
 
-import android.content.Intent
-import android.provider.Settings
-import android.widget.TextView
-import androidx.core.app.NotificationManagerCompat
-import com.google.android.material.R as MaterialR
-import com.google.android.material.snackbar.Snackbar
-import com.ntq.training.momentbox.core.notification.NotificationPermissionDialog
-import com.ntq.training.momentbox.data.repository.ChatSession
-import kotlinx.coroutines.Job
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.app.Activity
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.isVisible
@@ -27,17 +22,24 @@ import androidx.core.widget.TextViewCompat
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.AbstractSavedStateViewModelFactory
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.R as MaterialR
+import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.ntq.training.momentbox.MomentBoxApp
+import com.ntq.training.momentbox.R
+import com.ntq.training.momentbox.core.notification.NotificationPermissionDialog
 import com.ntq.training.momentbox.core.realtime.SocketPhase
 import com.ntq.training.momentbox.data.remote.dto.ChatMemberDto
+import com.ntq.training.momentbox.data.repository.ChatSession
 import com.ntq.training.momentbox.databinding.FragmentChatBinding
 import com.ntq.training.momentbox.feature.chat.ChatActivity
 import com.ntq.training.momentbox.feature.chat.ChatListViewModel
@@ -47,21 +49,27 @@ import com.ntq.training.momentbox.feature.chat.ConversationItem
 import com.ntq.training.momentbox.feature.chat.NewConversationDialog
 import com.ntq.training.momentbox.feature.chat.OnlineAdapter
 import com.ntq.training.momentbox.feature.chat.socketLabels
-import com.ntq.training.momentbox.MomentBoxApp
-import com.ntq.training.momentbox.R
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class ChatFragment : Fragment() {
+    companion object {
+        private const val NEW_CONVERSATION_TAG = "following"
+    }
+
     private var binding: FragmentChatBinding? = null
     private val app get() = requireActivity().application as MomentBoxApp
     private val model: ChatListViewModel by viewModels {
-        object : AbstractSavedStateViewModelFactory(this, arguments) {
+        object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(
-                key: String,
-                c: Class<T>,
-                saved: SavedStateHandle
-            ): T = ChatListViewModel(app.chatRuntime, app.database.chatDao(), saved) as T
+                modelClass: Class<T>,
+                extras: CreationExtras
+            ): T = ChatListViewModel(
+                app.chatRuntime,
+                app.database.chatDao(),
+                extras.createSavedStateHandle()
+            ) as T
         }
     }
 
@@ -84,11 +92,8 @@ class ChatFragment : Fragment() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, back)
         detailBack = back
         val conversations = ConversationAdapter { open(it) }
-        val online = OnlineAdapter {
-            NewConversationDialog.forUser(it).show(childFragmentManager, "following")
-        }
-        b.conversations.layoutManager =
-            LinearLayoutManager(requireContext())
+        val online = OnlineAdapter { showNewConversationDialog(it) }
+        b.conversations.layoutManager = LinearLayoutManager(requireContext())
         b.conversations.adapter = conversations
         b.onlineUsers.layoutManager = LinearLayoutManager(
             requireContext(),
@@ -97,20 +102,11 @@ class ChatFragment : Fragment() {
         )
         b.onlineUsers.adapter = online
         b.search.setText(model.search.value)
-        b.search.doAfterTextChanged {
-            model.search(
-                it?.toString().orEmpty()
-            )
-        }
-        b.newChat.setOnClickListener {
-            if (childFragmentManager.findFragmentByTag("following") == null) NewConversationDialog().show(
-                childFragmentManager,
-                "following"
-            )
-        }
+        b.search.doAfterTextChanged { model.search(it?.toString().orEmpty()) }
+        b.newChat.setOnClickListener { showNewConversationDialog() }
         b.error.setOnClickListener { model.refresh() }
         b.connection.setOnClickListener {
-            app.socketManager.connect()
+            app.socketManager.reconnectNow()
             model.refresh()
         }
         childFragmentManager.setFragmentResultListener(
@@ -118,19 +114,17 @@ class ChatFragment : Fragment() {
             viewLifecycleOwner
         ) { _, result ->
             val expected = app.chatRuntime.session.value
-            if (!isHidden && NewConversationDialog.matches(
-                    result,
-                    expected
-                )
-            ) open(result.getLong("id"), expected)
+            if (!isHidden && NewConversationDialog.matches(result, expected)) {
+                open(result.getLong("id"), expected)
+            }
         }
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     model.selected.collect { id ->
-                        if (wide && arguments?.getBoolean("listOnly") != true && id > 0) showDetail(
-                            id
-                        )
+                        if (wide && arguments?.getBoolean("listOnly") != true && id > 0) {
+                            showDetail(id)
+                        }
                         detailBack?.isEnabled =
                             wide && id > 0 && !isHidden && arguments?.getBoolean("listOnly") != true
                     }
@@ -153,8 +147,7 @@ class ChatFragment : Fragment() {
                             )
                         })
                         online.submitList(state.users.filter { it.online })
-                        b.onlineUsers.isVisible =
-                        state.users.any { it.online }
+                        b.onlineUsers.isVisible = state.users.any { it.online }
                         b.empty.isVisible = state.rows.isEmpty()
                     }
                 }
@@ -164,7 +157,9 @@ class ChatFragment : Fragment() {
                         val connected = state.phase == SocketPhase.CONNECTED
                         TextViewCompat.setCompoundDrawableTintList(
                             b.connection,
-                            ColorStateList.valueOf(if (connected) 0xFF22C55E.toInt() else 0xFFF59E0B.toInt())
+                            ColorStateList.valueOf(
+                                if (connected) 0xFF22C55E.toInt() else 0xFFF59E0B.toInt()
+                            )
                         )
                         b.connection.setTextColor(
                             ContextCompat.getColor(
@@ -173,9 +168,8 @@ class ChatFragment : Fragment() {
                             )
                         )
                         b.connection.background = GradientDrawable().apply {
-                            cornerRadius =
-                                12 * resources.displayMetrics.density
-                                setColor(if (connected) 0xFFDCFCE7.toInt() else 0xFFFFF4E0.toInt())
+                            cornerRadius = 12 * resources.displayMetrics.density
+                            setColor(if (connected) 0xFFDCFCE7.toInt() else 0xFFFFF4E0.toInt())
                         }
                     }
                 }
@@ -186,17 +180,33 @@ class ChatFragment : Fragment() {
             NotificationPermissionDialog.RESULT,
             viewLifecycleOwner
         ) { _, result ->
-            if (result.getBoolean("enable") && Build.VERSION.SDK_INT >= 33) notifications.launch(
-                POST_NOTIFICATIONS
-            ) else notificationDisabled()
+            if (result.getBoolean("enable") && Build.VERSION.SDK_INT >= 33) {
+                notifications.launch(POST_NOTIFICATIONS)
+            } else {
+                notificationDisabled()
+            }
         }
         model.refresh()
+    }
+
+    private fun showNewConversationDialog(userId: Long? = null) {
+        if (childFragmentManager.isStateSaved) return
+        childFragmentManager.executePendingTransactions()
+        if (childFragmentManager.findFragmentByTag(NEW_CONVERSATION_TAG) != null) return
+        val dialog = if (userId != null) {
+            NewConversationDialog.forUser(userId)
+        } else {
+            NewConversationDialog()
+        }
+        dialog.show(childFragmentManager, NEW_CONVERSATION_TAG)
     }
 
     private var notificationNotice: Snackbar? = null
     private var permissionJob: Job? = null
     private val notifications =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (!granted) notificationDisabled() }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) notificationDisabled()
+        }
 
     private fun notificationDisabled() {
         val root = view ?: return
@@ -211,29 +221,27 @@ class ChatFragment : Fragment() {
             .setAnchorView(requireActivity().findViewById<View>(R.id.bottomNav))
             .setAction(R.string.m5_notification_settings) {
                 // API24–25 chưa có trang notification riêng; trang chi tiết app vẫn cho cấp lại quyền.
-                val target =
-                    if (Build.VERSION.SDK_INT >= 26) Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                        .putExtra(
-                            Settings.EXTRA_APP_PACKAGE,
-                            requireContext().packageName
-                        )
-                    else Intent(
+                val target = if (Build.VERSION.SDK_INT >= 26) {
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName)
+                } else {
+                    Intent(
                         Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                         "package:${requireContext().packageName}".toUri()
                     )
+                }
                 startActivity(target)
             }.also {
-                it.view.findViewById<TextView>(MaterialR.id.snackbar_text).maxLines =
-                    4
-                    it.show()
+                it.view.findViewById<TextView>(MaterialR.id.snackbar_text).maxLines = 4
+                it.show()
             }
     }
 
     private fun offerNotifications() {
-        if (!isResumed || isHidden || arguments?.getBoolean("listOnly") == true || permissionJob?.isActive == true) return
-        if (NotificationManagerCompat.from(requireContext())
-                .areNotificationsEnabled()
-        ) {
+        if (!isResumed || isHidden || arguments?.getBoolean("listOnly") == true || permissionJob?.isActive == true) {
+            return
+        }
+        if (NotificationManagerCompat.from(requireContext()).areNotificationsEnabled()) {
             notificationNotice?.dismiss()
             notificationNotice = null
             return
@@ -244,13 +252,16 @@ class ChatFragment : Fragment() {
             if (Build.VERSION.SDK_INT >= 33 && first) {
                 if (childFragmentManager.findFragmentByTag(NotificationPermissionDialog.TAG) == null) {
                     app.settingsDataStore.setNotificationPrompted(true)
-                    if (isResumed && !isHidden && !childFragmentManager.isStateSaved) NotificationPermissionDialog()
-                        .show(
+                    if (isResumed && !isHidden && !childFragmentManager.isStateSaved) {
+                        NotificationPermissionDialog().show(
                             childFragmentManager,
                             NotificationPermissionDialog.TAG
                         )
+                    }
                 }
-            } else if (childFragmentManager.findFragmentByTag(NotificationPermissionDialog.TAG) == null) notificationDisabled()
+            } else if (childFragmentManager.findFragmentByTag(NotificationPermissionDialog.TAG) == null) {
+                notificationDisabled()
+            }
         }
     }
 
@@ -262,17 +273,16 @@ class ChatFragment : Fragment() {
             if (result.resultCode == Activity.RESULT_OK) {
                 val data = result.data
                 val session = app.chatRuntime.session.value
-                if (session != null && data?.getStringExtra("owner") == session.ownerId && data.getStringExtra(
-                        "source"
-                    ) == session.source && data.getLongExtra("generation", -1) == session.generation
+                if (session != null &&
+                    data?.getStringExtra("owner") == session.ownerId &&
+                    data.getStringExtra("source") == session.source &&
+                    data.getLongExtra("generation", -1) == session.generation
                 ) {
                     val id = data.getLongExtra("conversationId", -1)
                     if (id > 0) {
                         model.select(id)
                         (childFragmentManager.findFragmentByTag("tablet-room") as? ChatRoomFragment)?.let {
-                            it.select(
-                                id
-                            )
+                            it.select(id)
                             it.restoreDraft(data.getStringExtra("draft").orEmpty())
                         }
                     }
@@ -286,16 +296,11 @@ class ChatFragment : Fragment() {
     ) {
         if (expected == null || app.chatRuntime.session.value != expected || id <= 0) return
         model.select(id)
-        if (arguments?.getBoolean("listOnly") == true && requireActivity() is ChatActivity) (requireActivity() as ChatActivity).select(
-            id
-        )
-        else if (wide) Unit else chatLauncher.launch(
-            ChatActivity.scopedIntent(
-                requireContext(),
-                id,
-                expected
-            )
-        )
+        if (arguments?.getBoolean("listOnly") == true && requireActivity() is ChatActivity) {
+            (requireActivity() as ChatActivity).select(id)
+        } else if (!wide) {
+            chatLauncher.launch(ChatActivity.scopedIntent(requireContext(), id, expected))
+        }
     }
 
     private fun showDetail(id: Long) {
@@ -303,19 +308,25 @@ class ChatFragment : Fragment() {
         val previous = childFragmentManager.findFragmentByTag("tablet-room") as? ChatRoomFragment
         if (previous != null) {
             previous.select(id)
-            childFragmentManager.beginTransaction().show(previous)
-                .setMaxLifecycle(previous, Lifecycle.State.RESUMED).commit()
-        } else childFragmentManager.beginTransaction()
-            .replace(binding!!.chatDetail.id, ChatRoomFragment.newInstance(id), "tablet-room")
-            .commit()
+            childFragmentManager.beginTransaction()
+                .show(previous)
+                .setMaxLifecycle(previous, Lifecycle.State.RESUMED)
+                .commit()
+        } else {
+            childFragmentManager.beginTransaction()
+                .replace(binding!!.chatDetail.id, ChatRoomFragment.newInstance(id), "tablet-room")
+                .commit()
+        }
     }
 
     fun closeDetail() {
         model.clearSelection()
         detailBack?.isEnabled = false
         (childFragmentManager.findFragmentByTag("tablet-room") as? ChatRoomFragment)?.let {
-            childFragmentManager.beginTransaction().hide(it)
-                .setMaxLifecycle(it, Lifecycle.State.STARTED).commit()
+            childFragmentManager.beginTransaction()
+                .hide(it)
+                .setMaxLifecycle(it, Lifecycle.State.STARTED)
+                .commit()
         }
     }
 
@@ -323,7 +334,8 @@ class ChatFragment : Fragment() {
         if (phoneDetailPending && !isHidden && !wide && binding != null && model.selected.value > 0) {
             phoneDetailPending = false
             val draft =
-                (childFragmentManager.findFragmentByTag("tablet-room") as? ChatRoomFragment)?.currentDraft()
+                (childFragmentManager.findFragmentByTag("tablet-room") as? ChatRoomFragment)
+                    ?.currentDraft()
                     .orEmpty()
             chatLauncher.launch(ChatActivity.intent(requireContext(), model.selected.value, draft))
         }
@@ -359,17 +371,13 @@ class ChatFragment : Fragment() {
 
     override fun onDestroyView() {
         notificationNotice?.dismiss()
-        notificationNotice =
-            null
+        notificationNotice = null
         permissionJob?.cancel()
-        permissionJob =
-            null
-        binding?.listPanel?.conversations?.adapter =
-            null
+        permissionJob = null
+        binding?.listPanel?.conversations?.adapter = null
         binding?.listPanel?.onlineUsers?.adapter = null
         detailBack = null
-        binding =
-            null
+        binding = null
         super.onDestroyView()
     }
 }

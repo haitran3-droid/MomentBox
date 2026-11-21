@@ -1,4 +1,5 @@
 package com.ntq.training.momentbox.feature.language
+
 import android.app.Dialog
 import android.graphics.Color
 import android.os.Bundle
@@ -7,10 +8,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.os.LocaleListCompat
 import androidx.core.os.bundleOf
-import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.setFragmentResult
 import com.ntq.training.momentbox.R
@@ -31,8 +32,16 @@ class LanguageDialogFragment : DialogFragment() {
         const val KEY_SELECTED_LOCALE = "selected_locale"
         private const val KEY_SAVED_SELECTED_TAG = "saved_selected_tag"
 
-        fun newInstance(): LanguageDialogFragment {
-            return LanguageDialogFragment()
+        fun newInstance(): LanguageDialogFragment = LanguageDialogFragment()
+
+        internal fun normalizeLanguageTag(rawTag: String?): String {
+            val normalized = rawTag?.trim()?.lowercase(Locale.ROOT).orEmpty()
+            return when {
+                normalized == "vi" || normalized.startsWith("vi-") || normalized.startsWith("vi_") -> "vi"
+                normalized == "en" || normalized.startsWith("en-") || normalized.startsWith("en_") -> "en"
+                normalized == "ja" || normalized.startsWith("ja-") || normalized.startsWith("ja_") -> "ja"
+                else -> "vi"
+            }
         }
     }
 
@@ -57,7 +66,8 @@ class LanguageDialogFragment : DialogFragment() {
         super.onStart()
         dialog?.window?.let { window ->
             val density = resources.displayMetrics.density
-            val width = minOf(resources.displayMetrics.widthPixels - 48 * density, 480 * density).toInt()
+            val width =
+                minOf(resources.displayMetrics.widthPixels - 48 * density, 480 * density).toInt()
             window.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
     }
@@ -65,17 +75,19 @@ class LanguageDialogFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        if (savedInstanceState != null && savedInstanceState.containsKey(KEY_SAVED_SELECTED_TAG)) {
-            selectedTag = savedInstanceState.getString(KEY_SAVED_SELECTED_TAG) ?: "vi"
+        val rawTag = if (savedInstanceState != null &&
+            savedInstanceState.containsKey(KEY_SAVED_SELECTED_TAG)
+        ) {
+            savedInstanceState.getString(KEY_SAVED_SELECTED_TAG)
         } else {
-            // Read active locale
             val appLocales = AppCompatDelegate.getApplicationLocales()
-            selectedTag = if (!appLocales.isEmpty) {
-                appLocales.get(0)?.language ?: "vi"
+            if (!appLocales.isEmpty) {
+                appLocales.get(0)?.language
             } else {
-                Locale.getDefault().language.ifBlank { "vi" }
+                Locale.getDefault().language
             }
         }
+        selectedTag = normalizeLanguageTag(rawTag)
 
         updateSelectionUi()
 
@@ -104,9 +116,9 @@ class LanguageDialogFragment : DialogFragment() {
     }
 
     private fun updateSelectionUi() {
-        val isVi = selectedTag.startsWith("vi", ignoreCase = true)
-        val isEn = selectedTag.startsWith("en", ignoreCase = true)
-        val isJa = selectedTag.startsWith("ja", ignoreCase = true)
+        val isVi = selectedTag == "vi"
+        val isEn = selectedTag == "en"
+        val isJa = selectedTag == "ja"
 
         // Vietnamese UI
         binding.itemLanguageVi.setBackgroundResource(
@@ -115,8 +127,10 @@ class LanguageDialogFragment : DialogFragment() {
         binding.ivRadioVi.setImageResource(
             if (isVi) R.drawable.bg_radio_selected else R.drawable.bg_radio_unselected
         )
-        binding.tvLanguageVi.typeface = ResourcesCompat.getFont(requireContext(),
-            if (isVi) R.font.be_vietnam_pro_semibold else R.font.be_vietnam_pro)
+        binding.tvLanguageVi.typeface = ResourcesCompat.getFont(
+            requireContext(),
+            if (isVi) R.font.be_vietnam_pro_semibold else R.font.be_vietnam_pro
+        )
 
         // English UI
         binding.itemLanguageEn.setBackgroundResource(
@@ -125,8 +139,10 @@ class LanguageDialogFragment : DialogFragment() {
         binding.ivRadioEn.setImageResource(
             if (isEn) R.drawable.bg_radio_selected else R.drawable.bg_radio_unselected
         )
-        binding.tvLanguageEn.typeface = ResourcesCompat.getFont(requireContext(),
-            if (isEn) R.font.be_vietnam_pro_semibold else R.font.be_vietnam_pro)
+        binding.tvLanguageEn.typeface = ResourcesCompat.getFont(
+            requireContext(),
+            if (isEn) R.font.be_vietnam_pro_semibold else R.font.be_vietnam_pro
+        )
 
         // Japanese UI
         binding.itemLanguageJa.setBackgroundResource(
@@ -135,13 +151,16 @@ class LanguageDialogFragment : DialogFragment() {
         binding.ivRadioJa.setImageResource(
             if (isJa) R.drawable.bg_radio_selected else R.drawable.bg_radio_unselected
         )
-        binding.tvLanguageJa.typeface = ResourcesCompat.getFont(requireContext(),
-            if (isJa) R.font.be_vietnam_pro_semibold else R.font.be_vietnam_pro)
+        binding.tvLanguageJa.typeface = ResourcesCompat.getFont(
+            requireContext(),
+            if (isJa) R.font.be_vietnam_pro_semibold else R.font.be_vietnam_pro
+        )
     }
 
     private fun applyLanguage(tag: String) {
-        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
-        setFragmentResult(REQUEST_KEY, bundleOf(KEY_SELECTED_LOCALE to tag))
+        val safeTag = normalizeLanguageTag(tag)
+        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(safeTag))
+        setFragmentResult(REQUEST_KEY, bundleOf(KEY_SELECTED_LOCALE to safeTag))
         dismiss()
     }
 

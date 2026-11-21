@@ -92,6 +92,8 @@
     <string name="sort_newest">Mới nhất</string>
     <string name="comment_sending">Đang gửi…</string>
     <string name="comment_send_failed">Lỗi gửi (Thử lại)</string>
+    <string name="comment_not_sent">Chưa gửi được</string>
+    <string name="comments_turned_off">Bình luận đã tắt</string>
     <string name="comment_input_hint">Viết bình luận…</string>
     <string name="reply_to">Đang trả lời %1$s</string>
     <plurals name="hide_replies">
@@ -127,6 +129,8 @@
     <string name="journal_delete">Xóa</string>
     <string name="journal_empty_title">Chưa có dòng nhật ký nào</string>
     <string name="journal_empty_desc">Hãy bắt đầu ghi lại những suy nghĩ và cảm xúc của bạn hôm nay</string>
+    <string name="journal_empty_search_title">Không tìm thấy nhật ký phù hợp</string>
+    <string name="journal_empty_search_desc">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc của bạn</string>
     <string name="journal_write_button">Viết nhật ký</string>
     <string name="journal_delete_success">Đã xóa bài viết</string>
     <string name="journal_undo">Hoàn tác</string>

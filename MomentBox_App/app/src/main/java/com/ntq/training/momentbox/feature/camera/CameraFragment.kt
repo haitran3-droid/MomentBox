@@ -1,7 +1,5 @@
 package com.ntq.training.momentbox.feature.camera
 
-import kotlin.math.abs
-import kotlin.math.ceil
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -60,8 +58,10 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.bumptech.glide.Glide
 import com.google.android.material.imageview.ShapeableImageView
 import com.google.android.material.shape.CornerFamily
@@ -81,6 +81,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.math.abs
+import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -88,7 +90,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -112,6 +113,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
     private var shutterSound: StaticPcmSound? = null
     private var tick: StaticPcmSound? = null
     private val model: CameraViewModel by viewModels()
+
     private var front: Boolean
         get() = model.front
         set(value) {
@@ -181,8 +183,8 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                 .build()
         b.cameraOverlay.filter = filter
         shutterSound =
-            runCatching { StaticPcmSound(requireContext(), "audio/sfx-shutter.wav") }.getOrNull()
-        tick = runCatching { StaticPcmSound(requireContext(), "audio/sfx-tick.wav") }.getOrNull()
+            runCatching { StaticPcmSound(requireContext(), "sfx-shutter.wav") }.getOrNull()
+        tick = runCatching { StaticPcmSound(requireContext(), "sfx-tick.wav") }.getOrNull()
         b.cameraClose.setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
@@ -236,10 +238,10 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     childFragmentManager.findFragmentByTag("camera-options") != null ||
                     captureBusy ||
                     recording != null
-            )
+            ) {
                 return@setOnClickListener
+            }
             val actions = mutableListOf<String>()
-
             val labels = mutableListOf<String>()
             if (b.cameraFlash.isVisible) {
                 actions += "flash"
@@ -266,19 +268,29 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
         b.cameraVideoMode.isVisible = !create.imagesOnly
         b.cameraVideoMode.setOnClickListener { changeMode(true) }
         b.cameraModes.onSwipe = ::swipeCameraMode
-        val latestPhoto = create.items.value.lastOrNull { !it.isVideo }
-        b.cameraLatest.isEnabled = latestPhoto != null
-        if (latestPhoto != null) {
-            Glide.with(this)
-                .load(latestPhoto.uri)
-                .centerCrop()
-                .into(b.cameraLatest)
-            b.cameraLatest.setOnClickListener {
-                if (!captureBusy && recording == null) {
-                    parentFragmentManager.setFragmentResult(
-                        "create_crop_latest",
-                        Bundle().apply { putString("id", latestPhoto.id) },
-                    )
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                create.items.collect { items ->
+                    val latestPhoto = items.lastOrNull { !it.isVideo }
+                    b.cameraLatest.isEnabled = latestPhoto != null
+                    if (latestPhoto != null) {
+                        Glide.with(this@CameraFragment)
+                            .load(latestPhoto.uri)
+                            .centerCrop()
+                            .into(b.cameraLatest)
+                        b.cameraLatest.setOnClickListener {
+                            if (!captureBusy && recording == null) {
+                                parentFragmentManager.setFragmentResult(
+                                    "create_crop_latest",
+                                    Bundle().apply { putString("id", latestPhoto.id) },
+                                )
+                            }
+                        }
+                    } else {
+                        Glide.with(this@CameraFragment).clear(b.cameraLatest)
+                        b.cameraLatest.setImageDrawable(null)
+                        b.cameraLatest.setOnClickListener(null)
+                    }
                 }
             }
         }
@@ -313,10 +325,9 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                         shapeAppearanceModel
                             .toBuilder()
                             .setAllCorners(CornerFamily.ROUNDED, 0f)
-                            .setAllCornerSizes(RelativeCornerSize(.5f))
+                            .setAllCornerSizes(RelativeCornerSize(0.5f))
                             .build()
-                    strokeColor =
-                        ColorStateList.valueOf(Color.WHITE)
+                    strokeColor = ColorStateList.valueOf(Color.WHITE)
                     strokeWidth = if (f == filter) 2.5f * resources.displayMetrics.density else 0f
                     colorFilter = ColorMatrixColorFilter(PhotoFilters.matrix(f))
                 }
@@ -335,7 +346,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                         )
                     setSingleLine(true)
                 }
-            // Khay cuộn được: nới cột theo chữ/font thật để nhãn Đen trắng không bị xuống2dòng.
+            // Khay cuộn được: nới cột theo chữ/font thật để nhãn Đen trắng không bị xuống 2 dòng.
             column.layoutParams.width =
                 maxOf(
                     dp(66),
@@ -352,13 +363,13 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
             b.cameraFilters.addView(column)
             thumbnails.add(image)
             labels.add(label)
-            column.alpha = if (f == filter) 1f else .85f
+            column.alpha = if (f == filter) 1f else 0.85f
             column.setOnClickListener {
                 filter = f
                 b.cameraOverlay.filter = f
                 thumbnails.forEachIndexed { n, v ->
                     v.strokeWidth = if (n == i) 2.5f * resources.displayMetrics.density else 0f
-                    b.cameraFilters.getChildAt(n).alpha = if (n == i) 1f else .85f
+                    b.cameraFilters.getChildAt(n).alpha = if (n == i) 1f else 0.85f
                 }
                 labels.forEachIndexed { n, v ->
                     v.typeface =
@@ -374,8 +385,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
             maxOf(
                 dp(76),
                 dp(61) +
-                    kotlin.math
-                        .ceil(
+                    ceil(
                             labels
                                 .maxOf { it.paint.fontMetrics.bottom - it.paint.fontMetrics.top }
                                 .toDouble()
@@ -386,8 +396,9 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
         var thumbnailBitmap: Bitmap? = null
         b.cameraOverlay.onThumbnail = { bitmap ->
             if (binding === b) {
-                if (thumbnailBitmap === bitmap) thumbnails.forEach { it.invalidate() }
-                else {
+                if (thumbnailBitmap === bitmap) {
+                    thumbnails.forEach { it.invalidate() }
+                } else {
                     thumbnailBitmap = bitmap
                     thumbnails.forEach { it.setImageBitmap(bitmap) }
                 }
@@ -450,13 +461,13 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                 }
 
                 MotionEvent.ACTION_POINTER_DOWN -> multiple = true
+
                 MotionEvent.ACTION_MOVE ->
                     if (
                         !multiple &&
                             (exposureDrag ||
                                 (abs(event.y - downY) > dp(12) &&
-                                    abs(event.y - downY) >
-                                        abs(event.x - downX)))
+                                    abs(event.y - downY) > abs(event.x - downX)))
                     ) {
                         camera?.let { c ->
                             val e = c.cameraInfo.exposureState
@@ -520,8 +531,9 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                 error(R.string.m4_video_hold_hint)
             }
         }
-        if (granted(Manifest.permission.CAMERA)) bindCamera()
-        else {
+        if (granted(Manifest.permission.CAMERA)) {
+            bindCamera()
+        } else {
             error(R.string.m4_camera_permission)
             permissions.launch(arrayOf(Manifest.permission.CAMERA))
         }
@@ -577,27 +589,31 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     val aspect =
                         if (wide) AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
                         else AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
-                    val rotation =
-                        b.cameraPreview.display?.rotation ?: Surface.ROTATION_0
+                    val rotation = b.cameraPreview.display?.rotation ?: Surface.ROTATION_0
                     val landscape =
                         resources.configuration.orientation ==
                             Configuration.ORIENTATION_LANDSCAPE
                     val viewportAspect =
-                        if (ratio == 2 && !videoMode) Rational(1, 1)
-                        else if (wide) {
-                            if (landscape) Rational(16, 9)
-                            else Rational(9, 16)
-                        } else {
-                            if (landscape) Rational(4, 3)
-                            else Rational(3, 4)
+                        when {
+                            ratio == 2 && !videoMode -> Rational(1, 1)
+                            wide -> if (landscape) Rational(16, 9) else Rational(9, 16)
+                            else -> if (landscape) Rational(4, 3) else Rational(3, 4)
                         }
                     val viewport =
                         ViewPort.Builder(viewportAspect, rotation)
                             .setScaleType(ViewPort.FILL_CENTER)
                             .build()
+                    val overlayAspect =
+                        when {
+                            videoMode || ratio == 1 -> 0f
+                            ratio == 2 -> 1f
+                            else -> if (landscape) 4f / 3f else 3f / 4f
+                        }
                     b.cameraPreview.scaleType =
-                        PreviewView.ScaleType.FILL_CENTER
+                        if (overlayAspect > 0f) PreviewView.ScaleType.FIT_CENTER
+                        else PreviewView.ScaleType.FILL_CENTER
                     b.cameraOverlay.showFrames = !videoMode
+                    b.cameraOverlay.targetAspectRatio = overlayAspect
                     val preview =
                         Preview.Builder()
                             .setTargetRotation(rotation)
@@ -646,17 +662,16 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                 )
                                 .setFlashMode(flash)
                                 .build()
+                        val targetSize = if (wide) Size(1280, 720) else Size(960, 720)
                         val a =
                             ImageAnalysis.Builder()
                                 .setTargetRotation(rotation)
                                 .setResolutionSelector(
                                     ResolutionSelector.Builder()
-                                        .setAspectRatioStrategy(
-                                            AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
-                                        )
+                                        .setAspectRatioStrategy(aspect)
                                         .setResolutionStrategy(
                                             ResolutionStrategy(
-                                                Size(1280, 720),
+                                                targetSize,
                                                 ResolutionStrategy
                                                     .FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
                                             )
@@ -691,13 +706,17 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                         camera?.cameraInfo?.exposureState?.isExposureCompensationSupported == true
                     b.cameraZoom.removeAllViews()
                     camera?.cameraInfo?.zoomState?.value?.let { z ->
-                        listOf(.5f, 1f, 2f)
+                        listOf(0.5f, 1f, 2f)
                             .filter { it >= z.minZoomRatio && it <= z.maxZoomRatio }
                             .forEach { zoom ->
                                 b.cameraZoom.addView(
                                     TextView(requireContext()).apply {
                                         text =
-                                            if (zoom == 1f) "1x" else if (zoom == .5f) ".5" else "2"
+                                            when (zoom) {
+                                                1f -> "1x"
+                                                0.5f -> ".5"
+                                                else -> "2"
+                                            }
                                         tag = zoom
                                         textSize = 12f
                                         typeface =
@@ -706,8 +725,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                                 R.font.be_vietnam_pro_bold,
                                             )
                                         gravity = Gravity.CENTER
-                                        layoutParams =
-                                            LinearLayout.LayoutParams(dp(32), dp(32))
+                                        layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
                                         setOnClickListener {
                                             camera?.cameraControl?.setZoomRatio(zoom)
                                         }
@@ -719,20 +737,19 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     observedZoom?.removeObservers(viewLifecycleOwner)
                     observedZoom = camera?.cameraInfo?.zoomState
                     observedZoom?.observe(viewLifecycleOwner) { state ->
-                        if (binding === b)
+                        if (binding === b) {
                             for (i in 0 until b.cameraZoom.childCount) {
                                 val label = b.cameraZoom.getChildAt(i) as TextView
-                                val selected =
-                                    abs((label.tag as Float) - state.zoomRatio) < .05f
+                                val selected = abs((label.tag as Float) - state.zoomRatio) < 0.05f
                                 label.isSelected = selected
                                 label.setTextColor(
-                                    if (selected) 0xFFFFD54F.toInt()
-                                    else Color.WHITE
+                                    if (selected) 0xFFFFD54F.toInt() else Color.WHITE
                                 )
                                 label.setBackgroundResource(
                                     if (selected) R.drawable.bg_m4_zoom_selected else 0
                                 )
                             }
+                        }
                     }
                     renderControls()
                 } catch (e: CancellationException) {
@@ -747,25 +764,27 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
         binding?.let { b ->
             (b.cameraFilters.parent as View).isVisible = !videoMode
             b.cameraPhotoControls.isVisible = !videoMode
-            b.cameraShutter.contentDescription = getString(
-                when {
-                    !videoMode -> R.string.m4_take_photo
-                    recording != null -> R.string.m4_camera_stop_video
-                    else -> R.string.m4_camera_start_video
-                }
-            )
+            b.cameraShutter.contentDescription =
+                getString(
+                    when {
+                        !videoMode -> R.string.m4_take_photo
+                        recording != null -> R.string.m4_camera_stop_video
+                        else -> R.string.m4_camera_start_video
+                    }
+                )
             b.cameraTimer.isVisible = !videoMode
             b.cameraRatio.isVisible = !videoMode
             // Khi video ẩn filter, đưa zoom xuống sát đáy thay vì chừa khoảng trống của khay ảnh.
             (b.cameraZoom.layoutParams as FrameLayout.LayoutParams).apply {
                 val landscape =
-                    resources.configuration.orientation ==
-                        Configuration.ORIENTATION_LANDSCAPE
+                    resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                 bottomMargin =
-                    if (videoMode) dp(8)
-                    else
+                    if (videoMode) {
+                        dp(8)
+                    } else {
                         (b.cameraFilters.parent as View).layoutParams.height +
                             dp(if (landscape) 10 else 48)
+                    }
                 b.cameraZoom.layoutParams = this
             }
             b.cameraFlash.isVisible = camera?.cameraInfo?.hasFlashUnit() == true && !videoMode
@@ -789,11 +808,9 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                     }
                 )
             val timerIcon =
-                ContextCompat.getDrawable(
-                        requireContext(),
-                        R.drawable.ic_media_timer,
-                    )
-                    ?.apply { setBounds(0, 0, dp(20), dp(20)) }
+                ContextCompat.getDrawable(requireContext(), R.drawable.ic_media_timer)?.apply {
+                    setBounds(0, 0, dp(20), dp(20))
+                }
             b.cameraTimer.setCompoundDrawables(timerIcon, null, null, null)
             b.cameraTimer.text =
                 if (timer == 0) getString(R.string.m4_camera_timer_off_short)
@@ -801,15 +818,11 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
             b.cameraTimer.contentDescription =
                 if (timer == 0) getString(R.string.m4_timer_off) else b.cameraTimer.text
             b.cameraRatio.text = listOf("4:3", "16:9", "1:1")[ratio]
-            // Mockup dùng chữ trắng opacity60% cho mode chưa chọn, không dùng màu xám pha tím.
-            b.cameraPhotoMode.setTextColor(
-                if (!videoMode) 0xFFFFD54F.toInt() else Color.WHITE
-            )
-            b.cameraVideoMode.setTextColor(
-                if (videoMode) 0xFFFFD54F.toInt() else Color.WHITE
-            )
-            b.cameraPhotoMode.alpha = if (!videoMode) 1f else .6f
-            b.cameraVideoMode.alpha = if (videoMode) 1f else .6f
+            // Mockup dùng chữ trắng opacity 60% cho mode chưa chọn, không dùng màu xám pha tím.
+            b.cameraPhotoMode.setTextColor(if (!videoMode) 0xFFFFD54F.toInt() else Color.WHITE)
+            b.cameraVideoMode.setTextColor(if (videoMode) 0xFFFFD54F.toInt() else Color.WHITE)
+            b.cameraPhotoMode.alpha = if (!videoMode) 1f else 0.6f
+            b.cameraVideoMode.alpha = if (videoMode) 1f else 0.6f
             b.cameraPhotoMode.isSelected = !videoMode
             b.cameraVideoMode.isSelected = videoMode
         }
@@ -824,14 +837,11 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
 
     private fun takePhoto() {
         val b = binding ?: return
-
         val c = capture ?: return
         if (captureBusy) return
         captureBusy = true
         val selectedFilter = filter
-
         val square = ratio == 2
-
         val mirror = front
         shutterJob =
             viewLifecycleOwner.lifecycleScope.launch {
@@ -861,10 +871,9 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                         )
                     }
                     try {
-                        // Full capture, không dùng screenshot preview720p làm ảnh cuối. EXIF xử lý
-                        // đúng một lần.
-                        val bitmap =
-                            OwnedImageFiles.decode(requireContext(), Uri.fromFile(file), 8192)
+                        // Full capture, không dùng screenshot preview 720p làm ảnh cuối.
+                        // Capped to OwnedImageFiles.MAX_DECODE_SIDE to prevent OOM on high-MP sensors.
+                        val bitmap = OwnedImageFiles.decode(requireContext(), Uri.fromFile(file))
                         val output =
                             withContext(Dispatchers.Default) {
                                 val size = if (square) minOf(bitmap.width, bitmap.height) else 0
@@ -970,10 +979,8 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                         RecordingService.state.first {
                             it.phase !in
                                 listOf(
-                                    RecordPhase
-                                        .RECORDING,
-                                    RecordPhase
-                                        .PREPARING,
+                                    RecordPhase.RECORDING,
+                                    RecordPhase.PREPARING,
                                     RecordPhase.STOPPING,
                                 )
                         }
@@ -985,7 +992,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                 .prepareRecording(
                                     requireContext(),
                                     FileOutputOptions.Builder(file)
-                                        .setDurationLimitMillis(60_000)
+                                        .setDurationLimitMillis(MAX_VIDEO_DURATION_MS)
                                         .build(),
                                 )
                                 .withAudioEnabled()
@@ -1011,11 +1018,16 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                                     event.recordingStats.recordedDurationNanos /
                                                         1_000_000
                                                 b.cameraRecordingProgress.setProgressCompat(
-                                                    elapsedMs.coerceAtMost(60_000).toInt(),
+                                                    elapsedMs
+                                                        .coerceAtMost(MAX_VIDEO_DURATION_MS)
+                                                        .toInt(),
                                                     true,
                                                 )
                                                 b.cameraCountdown.text =
-                                                    getString(R.string.m4_camera_count, elapsedMs / 1000)
+                                                    getString(
+                                                        R.string.m4_camera_count,
+                                                        elapsedMs / 1000,
+                                                    )
                                             }
                                         }
 
@@ -1030,15 +1042,25 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                             recording = null
                                             activeVideoFile = null
                                             playbackAudio.release(audioOwner)
+                                            val hitDurationLimit =
+                                                event.error ==
+                                                    VideoRecordEvent.Finalize
+                                                        .ERROR_DURATION_LIMIT_REACHED
                                             val usable =
                                                 validRecording &&
                                                     (event.error ==
                                                         VideoRecordEvent.Finalize.ERROR_NONE ||
-                                                        event.error ==
-                                                            VideoRecordEvent.Finalize
-                                                                .ERROR_DURATION_LIMIT_REACHED) &&
+                                                        hitDurationLimit) &&
                                                     file.length() > 0
                                             if (usable && binding === b) {
+                                                val rawDurationMs =
+                                                    event.recordingStats.recordedDurationNanos /
+                                                        1_000_000
+                                                val durationMs =
+                                                    normalizeCapturedVideoDuration(
+                                                        rawDurationMs,
+                                                        hitDurationLimit,
+                                                    )
                                                 val uri =
                                                     FileProvider.getUriForFile(
                                                             requireContext(),
@@ -1051,11 +1073,7 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                                     Bundle().apply {
                                                         putString("uri", uri)
                                                         putString("mime", "video/mp4")
-                                                        putLong(
-                                                            "duration",
-                                                            event.recordingStats
-                                                                .recordedDurationNanos / 1_000_000,
-                                                        )
+                                                        putLong("duration", durationMs)
                                                     },
                                                 )
                                             } else {
@@ -1066,9 +1084,11 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
                                                             event.error ==
                                                                 VideoRecordEvent.Finalize
                                                                     .ERROR_NO_VALID_DATA
-                                                        )
+                                                        ) {
                                                             R.string.m4_video_hold_hint
-                                                        else R.string.m4_video_capture_error
+                                                        } else {
+                                                            R.string.m4_video_capture_error
+                                                        }
                                                     )
                                                 }
                                             }
@@ -1131,5 +1151,21 @@ class CameraFragment : Fragment(R.layout.fragment_camera) {
         executor = Executors.newSingleThreadExecutor()
         binding = null
         super.onDestroyView()
+    }
+
+    companion object {
+        private const val MAX_VIDEO_DURATION_MS = 60_000L
+        private const val DURATION_BOUNDARY_TOLERANCE_MS = 500L
+
+        internal fun normalizeCapturedVideoDuration(
+            rawDurationMs: Long,
+            hitDurationLimit: Boolean,
+        ): Long =
+            when {
+                hitDurationLimit -> rawDurationMs.coerceIn(1L, MAX_VIDEO_DURATION_MS)
+                rawDurationMs in (MAX_VIDEO_DURATION_MS + 1L)..(MAX_VIDEO_DURATION_MS + DURATION_BOUNDARY_TOLERANCE_MS) ->
+                    MAX_VIDEO_DURATION_MS
+                else -> rawDurationMs.coerceAtLeast(1L)
+            }
     }
 }

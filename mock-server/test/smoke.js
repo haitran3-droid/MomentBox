@@ -46,11 +46,14 @@ const once = (socket, event, ms = 6000) => new Promise((resolve, reject) => {
   check('like', r.json.data.isLiked === true);
   r = await api('GET', '/v1/posts/1/comments?sort=newest&page=1&pageSize=5', { token: accessToken });
   check('comments', r.status === 200 && Array.isArray(r.json.data));
+  const before = (await api('GET', '/v1/posts/1', { token: accessToken })).json.data.commentCount;
   r = await api('POST', '/v1/posts/1/comments', { token: accessToken, body: { content: 'Bình luận từ smoke test' } });
   check('tạo comment', r.status === 201);
   const parentId = r.json.data.id;
+  check('root write returns updated post comment count', r.json.data.postCommentCount === before + 1);
   r = await api('POST', '/v1/posts/1/comments', { token: accessToken, body: { content: 'Phản hồi', parentId: String(parentId) } });
   const replies = await api('GET', '/v1/posts/1/comments?parentId=' + parentId, { token: accessToken });
+  check('reply write returns updated post comment count', r.json.data.postCommentCount === before + 2);
   check('phản hồi lưu parentId dạng số và tải lại được', r.status === 201 &&
     r.json.data.parentId === parentId && replies.json.data.some(comment => comment.id === r.json.data.id));
   r = await api('POST', '/v1/posts/2/comments', { token: accessToken, body: { content: 'Phản hồi nhầm bài', parentId } });

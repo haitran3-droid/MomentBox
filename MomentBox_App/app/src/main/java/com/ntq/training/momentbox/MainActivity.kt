@@ -1,11 +1,13 @@
 package com.ntq.training.momentbox
 
+import android.app.Activity
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -19,6 +21,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.gson.Gson
 import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.core.network.SessionManager
+import com.ntq.training.momentbox.data.repository.UploadPhase
 import com.ntq.training.momentbox.databinding.ActivityMainBinding
 import com.ntq.training.momentbox.feature.auth.AuthActivity
 import com.ntq.training.momentbox.feature.create.CreateActivity
@@ -29,23 +32,41 @@ import com.ntq.training.momentbox.feature.reminder.ReminderJournalRoute
 import com.ntq.training.momentbox.feature.tabs.ChatFragment
 import com.ntq.training.momentbox.feature.tabs.JournalFragment
 import com.ntq.training.momentbox.feature.tabs.ProfileFragment
-import com.ntq.training.momentbox.R
 import java.text.NumberFormat
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class MainActivity : BaseActivity<ActivityMainBinding>(ActivityMainBinding::inflate) {
+
+    private val createPostLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK &&
+                result.data?.getBooleanExtra(EXTRA_PUBLISHED_POST, false) == true
+            ) {
+                val publishedId = app.uploadRepository.state.value
+                    .takeIf { it.phase == UploadPhase.SUCCEEDED }
+                    ?.post
+                    ?.id
+                if (publishedId == null || publishedId != lastHandledPublishedPostId) {
+                    if (publishedId != null) {
+                        lastHandledPublishedPostId = publishedId
+                    }
+                    navigateToFeedAfterPublish()
+                }
+            }
+        }
+
     private val recordPost =
         registerForActivityResult(RecordAudioContract()) { audio ->
             audio?.let {
-                startActivity(
-                    Intent(
-                        this,
-                        CreateActivity::class.java
-                    ).putExtra("start", "text").putExtra("voice", Gson().toJson(it))
+                createPostLauncher.launch(
+                    Intent(this, CreateActivity::class.java)
+                        .putExtra("start", "text")
+                        .putExtra("voice", Gson().toJson(it))
                 )
             }
         }
+
     private val app get() = application as MomentBoxApp
 
     private lateinit var feedFragment: FeedFragment
@@ -56,26 +77,41 @@ class MainActivity : BaseActivity<ActivityMainBinding>(ActivityMainBinding::infl
     private lateinit var activeFragment: Fragment
     private var routingToAuth = false
     private var reminderRouteConsumed = false
+    private var lastHandledPublishedPostId = NO_PUBLISHED_POST_ID
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        reminderRouteConsumed = savedInstanceState?.getBoolean("m5ReminderConsumed") ?: false
+        reminderRouteConsumed = savedInstanceState?.getBoolean(KEY_REMINDER_CONSUMED) ?: false
+        lastHandledPublishedPostId = savedInstanceState?.getLong(
+            KEY_LAST_PUBLISHED_POST_ID,
+            NO_PUBLISHED_POST_ID
+        ) ?: app.uploadRepository.state.value
+            .takeIf { it.phase == UploadPhase.SUCCEEDED }
+            ?.post
+            ?.id
+            ?: NO_PUBLISHED_POST_ID
         setupFragments(savedInstanceState)
         setupBottomNav()
+        syncStatusBarAppearance()
         observeSessionExpiry()
+        observeUploadCompletion()
         lifecycleScope.launch { app.chatRuntime.activate() }
         // Badge xuất phát từ Room của phiên hiện tại, không lấy số mẫu từ XML.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 app.chatRuntime.session.collectLatest { session ->
                     binding.tvChatBadge.visibility = View.GONE
-                    if (session != null) app.database.chatDao()
-                        .unread(session.ownerId, session.source).collect { value ->
-                        val count = value ?: 0
-                        binding.tvChatBadge.visibility =
-                            if (count > 0) View.VISIBLE else View.GONE
-                        binding.tvChatBadge.text =
-                            NumberFormat.getIntegerInstance(resources.configuration.locales[0]).format(count)
+                    if (session != null) {
+                        app.database.chatDao()
+                            .unread(session.ownerId, session.source)
+                            .collect { value ->
+                                val count = value ?: 0
+                                binding.tvChatBadge.visibility =
+                                    if (count > 0) View.VISIBLE else View.GONE
+                                binding.tvChatBadge.text = NumberFormat
+                                    .getIntegerInstance(resources.configuration.locales[0])
+                                    .format(count)
+                            }
                     }
                 }
             }
@@ -104,7 +140,8 @@ class MainActivity : BaseActivity<ActivityMainBinding>(ActivityMainBinding::infl
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putBoolean("m5ReminderConsumed", reminderRouteConsumed)
+        outState.putBoolean(KEY_REMINDER_CONSUMED, reminderRouteConsumed)
+        outState.putLong(KEY_LAST_PUBLISHED_POST_ID, lastHandledPublishedPostId)
         super.onSaveInstanceState(outState)
         // Lưu lại tag của tab đang hiển thị để khôi phục chính xác sau khi xoay màn hình (F02)
         val activeTag = when (activeFragment) {
@@ -184,20 +221,22 @@ class MainActivity : BaseActivity<ActivityMainBinding>(ActivityMainBinding::infl
                         getString(R.string.m4_text)
                     )
                 ) { _, which ->
-                    if (which == 2) recordPost.launch(Unit)
-                    else startActivity(
-                        Intent(
-                            this,
-                            CreateActivity::class.java
-                        ).putExtra(
-                            "start", when (which) {
-                                1 -> "camera"
-                                3 -> "text"
-                                else -> "gallery"
-                            }
+                    if (which == 2) {
+                        recordPost.launch(Unit)
+                    } else {
+                        createPostLauncher.launch(
+                            Intent(this, CreateActivity::class.java).putExtra(
+                                "start",
+                                when (which) {
+                                    1 -> "camera"
+                                    3 -> "text"
+                                    else -> "gallery"
+                                }
+                            )
                         )
-                    )
-                }.show()
+                    }
+                }
+                .show()
         }
 
         updateTabUi()
@@ -223,13 +262,45 @@ class MainActivity : BaseActivity<ActivityMainBinding>(ActivityMainBinding::infl
 
         activeFragment = targetFragment
         ViewCompat.requestApplyInsets(binding.mainRoot)
-        if (targetFragment is ProfileFragment) targetFragment.updateChrome()
-        else WindowCompat.getInsetsController(
-            window,
-            binding.root
-        ).isAppearanceLightStatusBars =
-            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) != Configuration.UI_MODE_NIGHT_YES
+        syncStatusBarAppearance()
         updateTabUi()
+    }
+
+    private fun syncStatusBarAppearance() {
+        if (::activeFragment.isInitialized && activeFragment is ProfileFragment) {
+            profileFragment.updateChrome()
+        } else {
+            val isNightMode =
+                (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                    Configuration.UI_MODE_NIGHT_YES
+            WindowCompat.getInsetsController(window, window.decorView)
+                .isAppearanceLightStatusBars = !isNightMode
+        }
+    }
+
+    private fun observeUploadCompletion() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                app.uploadRepository.state.collect { uploadState ->
+                    if (uploadState.phase == UploadPhase.SUCCEEDED) {
+                        val postId = uploadState.post?.id
+                        if (postId != null && postId != lastHandledPublishedPostId) {
+                            lastHandledPublishedPostId = postId
+                            navigateToFeedAfterPublish()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun navigateToFeedAfterPublish() {
+        if (activeFragment != feedFragment) {
+            switchTab(feedFragment)
+        }
+        if (feedFragment.isAdded && feedFragment.view != null) {
+            feedFragment.scrollToTopAndRefresh()
+        }
     }
 
     companion object {
@@ -238,6 +309,10 @@ class MainActivity : BaseActivity<ActivityMainBinding>(ActivityMainBinding::infl
         private const val TAG_CHAT = "CHAT"
         private const val TAG_PROFILE = "PROFILE"
         private const val KEY_ACTIVE_TAB_TAG = "KEY_ACTIVE_TAB_TAG"
+        private const val KEY_REMINDER_CONSUMED = "m5ReminderConsumed"
+        private const val KEY_LAST_PUBLISHED_POST_ID = "m5LastPublishedPostId"
+        private const val EXTRA_PUBLISHED_POST = "published_post"
+        private const val NO_PUBLISHED_POST_ID = -1L
     }
 
     private fun updateTabUi() {
@@ -275,13 +350,19 @@ class MainActivity : BaseActivity<ActivityMainBinding>(ActivityMainBinding::infl
 
     override fun onResume() {
         super.onResume()
+        syncStatusBarAppearance()
         lifecycleScope.launch {
             // onResume có thể chạy trước Lifecycle ON_RESUME. Kiểm currentState rồi bỏ qua
             // sẽ làm mất route S20 khi token đã cache và isLoggedIn trả về ngay trong frame này.
             // Chờ đúng RESUMED, kiểm auth, rồi chờ lại nếu IO trùng lúc app ra nền.
             lifecycle.withResumed { }
-            if (!app.authRepository.isLoggedIn()) handleSessionExpired()
-            else lifecycle.withResumed { if (!routingToAuth) routeReminder() }
+            if (!app.authRepository.isLoggedIn()) {
+                handleSessionExpired()
+            } else {
+                lifecycle.withResumed {
+                    if (!routingToAuth) routeReminder()
+                }
+            }
         }
     }
 
@@ -291,26 +372,18 @@ class MainActivity : BaseActivity<ActivityMainBinding>(ActivityMainBinding::infl
         reminderRouteConsumed = false
     }
 
-    /** Chỉ gọi sau isLoggedIn và khi Main RESUMED. Consume trước launch để xoay/re-enter
-     * không mở thêm editor. Không khởi chạy S08 trực tiếp từ task nhắc đang nằm trên lockscreen. */
+    /**
+     * Chỉ gọi sau isLoggedIn và khi Main RESUMED. Consume trước launch để xoay/re-enter
+     * không mở thêm editor. Không khởi chạy S08 trực tiếp từ task nhắc đang nằm trên lockscreen.
+     */
     private fun routeReminder() {
         if (reminderRouteConsumed) return
-        val route =
-            ReminderJournalRoute.take(intent) ?: return
+        val route = ReminderJournalRoute.take(intent) ?: return
         reminderRouteConsumed = true
         startActivity(
-            Intent(
-                this,
-                JournalEditorActivity::class.java
-            )
-                .putExtra(
-                    JournalEditorActivity.EXTRA_MOOD,
-                    route.mood
-                )
-                .putExtra(
-                    JournalEditorActivity.EXTRA_DATE_EPOCH_MS,
-                    route.date
-                )
+            Intent(this, JournalEditorActivity::class.java)
+                .putExtra(JournalEditorActivity.EXTRA_MOOD, route.mood)
+                .putExtra(JournalEditorActivity.EXTRA_DATE_EPOCH_MS, route.date)
         )
     }
 

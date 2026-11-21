@@ -94,6 +94,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:baselineAligned="false"
             android:orientation="horizontal"
             android:padding="12dp">
 
@@ -214,20 +215,21 @@
                         tools:text="😄 Tuyệt vời" />
 
                     <!-- Số lượng ảnh đính kèm -->
-                    <LinearLayout
+                    <RelativeLayout
                         android:id="@+id/layoutPhotoCount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
                         android:visibility="gone"
                         tools:visibility="visible">
 
                         <ImageView
-                            android:importantForAccessibility="no"
+                            android:id="@+id/ivPhotoCountIcon"
                             android:layout_width="16dp"
                             android:layout_height="16dp"
+                            android:layout_alignParentStart="true"
+                            android:layout_centerVertical="true"
+                            android:importantForAccessibility="no"
                             android:src="@drawable/ic_journal_image"
                             app:tint="@color/text_tertiary" />
 
@@ -236,43 +238,48 @@
                             style="@style/JournalTextMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_centerVertical="true"
                             android:layout_marginStart="2dp"
+                            android:layout_toEndOf="@id/ivPhotoCountIcon"
                             android:fontFamily="@font/be_vietnam_pro_medium"
                             android:textColor="@color/text_tertiary"
                             android:textSize="12sp"
                             tools:text="3" />
-                    </LinearLayout>
+                    </RelativeLayout>
 
                     <!-- Số lượng ghi âm đính kèm -->
-                    <LinearLayout
+                    <RelativeLayout
                         android:id="@+id/layoutAudioCount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
                         android:visibility="gone"
                         tools:visibility="visible">
 
                         <ImageView
-                            android:importantForAccessibility="no"
+                            android:id="@+id/ivAudioCountIcon"
                             android:layout_width="16dp"
                             android:layout_height="16dp"
+                            android:layout_alignParentStart="true"
+                            android:layout_centerVertical="true"
+                            android:importantForAccessibility="no"
                             android:src="@drawable/ic_journal_mic"
                             app:tint="@color/text_tertiary" />
 
                         <TextView
                             android:id="@+id/tvAudioCount"
-                            android:importantForAccessibility="no"
                             style="@style/JournalTextMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_centerVertical="true"
                             android:layout_marginStart="2dp"
+                            android:layout_toEndOf="@id/ivAudioCountIcon"
                             android:fontFamily="@font/be_vietnam_pro_medium"
+                            android:importantForAccessibility="no"
                             android:textColor="@color/text_tertiary"
                             android:textSize="12sp"
                             tools:text="1" />
-                    </LinearLayout>
+                    </RelativeLayout>
 
                     <View
                         android:layout_width="0dp"

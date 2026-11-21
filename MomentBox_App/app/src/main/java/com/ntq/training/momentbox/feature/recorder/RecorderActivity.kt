@@ -56,18 +56,18 @@ class RecordAudioContract : ActivityResultContract<Unit, RecordedAudio?>() {
     override fun parseResult(resultCode: Int, intent: Intent?): RecordedAudio? {
         if (resultCode != Activity.RESULT_OK || intent == null) return null
         val uri = intent.getStringExtra("uri") ?: return null
-
         val session = intent.getStringExtra("session") ?: return null
-
         val duration = intent.getLongExtra("duration", 0)
-        return if (duration > 0)
+        return if (duration > 0) {
             RecordedAudio(
                 uri,
                 duration,
                 intent.getIntegerArrayListExtra("waveform").orEmpty(),
                 session,
             )
-        else null
+        } else {
+            null
+        }
     }
 }
 
@@ -75,14 +75,11 @@ class RecordAudioContract : ActivityResultContract<Unit, RecordedAudio?>() {
 class RecorderActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRecorderBinding
     private var session = ""
-
     private var returned = false
-
     private var binder: RecordingService.LocalBinder? = null
     private var bound = false
-
     private var player: MediaPlayer? = null
-
+    private var playingFile: File? = null
     private val owner = Any()
     private var recoveryLoading = true
     private val shared by lazy { AndroidPlaybackAudio.get(this) }
@@ -101,9 +98,11 @@ class RecorderActivity : AppCompatActivity() {
             if (
                 ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
                     PackageManager.PERMISSION_GRANTED
-            )
+            ) {
                 startRecording()
-            else binding.recordStatus.setText(R.string.m4_mic_permission)
+            } else {
+                binding.recordStatus.setText(R.string.m4_mic_permission)
+            }
         }
 
     override fun onCreate(state: Bundle?) {
@@ -134,12 +133,14 @@ class RecorderActivity : AppCompatActivity() {
 
                 RecordPhase.PREPARING,
                 RecordPhase.STOPPING -> Unit
+
                 else -> {
                     val needed =
                         buildList {
                                 add(Manifest.permission.RECORD_AUDIO)
-                                if (Build.VERSION.SDK_INT >= 33)
+                                if (Build.VERSION.SDK_INT >= 33) {
                                     add(Manifest.permission.POST_NOTIFICATIONS)
+                                }
                             }
                             .filter {
                                 ContextCompat.checkSelfPermission(this, it) !=
@@ -218,9 +219,9 @@ class RecorderActivity : AppCompatActivity() {
             )
         binding.recordTime.text =
             SpannableString(text).apply {
-                setSpan(RelativeSizeSpan(.65f), text.length - 2, text.length, 0)
+                setSpan(RelativeSizeSpan(0.65f), text.length - 2, text.length, 0)
                 setSpan(
-                    ForegroundColorSpan(0xFF9A9AAA.toInt()),
+                    ForegroundColorSpan(ContextCompat.getColor(this@RecorderActivity, R.color.text_tertiary)),
                     text.length - 2,
                     text.length,
                     0,
@@ -233,7 +234,13 @@ class RecorderActivity : AppCompatActivity() {
         binding.recordButton.progress = s.elapsedMs / 300000f
         binding.recordButton.contentDescription =
             getString(
-                if (s.phase == RecordPhase.RECORDING) R.string.m4_pause else R.string.m4_resume
+                when (s.phase) {
+                    RecordPhase.RECORDING -> R.string.m4_pause
+                    RecordPhase.PAUSED -> R.string.m4_resume
+                    RecordPhase.PREPARING,
+                    RecordPhase.STOPPING -> R.string.m4_loading
+                    else -> R.string.m4_start_recording
+                }
             )
         binding.recordDone.isEnabled = s.phase in listOf(RecordPhase.RECORDING, RecordPhase.PAUSED)
         binding.recordCancel.isEnabled = binding.recordDone.isEnabled
@@ -272,14 +279,11 @@ class RecorderActivity : AppCompatActivity() {
                 withContext(Dispatchers.IO) {
                     recentFiles().firstOrNull()?.let { file ->
                         val reader = MediaMetadataRetriever()
-
                         val duration =
                             try {
                                 reader.setDataSource(file.absolutePath)
                                 reader
-                                    .extractMetadata(
-                                        MediaMetadataRetriever.METADATA_KEY_DURATION
-                                    )
+                                    .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                                     ?.toLongOrNull() ?: 0L
                             } catch (_: Exception) {
                                 0L
@@ -295,10 +299,7 @@ class RecorderActivity : AppCompatActivity() {
                 item?.let {
                     getString(
                         R.string.m4_recent_record_title,
-                        DateFormat.getDateTimeInstance(
-                                DateFormat.SHORT,
-                                DateFormat.SHORT,
-                            )
+                        DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
                             .format(Date(it.first.lastModified())),
                     )
                 } ?: getString(R.string.m4_no_recent)
@@ -324,11 +325,13 @@ class RecorderActivity : AppCompatActivity() {
         if (
             RecordingService.state.value.phase in
                 listOf(RecordPhase.PREPARING, RecordPhase.RECORDING, RecordPhase.STOPPING)
-        )
+        ) {
             return
+        }
         if (player != null) {
+            val wasSameFile = playingFile?.absolutePath == file.absolutePath
             stopPlayback()
-            return
+            if (wasSameFile) return
         }
         if (
             !shared.acquire(
@@ -336,9 +339,11 @@ class RecorderActivity : AppCompatActivity() {
                 { runOnUiThread { stopPlayback() } },
                 kind = AudioPlaybackKind.VOICE,
             )
-        )
+        ) {
             return
+        }
         try {
+            playingFile = file
             player =
                 MediaPlayer().apply {
                     setDataSource(file.absolutePath)
@@ -361,16 +366,24 @@ class RecorderActivity : AppCompatActivity() {
     private fun showRecent() {
         lifecycleScope.launch {
             val files = withContext(Dispatchers.IO) { recentFiles() }
-            MaterialAlertDialogBuilder(this@RecorderActivity)
-                .setTitle(R.string.m4_recent_records)
-                .setItems(files.map { it.name }.toTypedArray()) { _, i -> playRecent(files[i]) }
-                .show()
+            val builder =
+                MaterialAlertDialogBuilder(this@RecorderActivity)
+                    .setTitle(R.string.m4_recent_records)
+            if (files.isEmpty()) {
+                builder.setMessage(R.string.m4_no_recent).setPositiveButton(android.R.string.ok, null)
+            } else {
+                builder.setItems(files.map { it.name }.toTypedArray()) { _, i ->
+                    playRecent(files[i])
+                }
+            }
+            builder.show()
         }
     }
 
     private fun stopPlayback() {
         player?.release()
         player = null
+        playingFile = null
         shared.release(owner)
         binding.recordRecentPlay.setImageResource(R.drawable.ic_media_play)
     }
@@ -390,9 +403,9 @@ class RecorderActivity : AppCompatActivity() {
         super.onStop()
     }
 
-    override fun onSaveInstanceState(out: Bundle) {
-        super.onSaveInstanceState(out)
-        out.putString("session", session)
-        out.putBoolean("returned", returned)
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("session", session)
+        outState.putBoolean("returned", returned)
     }
 }

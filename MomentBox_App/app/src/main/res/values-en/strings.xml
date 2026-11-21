@@ -93,6 +93,8 @@
     <string name="sort_newest">Newest</string>
     <string name="comment_sending">Sending…</string>
     <string name="comment_send_failed">Failed (Retry)</string>
+    <string name="comment_not_sent">Not sent</string>
+    <string name="comments_turned_off">Comments are turned off</string>
     <string name="comment_input_hint">Write a comment…</string>
     <string name="reply_to">Replying to %1$s</string>
     <plurals name="hide_replies">
@@ -130,6 +132,8 @@
     <string name="journal_delete">Delete</string>
     <string name="journal_empty_title">No journal entries yet</string>
     <string name="journal_empty_desc">Start recording your thoughts and feelings today</string>
+    <string name="journal_empty_search_title">No matching journal entries</string>
+    <string name="journal_empty_search_desc">Try adjusting your search keywords or filters</string>
     <string name="journal_write_button">Write journal</string>
     <string name="journal_delete_success">Entry deleted</string>
     <string name="journal_undo">Undo</string>

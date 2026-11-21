@@ -45,6 +45,7 @@ class WaveformView @JvmOverloads constructor(
 
     private val barRect = RectF()
     var onSeekListener: ((Float) -> Unit)? = null
+    var isSeekEnabled: Boolean = true
 
     init {
         generateDefaultAmplitudes(seed = 3)
@@ -149,6 +150,7 @@ class WaveformView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (!isSeekEnabled) return false
         when (event.action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
                 parent?.requestDisallowInterceptTouchEvent(true)

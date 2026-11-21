@@ -2,9 +2,9 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="64dp"
+    android:layout_width="74dp"
     android:layout_height="wrap_content"
-    android:layout_marginEnd="12dp"
+    android:layout_marginEnd="10dp"
     android:clipChildren="false"
     android:gravity="center_horizontal"
     android:orientation="vertical">
@@ -39,10 +39,10 @@
             android:layout_height="51dp"
             android:layout_gravity="center"
             android:background="@drawable/bg_avatar_placeholder"
-            android:scaleType="centerCrop"
-            tools:srcCompat="@drawable/bg_avatar_placeholder"
             android:contentDescription="@null"
-            android:importantForAccessibility="no" />
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop"
+            tools:srcCompat="@drawable/bg_avatar_placeholder" />
 
         <!-- Chữ cái đầu nằm trên nền tròn khi tài khoản chưa có ảnh đại diện. -->
         <TextView
@@ -82,15 +82,14 @@
 
     <TextView
         android:id="@+id/tvStoryName"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="5dp"
-        android:maxWidth="64dp"
         android:ellipsize="end"
         android:fontFamily="@font/be_vietnam_pro"
-        android:gravity="start"
+        android:gravity="center_horizontal"
         android:includeFontPadding="false"
-        android:maxLines="2"
+        android:maxLines="1"
         android:textColor="@color/text_secondary"
         android:textSize="11.5sp"
         tools:text="Tin của bạn" />

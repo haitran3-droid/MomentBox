@@ -39,6 +39,9 @@ class MoodCalendarView @JvmOverloads constructor(
     private val currentRealDate: LocalDate = LocalDate.now(clock)
     private var selectedDate: LocalDate? = null
 
+    // Giữ danh sách cảm xúc mới nhất để render lại nếu tháng được khôi phục sau khi dữ liệu đã tới.
+    private var latestMoods: List<DayMood> = emptyList()
+
     // Bản đồ lưu trữ cảm xúc theo ngày (key là ngày trong tháng 1..31, value là DayMood)
     private val dayMoodMap = mutableMapOf<Int, DayMood>()
 
@@ -53,20 +56,20 @@ class MoodCalendarView @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
         color = context.getColor(R.color.text_tertiary)
         textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, resources.displayMetrics)
-        try {
-            typeface = ResourcesCompat.getFont(context, R.font.be_vietnam_pro_semibold)
+        typeface = try {
+            ResourcesCompat.getFont(context, R.font.be_vietnam_pro_semibold)
         } catch (_: Exception) {
-            typeface = Typeface.DEFAULT_BOLD
+            Typeface.DEFAULT_BOLD
         }
     }
 
     private val dayTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
         textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 13.5f, resources.displayMetrics)
-        try {
-            typeface = ResourcesCompat.getFont(context, R.font.be_vietnam_pro_semibold)
+        typeface = try {
+            ResourcesCompat.getFont(context, R.font.be_vietnam_pro_semibold)
         } catch (_: Exception) {
-            typeface = Typeface.DEFAULT_BOLD
+            Typeface.DEFAULT_BOLD
         }
     }
 
@@ -89,48 +92,56 @@ class MoodCalendarView @JvmOverloads constructor(
     // === THÔNG SỐ HÌNH HỌC TÍNH TOÁN ===
     private val cellRect = RectF()
     private val cellPadding = 3.5f * resources.displayMetrics.density
-    private val cornerRadius = 9f * resources.displayMetrics.density
     private val headerHeight = 28f * resources.displayMetrics.density
 
     private val daysOfWeekLabels = resources.getStringArray(R.array.journal_weekdays_short).toList()
 
     // Gesture detector để hỗ trợ vuốt chuyển tháng
-    private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
-        override fun onFling(
-            e1: MotionEvent?,
-            e2: MotionEvent,
-            velocityX: Float,
-            velocityY: Float
-        ): Boolean {
-            if (e1 == null) return false
-            val diffX = e2.x - e1.x
-            val diffY = e2.y - e1.y
-            if (abs(diffX) > abs(diffY) && abs(diffX) > 100 && abs(velocityX) > 100) {
-                if (diffX > 0) {
-                    goToPreviousMonth()
-                } else {
-                    goToNextMonth()
+    private val gestureDetector = GestureDetector(
+        context,
+        object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                if (e1 == null) return false
+                val diffX = e2.x - e1.x
+                val diffY = e2.y - e1.y
+                if (abs(diffX) > abs(diffY) && abs(diffX) > 100 && abs(velocityX) > 100) {
+                    if (diffX > 0) {
+                        goToPreviousMonth()
+                    } else {
+                        goToNextMonth()
+                    }
+                    return true
                 }
-                return true
+                return false
             }
-            return false
         }
-    })
+    )
+
+    private val accessibility = CanvasAccessibility(
+        this,
+        ::dateNodes,
+        { x, y -> dateNodes().firstOrNull { it.bounds.contains(x.toInt(), y.toInt()) }?.id },
+        ::activateDay
+    )
+
+    init {
+        ViewCompat.setAccessibilityDelegate(this, accessibility)
+        isFocusable = true
+    }
 
     /**
      * Cung cấp dữ liệu cảm xúc mới cho tháng đang hiển thị.
      */
     fun setDayMoods(moods: List<DayMood>) {
-        dayMoodMap.clear()
-        for (dm in moods) {
-            try {
-                val date = LocalDate.parse(dm.day)
-                if (date.year == displayedYearMonth.year && date.monthValue == displayedYearMonth.monthValue) {
-                    dayMoodMap[date.dayOfMonth] = dm
-                }
-            } catch (_: Exception) {}
-        }
+        latestMoods = moods
+        rebuildDayMoodMap()
         invalidate()
+        accessibility.invalidateRoot()
     }
 
     /**
@@ -139,8 +150,9 @@ class MoodCalendarView @JvmOverloads constructor(
     fun setYearMonth(yearMonth: YearMonth) {
         val maxMonth = YearMonth.from(currentRealDate)
         if (yearMonth > maxMonth) return // Không cho phép sang tháng tương lai
+        if (displayedYearMonth == yearMonth) return
         displayedYearMonth = yearMonth
-        dayMoodMap.clear()
+        rebuildDayMoodMap()
         requestLayout()
         invalidate()
         accessibility.invalidateRoot()
@@ -149,11 +161,19 @@ class MoodCalendarView @JvmOverloads constructor(
 
     /** RecyclerView không lưu hierarchy của từng child; VM là nguồn month/selection bền qua recreate. */
     fun restoreCalendarState(month: YearMonth, selected: LocalDate?) {
-        if (displayedYearMonth == month && selectedDate == selected) return
-        displayedYearMonth = month
+        val maxMonth = YearMonth.from(currentRealDate)
+        val clampedMonth = if (month > maxMonth) maxMonth else month
+        val monthChanged = displayedYearMonth != clampedMonth
+        val selectionChanged = selectedDate != selected
+        if (!monthChanged && !selectionChanged) return
+        displayedYearMonth = clampedMonth
         selectedDate = selected
+        if (monthChanged) {
+            rebuildDayMoodMap()
+        }
         requestLayout()
         invalidate()
+        accessibility.invalidateRoot()
     }
 
     fun getYearMonth(): YearMonth = displayedYearMonth
@@ -179,12 +199,17 @@ class MoodCalendarView @JvmOverloads constructor(
         invalidate()
     }
 
+    private fun rebuildDayMoodMap() {
+        dayMoodMap.clear()
+        dayMoodMap.putAll(filterMoodsForMonth(latestMoods, displayedYearMonth))
+    }
+
     /**
      * Tính toán số tuần thực tế cần hiển thị cho tháng hiện tại.
      */
     private fun calculateTotalWeeks(): Int {
         val firstDayOfMonth = displayedYearMonth.atDay(1)
-        val firstDayOfWeekIndex = (firstDayOfMonth.dayOfWeek.value - 1) // Thứ Hai = 0 .. Chủ Nhật = 6
+        val firstDayOfWeekIndex = firstDayOfMonth.dayOfWeek.value - 1 // Thứ Hai = 0 .. Chủ Nhật = 6
         val totalDays = displayedYearMonth.lengthOfMonth()
         val totalCells = firstDayOfWeekIndex + totalDays
         return (totalCells + 6) / 7
@@ -240,7 +265,10 @@ class MoodCalendarView @JvmOverloads constructor(
             val cx = cellRect.centerX()
             val cy = cellRect.centerY()
             // [Intern]: Đĩa mood và viền hôm nay hình tròn bán kính 50% theo mockup/CSS 00_head:162 (F22)
-            val discRadius = minOf(15f * resources.displayMetrics.density, minOf(cellRect.width(), cellRect.height()) / 2f)
+            val discRadius = minOf(
+                15f * resources.displayMetrics.density,
+                minOf(cellRect.width(), cellRect.height()) / 2f
+            )
 
             // Vẽ đĩa tròn nền cảm xúc
             if (dayMood != null && !isFuture) {
@@ -275,24 +303,37 @@ class MoodCalendarView @JvmOverloads constructor(
         }
     }
 
-
     private fun dateNodes(): List<CanvasNode> {
         val cell = (width - paddingLeft - paddingRight) / 7f
         if (cell <= 0) return emptyList()
         val offset = displayedYearMonth.atDay(1).dayOfWeek.value - 1
-        val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(resources.configuration.locales[0])
+        val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)
+            .withLocale(resources.configuration.locales[0])
         return (1..displayedYearMonth.lengthOfMonth()).map { day ->
             val index = offset + day - 1
             val left = paddingLeft + (index % 7) * cell
             val top = paddingTop + headerHeight + (index / 7) * cell
             val date = displayedYearMonth.atDay(day)
             val mood = dayMoodMap[day]?.mood
-            val label = if (mood == null) date.format(formatter) else context.getString(R.string.journal_day_mood_description,
-                date.format(formatter), resources.getStringArray(R.array.journal_mood_names)[mood.coerceIn(1, 5) - 1])
-            CanvasNode(day, Rect(left.toInt(), top.toInt(), (left + cell).toInt(), (top + cell).toInt()), label,
-                !date.isAfter(currentRealDate), date == selectedDate)
+            val label = if (mood == null) {
+                date.format(formatter)
+            } else {
+                context.getString(
+                    R.string.journal_day_mood_description,
+                    date.format(formatter),
+                    resources.getStringArray(R.array.journal_mood_names)[mood.coerceIn(1, 5) - 1]
+                )
+            }
+            CanvasNode(
+                id = day,
+                bounds = Rect(left.toInt(), top.toInt(), (left + cell).toInt(), (top + cell).toInt()),
+                description = label,
+                enabled = !date.isAfter(currentRealDate),
+                selected = date == selectedDate
+            )
         }
     }
+
     private fun activateDay(day: Int) {
         val date = displayedYearMonth.atDay(day)
         if (date.isAfter(currentRealDate)) return
@@ -302,14 +343,13 @@ class MoodCalendarView @JvmOverloads constructor(
         performClick()
         onDayClickListener?.invoke(date, dayMoodMap.containsKey(day))
     }
-    private val accessibility = CanvasAccessibility(this, ::dateNodes,
-        { x, y -> dateNodes().firstOrNull { it.bounds.contains(x.toInt(), y.toInt()) }?.id }, ::activateDay)
-    init {
-        ViewCompat.setAccessibilityDelegate(this, accessibility)
-        isFocusable = true
-    }
-    override fun dispatchHoverEvent(event: MotionEvent) = accessibility.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
-    override fun dispatchKeyEvent(event: KeyEvent) = accessibility.dispatchKeyEvent(event) || super.dispatchKeyEvent(event)
+
+    override fun dispatchHoverEvent(event: MotionEvent) =
+        accessibility.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
+
+    override fun dispatchKeyEvent(event: KeyEvent) =
+        accessibility.dispatchKeyEvent(event) || super.dispatchKeyEvent(event)
+
     override fun onFocusChanged(gain: Boolean, direction: Int, rect: Rect?) {
         super.onFocusChanged(gain, direction, rect)
         accessibility.onFocusChanged(gain, direction, rect)
@@ -324,6 +364,7 @@ class MoodCalendarView @JvmOverloads constructor(
             val node = dateNodes().firstOrNull { it.bounds.contains(event.x.toInt(), event.y.toInt()) }
             if (node?.enabled == true) {
                 activateDay(node.id)
+                performClick()
                 return true
             }
         }
@@ -376,15 +417,38 @@ class MoodCalendarView @JvmOverloads constructor(
             super.onRestoreInstanceState(superState)
             val year = state.getInt("YEAR", currentRealDate.year)
             val month = state.getInt("MONTH", currentRealDate.monthValue)
-            displayedYearMonth = YearMonth.of(year, month)
+            val restoredMonth = YearMonth.of(year, month)
+            val maxMonth = YearMonth.from(currentRealDate)
+            displayedYearMonth = if (restoredMonth > maxMonth) maxMonth else restoredMonth
             val selectedStr = state.getString("SELECTED_DATE")
-            selectedDate = if (selectedStr != null) LocalDate.parse(selectedStr) else null
+            selectedDate = selectedStr?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            rebuildDayMoodMap()
             requestLayout()
             invalidate()
+            accessibility.invalidateRoot()
             // [Intern]: Đồng bộ tháng với ViewModel và Header sau khi khôi phục trạng thái (F11)
             onMonthChangedListener?.invoke(displayedYearMonth)
         } else {
             super.onRestoreInstanceState(state)
+        }
+    }
+
+    companion object {
+        internal fun filterMoodsForMonth(
+            moods: List<DayMood>,
+            yearMonth: YearMonth
+        ): Map<Int, DayMood> {
+            val result = mutableMapOf<Int, DayMood>()
+            for (dayMood in moods) {
+                val date = runCatching { LocalDate.parse(dayMood.day) }.getOrNull() ?: continue
+                if (date.year == yearMonth.year && date.monthValue == yearMonth.monthValue) {
+                    val existing = result[date.dayOfMonth]
+                    if (existing == null || dayMood.createdAt >= existing.createdAt) {
+                        result[date.dayOfMonth] = dayMood
+                    }
+                }
+            }
+            return result
         }
     }
 }

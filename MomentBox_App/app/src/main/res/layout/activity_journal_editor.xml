@@ -5,7 +5,6 @@
     android:id="@+id/editor_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/surface"
     android:fitsSystemWindows="false"
     android:orientation="vertical">
 
@@ -46,18 +45,18 @@
                 android:textColor="@color/text_primary"
                 android:textSize="19sp" />
 
-            <LinearLayout
+            <RelativeLayout
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_height="wrap_content">
 
                 <ImageView
                     android:id="@+id/iv_draft_status_icon"
-                    android:importantForAccessibility="no"
                     android:layout_width="14dp"
                     android:layout_height="14dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
                     android:layout_marginEnd="4dp"
+                    android:importantForAccessibility="no"
                     android:src="@drawable/ic_journal_cloud_done"
                     app:tint="@color/success" />
 
@@ -66,12 +65,15 @@
                     style="@style/JournalTextMedium"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_alignWithParentIfMissing="true"
+                    android:layout_centerVertical="true"
+                    android:layout_toEndOf="@id/iv_draft_status_icon"
                     android:fontFamily="@font/be_vietnam_pro_medium"
                     android:includeFontPadding="false"
                     android:text="@string/editor_draft_saving"
                     android:textColor="@color/text_tertiary"
                     android:textSize="12sp" />
-            </LinearLayout>
+            </RelativeLayout>
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
@@ -189,26 +191,19 @@
                     android:orientation="vertical">
 
                     <FrameLayout
+                        android:id="@+id/circle_mood_1"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        android:clipChildren="false"
-                        android:clipToPadding="false">
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_mood_selected_1">
 
-                        <FrameLayout
-                            android:id="@+id/circle_mood_1"
-                            android:layout_width="52dp"
-                            android:layout_height="52dp"
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:layout_gravity="center"
-                            android:background="@drawable/bg_mood_selected_1">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:includeFontPadding="false"
-                                android:text="@string/mood_great_emoji"
-                                android:textSize="27sp" />
-                        </FrameLayout>
+                            android:includeFontPadding="false"
+                            android:text="@string/mood_great_emoji"
+                            android:textSize="27sp" />
                     </FrameLayout>
 
                     <TextView
@@ -241,26 +236,19 @@
                     android:orientation="vertical">
 
                     <FrameLayout
+                        android:id="@+id/circle_mood_2"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        android:clipChildren="false"
-                        android:clipToPadding="false">
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_mood_unselected">
 
-                        <FrameLayout
-                            android:id="@+id/circle_mood_2"
-                            android:layout_width="52dp"
-                            android:layout_height="52dp"
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:layout_gravity="center"
-                            android:background="@drawable/bg_mood_unselected">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:includeFontPadding="false"
-                                android:text="@string/mood_good_emoji"
-                                android:textSize="27sp" />
-                        </FrameLayout>
+                            android:includeFontPadding="false"
+                            android:text="@string/mood_good_emoji"
+                            android:textSize="27sp" />
                     </FrameLayout>
 
                     <TextView
@@ -293,26 +281,19 @@
                     android:orientation="vertical">
 
                     <FrameLayout
+                        android:id="@+id/circle_mood_3"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        android:clipChildren="false"
-                        android:clipToPadding="false">
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_mood_unselected">
 
-                        <FrameLayout
-                            android:id="@+id/circle_mood_3"
-                            android:layout_width="52dp"
-                            android:layout_height="52dp"
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:layout_gravity="center"
-                            android:background="@drawable/bg_mood_unselected">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:includeFontPadding="false"
-                                android:text="@string/mood_okay_emoji"
-                                android:textSize="27sp" />
-                        </FrameLayout>
+                            android:includeFontPadding="false"
+                            android:text="@string/mood_okay_emoji"
+                            android:textSize="27sp" />
                     </FrameLayout>
 
                     <TextView
@@ -346,26 +327,19 @@
                     android:orientation="vertical">
 
                     <FrameLayout
+                        android:id="@+id/circle_mood_4"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        android:clipChildren="false"
-                        android:clipToPadding="false">
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_mood_unselected">
 
-                        <FrameLayout
-                            android:id="@+id/circle_mood_4"
-                            android:layout_width="52dp"
-                            android:layout_height="52dp"
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:layout_gravity="center"
-                            android:background="@drawable/bg_mood_unselected">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:includeFontPadding="false"
-                                android:text="@string/mood_sad_emoji"
-                                android:textSize="27sp" />
-                        </FrameLayout>
+                            android:includeFontPadding="false"
+                            android:text="@string/mood_sad_emoji"
+                            android:textSize="27sp" />
                     </FrameLayout>
 
                     <TextView
@@ -398,26 +372,19 @@
                     android:orientation="vertical">
 
                     <FrameLayout
+                        android:id="@+id/circle_mood_5"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        android:clipChildren="false"
-                        android:clipToPadding="false">
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_mood_unselected">
 
-                        <FrameLayout
-                            android:id="@+id/circle_mood_5"
-                            android:layout_width="52dp"
-                            android:layout_height="52dp"
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:layout_gravity="center"
-                            android:background="@drawable/bg_mood_unselected">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:includeFontPadding="false"
-                                android:text="@string/mood_terrible_emoji"
-                                android:textSize="27sp" />
-                        </FrameLayout>
+                            android:includeFontPadding="false"
+                            android:text="@string/mood_terrible_emoji"
+                            android:textSize="27sp" />
                     </FrameLayout>
 
                     <TextView
@@ -462,7 +429,7 @@
                 android:importantForAutofill="no"
                 style="@style/JournalTextRegular"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="0dp"
                 android:layout_weight="1"
                 android:layout_marginTop="8dp"
                 android:background="@null"

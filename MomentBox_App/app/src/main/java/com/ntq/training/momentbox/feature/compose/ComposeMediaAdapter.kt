@@ -12,6 +12,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.RequestManager
 import com.google.android.material.imageview.ShapeableImageView
@@ -26,6 +27,33 @@ class ComposeMediaAdapter(
     private val add: () -> Unit,
 ) : RecyclerView.Adapter<ComposeMediaAdapter.Holder>() {
     var items: List<SelectedMedia> = emptyList()
+
+    fun submitMedia(media: List<SelectedMedia>) {
+        if (items == media) return
+        val oldItems = items
+        val diff = DiffUtil.calculateDiff(
+            object : DiffUtil.Callback() {
+                override fun getOldListSize() = oldItems.size + 1
+
+                override fun getNewListSize() = media.size + 1
+
+                override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                    val oldIsAdd = oldItemPosition == oldItems.size
+                    val newIsAdd = newItemPosition == media.size
+                    if (oldIsAdd || newIsAdd) return oldIsAdd && newIsAdd
+                    return oldItems[oldItemPosition].id == media[newItemPosition].id
+                }
+
+                override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                    if (oldItemPosition == oldItems.size) return true
+                    return oldItemPosition == newItemPosition &&
+                        oldItems[oldItemPosition] == media[newItemPosition]
+                }
+            }
+        )
+        items = media
+        diff.dispatchUpdatesTo(this)
+    }
 
     override fun getItemCount() = items.size + 1
 

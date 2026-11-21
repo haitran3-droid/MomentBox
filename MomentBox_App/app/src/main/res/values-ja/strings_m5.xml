@@ -30,6 +30,7 @@
         <item quantity="other">未接続 · %2$d秒後に%1$d回目 · 再試行</item>
     </plurals>
     <string name="m5_socket_failed">接続できません · 再試行</string>
+    <string name="m5_socket_retry_now">今すぐ再試行</string>
     <string name="m5_socket_expired">セッション期限切れ · 再認証中</string>
     <string name="m5_quick_hold">マイクを長押しで録音、離して送信、左へスワイプでキャンセル</string>
     <string name="m5_quick_recording">録音中 %1$s · 左へスワイプでキャンセル</string>

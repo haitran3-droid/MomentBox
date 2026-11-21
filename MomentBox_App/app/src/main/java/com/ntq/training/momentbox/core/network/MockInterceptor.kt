@@ -1,10 +1,13 @@
 package com.ntq.training.momentbox.core.network
 
+import com.google.gson.JsonPrimitive
+import com.ntq.training.momentbox.BuildConfig
+import com.ntq.training.momentbox.MomentBoxApp
+import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import com.ntq.training.momentbox.data.local.prefs.SettingsStorage
 import com.ntq.training.momentbox.data.local.prefs.TokenStorage
-import com.ntq.training.momentbox.BuildConfig
-import com.ntq.training.momentbox.R
+import java.io.File
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -17,7 +20,12 @@ class MockInterceptor(
     private val tokenStore: TokenStorage? = null
 ) : Interceptor {
 
-    private val offline = OfflineFeedState({ listOf(feedJson(1), feedJson(2)) }, { commentsJson() })
+    private val offline = OfflineFeedState(
+        pages = { listOf(feedJson(1), feedJson(2)) },
+        commentTemplate = { commentsJson() },
+        meTemplate = { meJson() },
+        extraPosts = { ownProfilePostsJson() }
+    )
     private var offlineGeneration = tokenStore?.getSessionGeneration()
 
     init {
@@ -84,22 +92,7 @@ class MockInterceptor(
                   }
                 }
             """.trimIndent()
-            path.endsWith("/me") -> """
-                {
-                  "success": true,
-                  "data": {
-                    "id": 1,
-                    "username": "minhanh",
-                    "displayName": "Minh Anh",
-                    "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ma}",
-                    "email": "minhanh@momentbox.dev",
-                    "bio": "Đang dùng chế độ offline",
-                    "postCount": 12,
-                    "followerCount": 128,
-                    "followingCount": 45
-                  }
-                }
-            """.trimIndent()
+            path.endsWith("/me") -> meJson()
             path.endsWith("/stories") -> """
                 {
                   "success": true,
@@ -163,8 +156,12 @@ class MockInterceptor(
                     resolved = offline.resolve(request, mockJson)
                 }
             }
-            if (!accepted) resolved = 409 to """{"success":false,"error":{"code":"SESSION_CHANGED"}}"""
-        } else resolved = offline.resolve(request, mockJson)
+            if (!accepted) {
+                resolved = 409 to """{"success":false,"error":{"code":"SESSION_CHANGED"}}"""
+            }
+        } else {
+            resolved = offline.resolve(request, mockJson)
+        }
         val (code, body) = requireNotNull(resolved)
         return Response.Builder()
             .code(code)
@@ -176,199 +173,291 @@ class MockInterceptor(
             .build()
     }
 
+    private fun meJson(): String = """
+        {
+          "success": true,
+          "data": {
+            "id": 1,
+            "username": "minhanh",
+            "displayName": "Minh Anh",
+            "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ma}",
+            "email": "minhanh@momentbox.dev",
+            "bio": "Đang dùng chế độ offline",
+            "location": "Hà Nội",
+            "postCount": 2,
+            "followerCount": 128,
+            "followingCount": 45
+          }
+        }
+    """.trimIndent()
+
+    private fun ownProfilePostsJson(): List<String> = listOf(
+        """
+        {
+          "id": 201,
+          "type": "PHOTO",
+          "author": { "id": 1, "username": "minhanh", "displayName": "Minh Anh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ma}", "verified": false },
+          "caption": "Góc bình yên buổi sáng ở Đà Lạt ☁️🌿 #dalat #offline",
+          "tags": ["dalat", "offline"],
+          "location": "Đà Lạt",
+          "privacy": "public",
+          "allowComments": true,
+          "media": [
+            { "type": "image", "url": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.art_onboarding_dalat}" }
+          ],
+          "likeCount": 42,
+          "commentCount": 4,
+          "isLiked": false,
+          "isBookmarked": false,
+          "createdAt": "1 ngày trước"
+        }
+        """.trimIndent(),
+        """
+        {
+          "id": 202,
+          "type": "VIDEO",
+          "author": { "id": 1, "username": "minhanh", "displayName": "Minh Anh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ma}", "verified": false },
+          "caption": "Đoạn phim ngắn hoàng hôn cuối tuần 🎬 #sunset #momentbox",
+          "tags": ["sunset", "momentbox"],
+          "location": "Đà Nẵng",
+          "privacy": "public",
+          "allowComments": true,
+          "media": [
+            {
+              "type": "video",
+              "url": "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4",
+              "thumbnailUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.art_onboarding_dalat}",
+              "durationMs": 24000
+            }
+          ],
+          "likeCount": 29,
+          "commentCount": 2,
+          "isLiked": false,
+          "isBookmarked": false,
+          "createdAt": "2 ngày trước"
+        }
+        """.trimIndent()
+    )
+
+    private fun resolveOfflineVoiceUrl(): String {
+        val cachedFile = runCatching {
+            val app = MomentBoxApp.instance
+            val mediaDir = File(app.cacheDir, OFFLINE_MEDIA_DIR).apply { mkdirs() }
+            val target = File(mediaDir, OFFLINE_VOICE_FILE)
+            if (!target.isFile || target.length() == 0L) {
+                val temp = File(mediaDir, "$OFFLINE_VOICE_FILE.tmp")
+                app.assets.open(OFFLINE_VOICE_ASSET).use { input ->
+                    temp.outputStream().use { output -> input.copyTo(output) }
+                }
+                if (!temp.renameTo(target)) {
+                    temp.copyTo(target, overwrite = true)
+                    temp.delete()
+                }
+            }
+            target.takeIf { it.isFile && it.length() > 0L }
+        }.getOrNull()
+        return cachedFile?.toURI()?.toString() ?: "file:///android_asset/$OFFLINE_VOICE_ASSET"
+    }
+
     private fun feedJson(page: Int): String {
         // Ảnh đầu bài Đà Lạt dùng đúng artwork mockup đã đóng gói trong app,
         // giúp đối chiếu S04/S05 ổn định và không phụ thuộc ảnh Picsum thay đổi.
         return if (page > 2) {
             """
-                    {
-                      "success": true,
-                      "data": [],
-                      "meta": { "page": $page, "pageSize": 10, "total": 6, "hasMore": false }
-                    }
-                    """.trimIndent()
+            {
+              "success": true,
+              "data": [],
+              "meta": { "page": $page, "pageSize": 10, "total": 6, "hasMore": false }
+            }
+            """.trimIndent()
         } else if (page == 2) {
             """
-                    {
-                      "success": true,
-                      "data": [
-                        {
-                          "kind": "post",
-                          "post": {
-                            "id": 105,
-                            "type": "TEXT",
-                            "author": { "id": 5, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ht}", "verified": false },
-                            "caption": "Chào buổi tối cả nhà! Chúc mọi người một tuần làm việc hiệu quả và tràn đầy năng lượng nha #momentbox #evening",
-                            "tags": ["momentbox", "evening"],
-                            "location": "Hà Nội",
-                            "privacy": "public",
-                            "allowComments": true,
-                            "media": [],
-                            "likeCount": 18,
-                            "commentCount": 3,
-                            "isLiked": false,
-                            "isBookmarked": false,
-                            "createdAt": "6 giờ trước"
-                          }
-                        },
-                        {
-                          "kind": "post",
-                          "post": {
-                            "id": 106,
-                            "type": "VIDEO",
-                            "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_tv}", "verified": true },
-                            "caption": "Trải nghiệm phát video luồng HLS trực tiếp với định dạng .m3u8 trên ExoPlayer 🎬 #hls #stream #test",
-                            "tags": ["hls", "stream", "test"],
-                            "location": "Đà Nẵng",
-                            "privacy": "public",
-                            "allowComments": true,
-                            "media": [
-                              { "type": "video", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", "durationMs": 634000 }
-                            ],
-                            "likeCount": 55,
-                            "commentCount": 7,
-                            "isLiked": false,
-                            "isBookmarked": false,
-                            "createdAt": "3 giờ trước"
-                          }
-                        }
-                      ],
-                      "meta": { "page": 2, "pageSize": 10, "total": 6, "hasMore": false }
-                    }
-                    """.trimIndent()
+            {
+              "success": true,
+              "data": [
+                {
+                  "kind": "post",
+                  "post": {
+                    "id": 105,
+                    "type": "TEXT",
+                    "author": { "id": 5, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ht}", "verified": false },
+                    "caption": "Chào buổi tối cả nhà! Chúc mọi người một tuần làm việc hiệu quả và tràn đầy năng lượng nha #momentbox #evening",
+                    "tags": ["momentbox", "evening"],
+                    "location": "Hà Nội",
+                    "privacy": "public",
+                    "allowComments": true,
+                    "media": [],
+                    "likeCount": 18,
+                    "commentCount": 3,
+                    "isLiked": false,
+                    "isBookmarked": false,
+                    "createdAt": "6 giờ trước"
+                  }
+                },
+                {
+                  "kind": "post",
+                  "post": {
+                    "id": 106,
+                    "type": "VIDEO",
+                    "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_tv}", "verified": true },
+                    "caption": "Trải nghiệm phát video luồng HLS trực tiếp với định dạng .m3u8 trên ExoPlayer 🎬 #hls #stream #test",
+                    "tags": ["hls", "stream", "test"],
+                    "location": "Đà Nẵng",
+                    "privacy": "public",
+                    "allowComments": true,
+                    "media": [
+                      { "type": "video", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", "durationMs": 634000 }
+                    ],
+                    "likeCount": 55,
+                    "commentCount": 7,
+                    "isLiked": false,
+                    "isBookmarked": false,
+                    "createdAt": "3 giờ trước"
+                  }
+                }
+              ],
+              "meta": { "page": 2, "pageSize": 10, "total": 6, "hasMore": false }
+            }
+            """.trimIndent()
         } else {
+            val offlineVoiceUrlJson = JsonPrimitive(resolveOfflineVoiceUrl()).toString()
             """
-                    {
-                      "success": true,
-                      "data": [
-                        {
-                          "kind": "post",
-                          "post": {
-                            "id": 101,
-                            "type": "PHOTO",
-                            "author": { "id": 2, "username": "lananh", "displayName": "Lan Anh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_la}", "verified": false },
-                            "caption": "Sáng sớm ở đồi chè Cầu Đất, sương phủ kín cả thung lũng ☁️🌿 Một trong những buổi sáng đẹp nhất năm. Cảm ơn cả nhà đã dậy sớm cùng mình! #dalat #travel #family",
-                            "tags": ["dalat", "travel", "family"],
-                            "location": "Đà Lạt",
-                            "privacy": "public",
-                            "allowComments": true,
-                            "media": [
-                              { "type": "image", "url": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.art_onboarding_dalat}" },
-                              { "type": "image", "url": "https://picsum.photos/seed/dalat_2/720/524" },
-                              { "type": "image", "url": "https://picsum.photos/seed/dalat_3/720/524" }
-                            ],
-                            "likeCount": 128,
-                            "commentCount": 24,
-                            "isLiked": true,
-                            "isBookmarked": true,
-                            "createdAt": "2 giờ trước"
-                          }
-                        },
-                        {
-                          "kind": "post",
-                          "post": {
-                            "id": 102,
-                            "type": "VOICE",
-                            "author": { "id": 3, "username": "minhquan", "displayName": "Minh Quân", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_mq}", "verified": false },
-                            "caption": "Một chút tâm sự tối nay 🎧",
-                            "tags": ["podcast", "night"],
-                            "location": null,
-                            "privacy": "friends",
-                            "allowComments": true,
-                            "media": [
-                              { "type": "audio", "url": "http://localhost:3000/media/audio/voice-1.wav", "durationMs": 42000 }
-                            ],
-                            "likeCount": 36,
-                            "commentCount": 8,
-                            "isLiked": false,
-                            "isBookmarked": false,
-                            "createdAt": "5 giờ trước"
-                          }
-                        },
-                        {
-                          "kind": "suggestions",
-                          "users": [
-                            { "id": 11, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ht}", "verified": false, "isFollowing": false, "mutualCount": 12 },
-                            { "id": 12, "username": "duckhang", "displayName": "Đức Khang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_dk}", "verified": false, "isFollowing": true, "mutualCount": 5 },
-                            { "id": 13, "username": "phuonglinh", "displayName": "Phương Linh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_pl}", "verified": false, "isFollowing": false, "mutualCount": 4 }
-                          ]
-                        },
-                        {
-                          "kind": "post",
-                          "post": {
-                            "id": 103,
-                            "type": "VIDEO",
-                            "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_tv}", "verified": true },
-                            "caption": "Biển Mỹ Khê lúc hoàng hôn, bình yên đến lạ 🌅🌊 #danang #mykhe #sunset",
-                            "tags": ["danang", "mykhe", "sunset"],
-                            "location": "Đà Nẵng",
-                            "privacy": "public",
-                            "allowComments": true,
-                            "media": [
-                              { "type": "video", "url": "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4", "durationMs": 24000 }
-                            ],
-                            "likeCount": 89,
-                            "commentCount": 14,
-                            "isLiked": false,
-                            "isBookmarked": false,
-                            "createdAt": "Hôm qua"
-                          }
-                        },
-                        {
-                          "kind": "post",
-                          "post": {
-                            "id": 104,
-                            "type": "TEXT",
-                            "author": { "id": 2, "username": "lananh", "displayName": "Lan Anh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_la}", "verified": false },
-                            "caption": "Đôi khi chỉ cần một cuốn sách hay và một tách cà phê ấm là đủ cho một ngày mưa rả rích ☕️📖",
-                            "tags": ["coffee", "rain"],
-                            "location": "Hà Nội",
-                            "privacy": "public",
-                            "allowComments": true,
-                            "media": [],
-                            "likeCount": 42,
-                            "commentCount": 5,
-                            "isLiked": false,
-                            "isBookmarked": false,
-                            "createdAt": "Hôm kia"
-                          }
-                        }
-                      ],
-                      "meta": { "page": 1, "pageSize": 10, "total": 5, "hasMore": true }
-                    }
-                    """.trimIndent()
+            {
+              "success": true,
+              "data": [
+                {
+                  "kind": "post",
+                  "post": {
+                    "id": 101,
+                    "type": "PHOTO",
+                    "author": { "id": 2, "username": "lananh", "displayName": "Lan Anh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_la}", "verified": false },
+                    "caption": "Sáng sớm ở đồi chè Cầu Đất, sương phủ kín cả thung lũng ☁️🌿 Một trong những buổi sáng đẹp nhất năm. Cảm ơn cả nhà đã dậy sớm cùng mình! #dalat #travel #family",
+                    "tags": ["dalat", "travel", "family"],
+                    "location": "Đà Lạt",
+                    "privacy": "public",
+                    "allowComments": true,
+                    "media": [
+                      { "type": "image", "url": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.art_onboarding_dalat}" },
+                      { "type": "image", "url": "https://picsum.photos/seed/dalat_2/720/524" },
+                      { "type": "image", "url": "https://picsum.photos/seed/dalat_3/720/524" }
+                    ],
+                    "likeCount": 128,
+                    "commentCount": 24,
+                    "isLiked": true,
+                    "isBookmarked": true,
+                    "createdAt": "2 giờ trước"
+                  }
+                },
+                {
+                  "kind": "post",
+                  "post": {
+                    "id": 102,
+                    "type": "VOICE",
+                    "author": { "id": 3, "username": "minhquan", "displayName": "Minh Quân", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_mq}", "verified": false },
+                    "caption": "Một chút tâm sự tối nay 🎧",
+                    "tags": ["podcast", "night"],
+                    "location": null,
+                    "privacy": "friends",
+                    "allowComments": true,
+                    "media": [
+                      { "type": "audio", "url": $offlineVoiceUrlJson, "durationMs": 10000 }
+                    ],
+                    "likeCount": 36,
+                    "commentCount": 8,
+                    "isLiked": false,
+                    "isBookmarked": false,
+                    "createdAt": "5 giờ trước"
+                  }
+                },
+                {
+                  "kind": "suggestions",
+                  "users": [
+                    { "id": 11, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ht}", "verified": false, "isFollowing": false, "mutualCount": 12 },
+                    { "id": 12, "username": "duckhang", "displayName": "Đức Khang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_dk}", "verified": false, "isFollowing": true, "mutualCount": 5 },
+                    { "id": 13, "username": "phuonglinh", "displayName": "Phương Linh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_pl}", "verified": false, "isFollowing": false, "mutualCount": 4 }
+                  ]
+                },
+                {
+                  "kind": "post",
+                  "post": {
+                    "id": 103,
+                    "type": "VIDEO",
+                    "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_tv}", "verified": true },
+                    "caption": "Biển Mỹ Khê lúc hoàng hôn, bình yên đến lạ 🌅🌊 #danang #mykhe #sunset",
+                    "tags": ["danang", "mykhe", "sunset"],
+                    "location": "Đà Nẵng",
+                    "privacy": "public",
+                    "allowComments": true,
+                    "media": [
+                      { "type": "video", "url": "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4", "durationMs": 24000 }
+                    ],
+                    "likeCount": 89,
+                    "commentCount": 14,
+                    "isLiked": false,
+                    "isBookmarked": false,
+                    "createdAt": "Hôm qua"
+                  }
+                },
+                {
+                  "kind": "post",
+                  "post": {
+                    "id": 104,
+                    "type": "TEXT",
+                    "author": { "id": 2, "username": "lananh", "displayName": "Lan Anh", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_la}", "verified": false },
+                    "caption": "Đôi khi chỉ cần một cuốn sách hay và một tách cà phê ấm là đủ cho một ngày mưa rả rích ☕️📖",
+                    "tags": ["coffee", "rain"],
+                    "location": "Hà Nội",
+                    "privacy": "public",
+                    "allowComments": true,
+                    "media": [],
+                    "likeCount": 42,
+                    "commentCount": 5,
+                    "isLiked": false,
+                    "isBookmarked": false,
+                    "createdAt": "Hôm kia"
+                  }
+                }
+              ],
+              "meta": { "page": 1, "pageSize": 10, "total": 5, "hasMore": true }
+            }
+            """.trimIndent()
         }
-
     }
 
     private fun commentsJson(): String = """
-                {
-                  "success": true,
-                  "data": [
-                    {
-                      "id": 1,
-                      "postId": 101,
-                      "parentId": null,
-                      "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_tv}", "verified": true },
-                      "content": "Đẹp quá chị ơi! Cho em xin địa chỉ đồi chè với 😍",
-                      "likeCount": 12,
-                      "isLiked": true,
-                      "replyCount": 2,
-                      "createdAt": "15 phút"
-                    },
-                    {
-                      "id": 2,
-                      "postId": 101,
-                      "parentId": null,
-                      "author": { "id": 5, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ht}", "verified": false },
-                      "content": "Hẹn tháng sau mình đi cùng nha!",
-                      "likeCount": 3,
-                      "isLiked": false,
-                      "replyCount": 0,
-                      "createdAt": "1 giờ"
-                    }
-                  ],
-                  "meta": { "page": 1, "pageSize": 20, "total": 24, "hasMore": false }
-                }
-            """.trimIndent()
+        {
+          "success": true,
+          "data": [
+            {
+              "id": 1,
+              "postId": 101,
+              "parentId": null,
+              "author": { "id": 4, "username": "travel", "displayName": "Travel VN", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_tv}", "verified": true },
+              "content": "Đẹp quá chị ơi! Cho em xin địa chỉ đồi chè với 😍",
+              "likeCount": 12,
+              "isLiked": true,
+              "replyCount": 2,
+              "createdAt": "15 phút"
+            },
+            {
+              "id": 2,
+              "postId": 101,
+              "parentId": null,
+              "author": { "id": 5, "username": "hatrang", "displayName": "Hà Trang", "avatarUrl": "android.resource://${BuildConfig.APPLICATION_ID}/${R.drawable.avatar_demo_ht}", "verified": false },
+              "content": "Hẹn tháng sau mình đi cùng nha!",
+              "likeCount": 3,
+              "isLiked": false,
+              "replyCount": 0,
+              "createdAt": "1 giờ"
+            }
+          ],
+          "meta": { "page": 1, "pageSize": 20, "total": 24, "hasMore": false }
+        }
+    """.trimIndent()
+
+    companion object {
+        private const val OFFLINE_MEDIA_DIR = "offline-media"
+        private const val OFFLINE_VOICE_FILE = "voice-1.wav"
+        private const val OFFLINE_VOICE_ASSET = "ambient-rain.wav"
+    }
 }

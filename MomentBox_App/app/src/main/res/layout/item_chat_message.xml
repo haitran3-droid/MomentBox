@@ -58,7 +58,7 @@
                     android:paddingEnd="7dp"
                     android:paddingBottom="2dp"
                     android:textColor="@color/white"
-                    android:textSize="10.5sp" />
+                    android:textSize="11sp" />
             </FrameLayout>
 
             <LinearLayout
@@ -142,7 +142,7 @@
                 android:layout_gravity="end"
                 android:layout_marginTop="3dp"
                 android:textColor="@color/text_tertiary"
-                android:textSize="10.5sp" />
+                android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>
 

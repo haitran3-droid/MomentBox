@@ -55,6 +55,7 @@
     <string name="m4_discard_edits">Bỏ thay đổi ảnh?</string>
     <string name="m4_discard">Bỏ thay đổi</string>
     <string name="m4_record_title">Ghi âm</string>
+    <string name="m4_start_recording">Bắt đầu ghi âm</string>
     <string name="m4_paused">Tạm dừng</string>
     <string name="m4_recording">Đang ghi</string>
     <string name="m4_resume">Tiếp tục</string>
@@ -81,7 +82,6 @@
     <string name="m4_upload">Đang tải lên</string>
     <string name="m4_posted">Đã đăng bài</string>
     <string name="m4_save_draft">Lưu nháp bài viết?</string>
-    <string name="m4_retry_uncertain">Lần trước có thể server đã nhận bài nhưng mất phản hồi. Thử lại có thể tạo bài trùng. Tiếp tục?</string>
     <string name="m4_retry">Thử lại</string>
     <string name="m4_journal_failed">Đã đăng, lưu nhật ký thất bại. Thử lại chỉ lưu nhật ký.</string>
     <string name="m4_not_posted">Chưa xác nhận đăng thành công. Bản nháp đã giữ.</string>

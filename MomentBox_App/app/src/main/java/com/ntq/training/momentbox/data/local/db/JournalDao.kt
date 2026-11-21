@@ -10,8 +10,12 @@ import androidx.room.Update
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.ntq.training.momentbox.data.repository.JournalDayCount
 import com.ntq.training.momentbox.data.repository.JournalPageSnapshot
+import com.ntq.training.momentbox.data.repository.JournalStatsSnapshot
 import com.ntq.training.momentbox.data.repository.PendingJournalDelete
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 @Dao
 interface JournalDao {
@@ -169,7 +173,7 @@ interface JournalDao {
         to: Long
     ): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM journal_entries WHERE deleted_at IS NULL AND created_at >= :start AND created_at < :endExclusive")
+    @Query("SELECT COUNT(*) FROM journal_entries INDEXED BY index_journal_entries_created_at WHERE deleted_at IS NULL AND created_at >= :start AND created_at < :endExclusive")
     suspend fun countNonDeletedInRange(start: Long, endExclusive: Long): Int
 
     /**
@@ -224,12 +228,49 @@ interface JournalDao {
     @Transaction
     @Query(
         """
-        SELECT * FROM journal_entries
+        SELECT * FROM journal_entries INDEXED BY index_journal_entries_created_at
         WHERE deleted_at IS NULL AND created_at BETWEEN :from AND :to
         ORDER BY created_at ASC
     """
     )
     suspend fun getEntriesForPeriod(from: Long, to: Long): List<JournalEntryWithDetails>
+
+    @Query("SELECT MAX(created_at) FROM journal_entries INDEXED BY index_journal_entries_created_at WHERE deleted_at IS NULL AND created_at < :endExclusive")
+    suspend fun latestWrittenBefore(endExclusive: Long): Long?
+
+    @Query("SELECT created_at FROM journal_entries INDEXED BY index_journal_entries_created_at WHERE deleted_at IS NULL AND created_at >= :start AND created_at < :endExclusive")
+    suspend fun writtenTimestamps(start: Long, endExclusive: Long): List<Long>
+
+    @Transaction
+    suspend fun readStatsSnapshot(
+        previousStart: LocalDate, currentStart: LocalDate, currentEnd: LocalDate, today: LocalDate, zone: ZoneId
+    ): JournalStatsSnapshot {
+        fun midnight(day: LocalDate) = day.atStartOfDay(zone).toInstant().toEpochMilli()
+        fun date(millis: Long) = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+        val start = midnight(currentStart)
+        val entries = getEntriesForPeriod(start, midnight(currentEnd.plusDays(1)) - 1)
+        val previousCount = countNonDeletedInRange(midnight(previousStart), start)
+        val latest = latestWrittenBefore(midnight(today.plusDays(1)))
+            ?: return JournalStatsSnapshot(entries, previousCount, 0)
+        var day = date(latest)
+        if (day.isBefore(today.minusDays(1))) {
+            return JournalStatsSnapshot(entries, previousCount, 0)
+        }
+        var streak = 0
+        // Read timestamps in monthly batches and stop at the first missing local date.
+        while (true) {
+            val first = day.minusDays(30)
+            val dates = writtenTimestamps(
+                midnight(first),
+                midnight(day.plusDays(1))
+            ).mapTo(hashSetOf(), ::date)
+            while (day >= first) {
+                if (day !in dates) return JournalStatsSnapshot(entries, previousCount, streak)
+                streak++
+                day = day.minusDays(1)
+            }
+        }
+    }
 
     @Transaction
     @Query("SELECT * FROM journal_entries WHERE deleted_at IS NULL ORDER BY created_at ASC")

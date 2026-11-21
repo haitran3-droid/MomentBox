@@ -9,21 +9,25 @@ import com.ntq.training.momentbox.data.local.db.JournalEntryWithDetails
 import com.ntq.training.momentbox.data.local.prefs.JournalAttachmentDraft
 import com.ntq.training.momentbox.data.local.prefs.JournalDraft
 import com.ntq.training.momentbox.data.repository.JournalRepository
-import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 enum class EditorError { LOAD, IMPORT, DRAFT, SAVE }
 
@@ -60,25 +64,38 @@ data class JournalEditorUiState(
     val restoredDraft: JournalDraft? = null
 ) {
     val canSave: Boolean
-        get() = (title.trim().isNotEmpty() || content.trim()
-            .isNotEmpty()) && mood in 1..5 && !isSaving && !isLoading && !isLoadFailed && pendingImports == 0
+        get() = (title.trim().isNotEmpty() || content.trim().isNotEmpty()) &&
+            mood in 1..5 &&
+            !isSaving &&
+            !isLoading &&
+            !isLoadFailed &&
+            pendingImports == 0
 }
 
 class JournalEditorViewModel(
     private val journalRepository: JournalRepository,
     private val initialEntryId: Long = -1L,
     initialDateEpochMs: Long = System.currentTimeMillis(),
-    initialMood: Int = 1
+    initialMood: Int = 1,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
+
     private val _uiState = MutableStateFlow(
         JournalEditorUiState(
-            entryId = initialEntryId.takeIf { it > 0L }, dateEpochMs = initialDateEpochMs,
-        mood = initialMood.takeIf { it in 1..5 } ?: 1, isLoading = true))
+            entryId = initialEntryId.takeIf { it > 0L },
+            dateEpochMs = initialDateEpochMs,
+            mood = initialMood.takeIf { it in 1..5 } ?: 1,
+            isLoading = true
+        )
+    )
     val uiState = _uiState.asStateFlow()
+
     private val _saveEvents = MutableSharedFlow<Result<Long>>(replay = 1)
     val saveEvents = _saveEvents.asSharedFlow()
+
     private val _flushDraftEvents = MutableSharedFlow<FlushDraftResult>(replay = 1)
     val flushDraftEvents = _flushDraftEvents.asSharedFlow()
+
     val suggestedTagsFlow = journalRepository.observeDistinctTags()
 
     // Mọi lệnh đóng/lưu và autosave dùng chung khóa. Không cho job DataStore cũ ghi sau Clear.
@@ -91,6 +108,7 @@ class JournalEditorViewModel(
     private var revision = 0L
     private var generation = 0L
     private var hasTerminated = false
+    private var hasPromptedDraft = false
     private var originalEntry: JournalEntryWithDetails? = null
     private var pendingCommitId: Long? = null
     private val stagedFilesToKeep = mutableSetOf<String>()
@@ -107,6 +125,7 @@ class JournalEditorViewModel(
     private fun loadInitialState() {
         _uiState.update { it.copy(isLoading = true, isLoadFailed = false) }
         viewModelScope.launch {
+            var draftToPrompt: JournalDraft? = null
             try {
                 if (initialEntryId > 0) {
                     originalEntry = journalRepository.getEntryById(initialEntryId)
@@ -127,22 +146,25 @@ class JournalEditorViewModel(
                 }
                 nextAttachmentOrder =
                     (_uiState.value.attachments.maxOfOrNull { it.sortOrder } ?: -1) + 1
-                val draft = journalRepository.getDraft(initialEntryId.takeIf { it > 0 })
-                if (draft != null) {
-                    val committed =
-                        draft.pendingCommitId?.let { journalRepository.getEntryById(it) }
-                    if (committed != null && matchesCommittedDraft(draft, committed)) {
-                        // Room đã commit nhưng lần Clear trước lỗi I/O: không mời khôi phục tạo bài trùng.
-                        runCatching {
-                            journalRepository.clearDraft(draft.entryId)
-                            journalRepository.deleteUnreferencedFiles(draft.cleanupPaths.orEmpty())
-                        }.onFailure { if (it is CancellationException) throw it }
-                    } else if (draft.title.isNotBlank() || draft.content.isNotBlank() || draft.attachments.isNotEmpty() || draft.tags.isNotEmpty()) {
-                        _uiState.update {
-                            it.copy(
-                                showRestoreDraftDialog = true,
-                                restoredDraft = draft
-                            )
+                if (!hasPromptedDraft) {
+                    val draft = journalRepository.getDraft(initialEntryId.takeIf { it > 0 })
+                    if (draft != null) {
+                        val committed =
+                            draft.pendingCommitId?.let { journalRepository.getEntryById(it) }
+                        if (committed != null && matchesCommittedDraft(draft, committed)) {
+                            // Room đã commit nhưng lần Clear trước lỗi I/O: không mời khôi phục tạo bài trùng.
+                            runCatching {
+                                journalRepository.clearDraft(draft.entryId)
+                                journalRepository.deleteUnreferencedFiles(draft.cleanupPaths.orEmpty())
+                            }.onFailure { if (it is CancellationException) throw it }
+                        } else if (
+                            draft.title.isNotBlank() ||
+                            draft.content.isNotBlank() ||
+                            draft.attachments.isNotEmpty() ||
+                            draft.tags.isNotEmpty()
+                        ) {
+                            hasPromptedDraft = true
+                            draftToPrompt = draft
                         }
                     }
                 }
@@ -150,43 +172,75 @@ class JournalEditorViewModel(
                 if (e is CancellationException) throw e
                 _uiState.update { it.copy(error = EditorError.LOAD, isLoadFailed = true) }
             } finally {
-                _uiState.update { it.copy(isLoading = false) }
+                _uiState.update {
+                    if (draftToPrompt != null) {
+                        it.copy(
+                            isLoading = false,
+                            showRestoreDraftDialog = true,
+                            restoredDraft = draftToPrompt
+                        )
+                    } else {
+                        it.copy(isLoading = false)
+                    }
+                }
             }
         }
     }
 
     private fun matchesCommittedDraft(d: JournalDraft, row: JournalEntryWithDetails): Boolean =
-        row.entry.title == d.title.trim().take(100) && row.entry.content == d.content.trim() &&
-                row.entry.mood == d.mood && row.entry.createdAt == d.dateEpochMs &&
-                row.tags.map { it.tag }.toSet() == d.tags.toSet() &&
-                row.attachments.map { it.localPath } == d.attachments.map { it.localPath }
+        row.entry.title == d.title.trim().take(100) &&
+            row.entry.content == d.content.trim() &&
+            row.entry.mood == d.mood &&
+            row.entry.createdAt == d.dateEpochMs &&
+            row.tags.map { it.tag }.toSet() == d.tags.toSet() &&
+            row.attachments.map { it.localPath } == d.attachments.map { it.localPath }
 
     fun restoreDraft() {
-        val draft = _uiState.value.restoredDraft ?: return
+        var draft: JournalDraft? = null
+        _uiState.update { state ->
+            val pending = state.restoredDraft
+            if (pending == null || !state.showRestoreDraftDialog) {
+                draft = null
+                state
+            } else {
+                draft = pending
+                state.copy(
+                    showRestoreDraftDialog = false,
+                    restoredDraft = null,
+                    isLoading = pending.entryId != null
+                )
+            }
+        }
+        val resolvedDraft = draft ?: return
+
         fun bindDraft() {
-            pendingCommitId = draft.pendingCommitId
-            val attachments = draft.attachments.mapIndexed { i, a ->
+            pendingCommitId = resolvedDraft.pendingCommitId
+            val attachments = resolvedDraft.attachments.mapIndexed { i, a ->
                 JournalAttachmentEntity(
-                    entryId = draft.entryId ?: 0, type = a.type, localPath = a.localPath,
-                    durationMs = a.durationMs, waveform = a.waveform, sortOrder = i
+                    entryId = resolvedDraft.entryId ?: 0,
+                    type = a.type,
+                    localPath = a.localPath,
+                    durationMs = a.durationMs,
+                    waveform = a.waveform,
+                    sortOrder = i
                 )
             }
             val originalPaths = originalEntry?.attachments.orEmpty().map { it.localPath }.toSet()
             stagedFilesToKeep += attachments.map { it.localPath }.filterNot { it in originalPaths }
-            oldFilesToDeleteAfterCommit += draft.cleanupPaths.orEmpty()
+            oldFilesToDeleteAfterCommit += resolvedDraft.cleanupPaths.orEmpty()
             nextAttachmentOrder = attachments.size
             _uiState.update {
                 it.copy(
-                    entryId = draft.entryId,
-                    dateEpochMs = draft.dateEpochMs,
-                    mood = draft.mood,
-                    title = draft.title,
-                    content = draft.content,
-                    tags = draft.tags,
+                    entryId = resolvedDraft.entryId,
+                    dateEpochMs = resolvedDraft.dateEpochMs,
+                    mood = resolvedDraft.mood,
+                    title = resolvedDraft.title,
+                    content = resolvedDraft.content,
+                    tags = resolvedDraft.tags,
                     attachments = attachments,
-                    wordCount = calculateWordCount(draft.content),
-                    isLengthWarning = draft.content.length > 5000,
-                    draftStatus = DraftStatus.Saved(draft.savedAtEpochMs),
+                    wordCount = calculateWordCount(resolvedDraft.content),
+                    isLengthWarning = resolvedDraft.content.length > 5000,
+                    draftStatus = DraftStatus.Saved(resolvedDraft.savedAtEpochMs),
                     isDirty = true,
                     isLoading = false,
                     showRestoreDraftDialog = false,
@@ -194,27 +248,68 @@ class JournalEditorViewModel(
                 )
             }
         }
-        if (draft.entryId == null) bindDraft() else {
-            _uiState.update { it.copy(isLoading = true) }
+
+        if (resolvedDraft.entryId == null) {
+            bindDraft()
+        } else {
             viewModelScope.launch {
                 try {
                     // Khôi phục từ nút Viết mới vẫn phải đọc metadata của bài gốc (đặc biệt cờ ghim).
-                    originalEntry = journalRepository.getEntryById(draft.entryId)
+                    originalEntry = journalRepository.getEntryById(resolvedDraft.entryId)
                     bindDraft()
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
-                    _uiState.update { it.copy(isLoading = false, error = EditorError.LOAD) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            showRestoreDraftDialog = false,
+                            restoredDraft = null,
+                            error = EditorError.LOAD
+                        )
+                    }
                 }
             }
         }
     }
 
     fun dismissRestoreDraftDialog() {
-        val draft = _uiState.value.restoredDraft ?: return
+        var draft: JournalDraft? = null
+        _uiState.update { state ->
+            val pending = state.restoredDraft
+            if (pending == null || !state.showRestoreDraftDialog) {
+                draft = null
+                state
+            } else {
+                draft = pending
+                state.copy(showRestoreDraftDialog = false, restoredDraft = null)
+            }
+        }
+        val discardedDraft = draft ?: return
         viewModelScope.launch {
             try {
-                draftMutex.withLock { journalRepository.clearDraft(draft.entryId) }
-                _uiState.update { it.copy(showRestoreDraftDialog = false, restoredDraft = null) }
+                draftMutex.withLock {
+                    journalRepository.clearDraft(discardedDraft.entryId)
+                }
+                val referencedPaths = buildSet {
+                    originalEntry?.attachments.orEmpty().forEach { add(it.localPath) }
+                    _uiState.value.attachments.forEach { add(it.localPath) }
+                    val draftEntryId = discardedDraft.entryId
+                    if (draftEntryId != null && originalEntry?.entry?.id != draftEntryId) {
+                        journalRepository.getEntryById(draftEntryId)
+                            ?.attachments
+                            .orEmpty()
+                            .forEach { add(it.localPath) }
+                    }
+                }
+                val orphanPaths = (
+                    discardedDraft.attachments.map { it.localPath } +
+                        discardedDraft.cleanupPaths.orEmpty()
+                    ).distinct().filter { it.isNotBlank() && it !in referencedPaths }
+                if (orphanPaths.isNotEmpty()) {
+                    withContext(ioDispatcher) {
+                        journalRepository.deleteUnreferencedFiles(orphanPaths)
+                    }
+                }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 _uiState.update { it.copy(error = EditorError.DRAFT) }
@@ -223,7 +318,10 @@ class JournalEditorViewModel(
     }
 
     private fun editable() =
-        !hasTerminated && !_uiState.value.isLoading && !_uiState.value.isLoadFailed && !_uiState.value.isSaving
+        !hasTerminated &&
+            !_uiState.value.isLoading &&
+            !_uiState.value.isLoadFailed &&
+            !_uiState.value.isSaving
 
     fun onTitleChanged(value: String) {
         if (!editable() || _uiState.value.title == value) return
@@ -235,8 +333,10 @@ class JournalEditorViewModel(
         if (!editable() || _uiState.value.content == value) return
         _uiState.update {
             it.copy(
-                content = value, wordCount = calculateWordCount(value),
-                isLengthWarning = value.length > 5000, isDirty = true
+                content = value,
+                wordCount = calculateWordCount(value),
+                isLengthWarning = value.length > 5000,
+                isDirty = true
             )
         }
         triggerAutosave()
@@ -260,7 +360,9 @@ class JournalEditorViewModel(
     }
 
     fun addPhotoAttachment(sourceUriOrPath: String) {
-        if (!editable() || _uiState.value.attachments.count { it.type == "image" } + pendingPhotos >= 10) return
+        if (!editable() || _uiState.value.attachments.count { it.type == "image" } + pendingPhotos >= 10) {
+            return
+        }
         pendingPhotos++
         importAttachment(sourceUriOrPath, false, 0, emptyList())
     }
@@ -296,7 +398,7 @@ class JournalEditorViewModel(
                 stagedFilesToKeep += path
                 val metadata =
                     if (audio && duration <= 0) journalRepository.readAudioMetadata(path) else null
-                val new = JournalAttachmentEntity(
+                val newAttachment = JournalAttachmentEntity(
                     entryId = _uiState.value.entryId ?: 0,
                     type = if (audio) "audio" else "image",
                     localPath = path,
@@ -304,12 +406,18 @@ class JournalEditorViewModel(
                     waveform = waveform.ifEmpty { metadata?.waveform.orEmpty() },
                     sortOrder = order
                 )
-                if (audio) _uiState.value.attachments.filter { it.type == "audio" }
-                    .forEach { oldFilesToDeleteAfterCommit += it.localPath }
+                if (audio) {
+                    _uiState.value.attachments
+                        .filter { it.type == "audio" }
+                        .forEach { oldFilesToDeleteAfterCommit += it.localPath }
+                }
                 _uiState.update { state ->
-                    state.copy(
-                        attachments =
-                        ((if (audio) state.attachments.filterNot { it.type == "audio" } else state.attachments) + new).sortedBy { it.sortOrder })
+                    val retained = if (audio) {
+                        state.attachments.filterNot { it.type == "audio" }
+                    } else {
+                        state.attachments
+                    }
+                    state.copy(attachments = (retained + newAttachment).sortedBy { it.sortOrder })
                 }
                 triggerAutosave()
             } catch (e: Exception) {
@@ -360,11 +468,11 @@ class JournalEditorViewModel(
             tags = s.tags,
             attachments = s.attachments.map {
                 JournalAttachmentDraft(
-                    it.type,
-                    it.localPath,
-                    it.durationMs,
-                    it.waveform,
-                    it.sortOrder
+                    type = it.type,
+                    localPath = it.localPath,
+                    durationMs = it.durationMs,
+                    waveform = it.waveform,
+                    sortOrder = it.sortOrder
                 )
             },
             savedAtEpochMs = System.currentTimeMillis(),
@@ -386,12 +494,10 @@ class JournalEditorViewModel(
                 val draft = snapshotDraft()
                 try {
                     journalRepository.saveDraft(draft)
-                    if (current == revision) _uiState.update {
-                        it.copy(
-                            draftStatus = DraftStatus.Saved(
-                                draft.savedAtEpochMs
-                            )
-                        )
+                    if (current == revision) {
+                        _uiState.update {
+                            it.copy(draftStatus = DraftStatus.Saved(draft.savedAtEpochMs))
+                        }
                     }
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
@@ -417,7 +523,7 @@ class JournalEditorViewModel(
                     val s = _uiState.value
                     // Ghi ý định commit trước Room. ID cố định cho phép retry an toàn nếu Clear lỗi hoặc process chết.
                     val id = s.entryId ?: pendingCommitId
-                    ?: (UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE).coerceAtLeast(1)
+                        ?: (UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE).coerceAtLeast(1)
                     pendingCommitId = id
                     journalRepository.saveDraft(snapshotDraft(id))
                     val entry = JournalEntryEntity(
@@ -430,8 +536,11 @@ class JournalEditorViewModel(
                         isPinned = originalEntry?.entry?.isPinned ?: false
                     )
                     val result = journalRepository.saveEntry(
-                        entry, s.attachments, s.tags,
-                        stagedFilesToKeep.toList(), oldFilesToDeleteAfterCommit.toList()
+                        entry = entry,
+                        attachments = s.attachments,
+                        tags = s.tags,
+                        stagedFilesToKeep = stagedFilesToKeep.toList(),
+                        oldFilesToDeleteAfterCommit = oldFilesToDeleteAfterCommit.toList()
                     )
                     if (result.isSuccess) {
                         _uiState.update { it.copy(entryId = result.getOrThrow(), isDirty = false) }
@@ -444,7 +553,9 @@ class JournalEditorViewModel(
                             _uiState.update { it.copy(error = EditorError.DRAFT) }
                         }
                         _saveEvents.emit(result)
-                    } else throw result.exceptionOrNull()!!
+                    } else {
+                        throw result.exceptionOrNull()!!
+                    }
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e

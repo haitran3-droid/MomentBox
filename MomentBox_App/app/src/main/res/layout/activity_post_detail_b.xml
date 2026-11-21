@@ -4,8 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/postDetailRoot"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/surface">
+    android:layout_height="match_parent">
 
     <!-- Top App Bar -->
     <com.google.android.material.appbar.AppBarLayout
@@ -95,6 +94,7 @@
             android:paddingStart="16dp"
             android:paddingEnd="12dp"
             android:visibility="gone"
+            tools:ignore="UseCompoundDrawables"
             tools:visibility="visible">
 
             <TextView
@@ -141,15 +141,13 @@
                 android:importantForAccessibility="no" />
 
             <!-- Khung nhập liệu bo cong 21dp -->
-            <LinearLayout
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="0dp"
                 android:layout_height="42dp"
                 android:layout_marginStart="10dp"
                 android:layout_marginEnd="10dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_comment_input"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
                 android:paddingStart="14dp"
                 android:paddingEnd="12dp">
 
@@ -157,18 +155,22 @@
                     android:id="@+id/etCommentInput"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:fontFamily="@font/be_vietnam_pro"
                     android:hint="@string/comment_input_hint"
                     android:imeOptions="actionSend"
+                    android:importantForAutofill="no"
                     android:inputType="textCapSentences|textMultiLine"
                     android:maxLength="500"
                     android:maxLines="3"
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_tertiary"
                     android:textSize="14sp"
-                    android:importantForAutofill="no"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tvCharCounter"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_goneMarginEnd="6dp"
                     tools:targetApi="o" />
 
                 <!-- Đếm số ký tự chỉ hiện khi >= 450/500 -->
@@ -181,6 +183,9 @@
                     android:textColor="@color/text_tertiary"
                     android:textSize="11.5sp"
                     android:visibility="gone"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/btnEmoji"
+                    app:layout_constraintTop_toTopOf="parent"
                     tools:text="460/500"
                     tools:visibility="visible" />
 
@@ -190,8 +195,11 @@
                     android:layout_height="20dp"
                     android:contentDescription="@string/detail_emoji"
                     android:src="@drawable/ic_sentiment_satisfied"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
                     app:tint="@color/text_tertiary" />
-            </LinearLayout>
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
             <!-- Nút gửi bình luận tròn 42dp màu tím -->
             <FrameLayout

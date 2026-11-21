@@ -1,10 +1,12 @@
 package com.ntq.training.momentbox.feature.feed.adapter
 
-import android.view.GestureDetector
-import android.view.MotionEvent
-import android.view.LayoutInflater
-import android.view.ViewGroup
+import android.annotation.SuppressLint
 import android.graphics.drawable.Drawable
+import android.view.GestureDetector
+import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
@@ -30,10 +32,26 @@ class PhotoAlbumAdapter(
      */
     fun submitImages(newImages: List<String>) {
         if (_images == newImages) return
-        _images = newImages.toList()
-        notifyDataSetChanged()
+        val oldImages = _images
+        val nextImages = newImages.toList()
+        val diff = DiffUtil.calculateDiff(
+            object : DiffUtil.Callback() {
+                override fun getOldListSize() = oldImages.size
+
+                override fun getNewListSize() = nextImages.size
+
+                override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int) =
+                    oldImages[oldItemPosition] == nextImages[newItemPosition]
+
+                override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int) =
+                    oldImages[oldItemPosition] == nextImages[newItemPosition]
+            }
+        )
+        _images = nextImages
+        diff.dispatchUpdatesTo(this)
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     inner class PhotoViewHolder(val binding: ItemPostPhotoPageBinding) :
         RecyclerView.ViewHolder(binding.root) {
         var bindVersion = 0
@@ -43,6 +61,7 @@ class PhotoAlbumAdapter(
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) onPhotoClick?.invoke(pos)
             }
+            // GestureDetector chuyển chạm đơn thành binding.root.performClick() qua onSingleTapConfirmed.
             val detector = GestureDetector(binding.root.context, object : GestureDetector.SimpleOnGestureListener() {
                 private var touchVersion = -1
 

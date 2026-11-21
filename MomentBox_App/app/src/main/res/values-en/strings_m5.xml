@@ -31,6 +31,7 @@
         <item quantity="other">Disconnected · attempt %1$d in %2$d seconds · Retry now</item>
     </plurals>
     <string name="m5_socket_failed">Couldn’t connect · Retry now</string>
+    <string name="m5_socket_retry_now">Retry now</string>
     <string name="m5_socket_expired">Session expired · Signing in again</string>
     <string name="m5_quick_hold">Hold to record. Release to send or swipe left to cancel.</string>
     <string name="m5_quick_recording">Recording %1$s · Swipe left to cancel</string>

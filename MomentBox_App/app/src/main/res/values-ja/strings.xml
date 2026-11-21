@@ -92,6 +92,8 @@
     <string name="sort_newest">最新順</string>
     <string name="comment_sending">送信中…</string>
     <string name="comment_send_failed">送信失敗 (再試行)</string>
+    <string name="comment_not_sent">送信できませんでした</string>
+    <string name="comments_turned_off">コメントはオフになっています</string>
     <string name="comment_input_hint">コメントを入力…</string>
     <string name="reply_to">%1$sに返信</string>
     <plurals name="hide_replies">
@@ -127,6 +129,8 @@
     <string name="journal_delete">削除</string>
     <string name="journal_empty_title">日記のエントリがまだありません</string>
     <string name="journal_empty_desc">今日の思考や感情を記録し始めましょう</string>
+    <string name="journal_empty_search_title">一致する日記が見つかりません</string>
+    <string name="journal_empty_search_desc">検索キーワードやフィルターを変更してみてください</string>
     <string name="journal_write_button">日記を書く</string>
     <string name="journal_delete_success">エントリを削除しました</string>
     <string name="journal_undo">元に戻す</string>

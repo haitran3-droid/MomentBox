@@ -8,6 +8,7 @@ import com.ntq.training.momentbox.data.local.db.TagCount
 import com.ntq.training.momentbox.data.local.prefs.JournalDraft
 import com.ntq.training.momentbox.data.local.prefs.JournalFilterState
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -70,6 +71,10 @@ interface JournalRepository {
         to: Long? = null
     ): List<JournalEntryWithDetails>
 
+    suspend fun getStatsSnapshot(
+        previousStart: LocalDate, currentStart: LocalDate, currentEnd: LocalDate, today: LocalDate, zone: ZoneId
+    ): JournalStatsSnapshot
+
     suspend fun prepareForLogout() {}
     suspend fun finishLogout(keepJournal: Boolean) {
         check(keepJournal) { "JOURNAL_DELETE_UNSUPPORTED" }
@@ -94,6 +99,12 @@ interface JournalRepository {
 data class JournalDayCount(val day: String, val count: Int, val pinnedCount: Int = 0)
 
 data class JournalAudioMetadata(val durationMs: Long, val waveform: List<Int>)
+
+data class JournalStatsSnapshot(
+    val entries: List<JournalEntryWithDetails>,
+    val previousCount: Int,
+    val streakDays: Int,
+)
 
 data class JournalPageSnapshot(
     val entries: List<JournalEntryWithDetails>,

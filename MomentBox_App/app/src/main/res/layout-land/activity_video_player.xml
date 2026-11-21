@@ -4,8 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/videoPlayerRoot"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/video_dark_bg">
+    android:layout_height="match_parent">
 
     <!-- Media3 PlayerView -->
     <androidx.media3.ui.PlayerView

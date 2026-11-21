@@ -1,16 +1,16 @@
 package com.ntq.training.momentbox.data.repository
 
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.ntq.training.momentbox.core.base.AppError
 import com.ntq.training.momentbox.core.network.ApiException
 import com.ntq.training.momentbox.core.network.ApiResponse
-import com.ntq.training.momentbox.core.network.safeApiCall
 import com.ntq.training.momentbox.core.network.SessionManager
 import com.ntq.training.momentbox.core.network.SessionRequest
+import com.ntq.training.momentbox.core.network.safeApiCall
 import com.ntq.training.momentbox.data.local.prefs.SettingsDataStore
 import com.ntq.training.momentbox.data.local.prefs.SettingsStorage
 import com.ntq.training.momentbox.data.local.prefs.TokenStorage
-import com.ntq.training.momentbox.data.local.prefs.TokenStore
 import com.ntq.training.momentbox.data.remote.api.AuthApi
 import com.ntq.training.momentbox.data.remote.api.DummyJsonApi
 import com.ntq.training.momentbox.data.remote.api.ProfileApi
@@ -29,9 +29,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -43,6 +45,7 @@ import retrofit2.Response
 
 interface AuthRepository {
     val userFlow: Flow<User?> get() = flow { emit(getSavedUser()) }
+
     suspend fun editProfile(displayName: String, bio: String, location: String): Result<User> =
         Result.failure(UnsupportedOperationException("PROFILE_EDIT_UNSUPPORTED"))
 
@@ -72,6 +75,16 @@ class AuthRepositoryImpl(
     private val profileApi: ProfileApi? = null,
     private val onSessionEstablished: () -> Unit = {}
 ) : AuthRepository {
+
+    private companion object {
+        private const val INVALID_CREDENTIALS_MESSAGE = "Tài khoản hoặc mật khẩu không chính xác"
+    }
+
+    private data class InMemorySessionUser(
+        val generation: Long,
+        val user: User
+    )
+
     /** Khóa đồng bộ phiên làm việc, ngăn ngừa xung đột giữa Login, Logout và Đổi nguồn API */
     private val sessionMutex = Mutex()
     private val profileMutationMutex = Mutex()
@@ -79,9 +92,59 @@ class AuthRepositoryImpl(
     // Session mutex bảo vệ revision cùng cache. GET bắt đầu trước/giữa upload không
     // được ghi đè avatar/PATCH mới sau ACK, dù các HTTP response về khác thứ tự.
     private var profileRevision = 0L
-    override val userFlow: Flow<User?> = settingsDataStore.savedUserJsonFlow.map { json ->
-        json?.let { runCatching { gson.fromJson(it, User::class.java) }.getOrNull() }
-    }.flowOn(dispatcher)
+
+    /** Lưu hồ sơ người dùng chỉ trong RAM khi đăng nhập với rememberMe == false. */
+    private val inMemoryUser = MutableStateFlow<InMemorySessionUser?>(null)
+
+    init {
+        tokenStore.addSnapshotListener { snapshot ->
+            val current = inMemoryUser.value
+            if (
+                current != null &&
+                (current.generation != snapshot.generation || snapshot.accessToken.isNullOrBlank())
+            ) {
+                inMemoryUser.value = null
+            }
+        }
+    }
+
+    override val userFlow: Flow<User?> = combine(
+        settingsDataStore.savedUserJsonFlow,
+        inMemoryUser
+    ) { persistedJson, ephemeral ->
+        val snapshot = tokenStore.snapshot()
+        if (!snapshot.rememberMe) {
+            ephemeral
+                ?.takeIf {
+                    it.generation == snapshot.generation && !snapshot.accessToken.isNullOrBlank()
+                }
+                ?.user
+        } else {
+            persistedJson?.let { runCatching { gson.fromJson(it, User::class.java) }.getOrNull() }
+        }
+    }.distinctUntilChanged().flowOn(dispatcher)
+
+    /**
+     * Lưu hồ sơ theo cờ [rememberMe] bên trong [sessionMutex]:
+     * - `rememberMe == true`: ghi xuống DataStore gắn generation.
+     * - `rememberMe == false`: chỉ giữ trong RAM và xóa sạch `saved_user_json` trên đĩa.
+     */
+    private suspend fun storeSessionUserLocked(
+        generation: Long,
+        rememberMe: Boolean,
+        user: User
+    ): Boolean {
+        if (tokenStore.getSessionGeneration() != generation) return false
+        return if (rememberMe) {
+            inMemoryUser.value = null
+            settingsDataStore.setSavedUserForGeneration(generation, gson.toJson(user))
+        } else {
+            settingsDataStore.setSavedUserJson(null)
+            if (tokenStore.getSessionGeneration() != generation) return false
+            inMemoryUser.value = InMemorySessionUser(generation, user)
+            true
+        }
+    }
 
     /**
      * Chuyển đổi nguồn API dữ liệu:
@@ -91,6 +154,7 @@ class AuthRepositoryImpl(
      *   3. Ghi nhận nguồn dữ liệu mới vào DataStore.
      */
     override suspend fun changeDataSource(source: String) = sessionMutex.withLock {
+        inMemoryUser.value = null
         tokenStore.clear()
         invalidateFeedCache()
         settingsDataStore.setSavedUserJson(null)
@@ -119,7 +183,9 @@ class AuthRepositoryImpl(
                         if (dummyResponse.isSuccessful && dummyResponse.body() != null) {
                             val body = dummyResponse.body()!!
                             if (body.accessToken.isNullOrBlank() || body.refreshToken.isNullOrBlank()) {
-                                return@withContext Result.failure(ApiException(AppError.Unknown("Malformed login response: missing tokens")))
+                                return@withContext Result.failure(
+                                    ApiException(AppError.Unknown("Malformed login response: missing tokens"))
+                                )
                             }
                             sessionMutex.withLock {
                                 if (!tokenStore.saveTokensIfGenerationMatches(
@@ -133,20 +199,14 @@ class AuthRepositoryImpl(
                                 }
                                 SessionManager.resetSession()
                                 val user = userMapper.mapFromDummyJson(body)
-                                if (!settingsDataStore.setSavedUserForGeneration(
-                                        expectedGeneration + 1,
-                                        gson.toJson(user)
-                                    )
-                                )
+                                if (!storeSessionUserLocked(expectedGeneration + 1, rememberMe, user)) {
                                     throw CancellationException("Login session changed before profile commit")
+                                }
                                 onSessionEstablished()
                                 Result.success(user)
                             }
                         } else {
-                            val code = dummyResponse.code()
-                            val msg = dummyResponse.message()
-                                .ifBlank { "Tài khoản hoặc mật khẩu không chính xác ($code)" }
-                            Result.failure(Exception(msg))
+                            Result.failure(parseDummyJsonLoginError(dummyResponse))
                         }
                     } catch (cancelled: CancellationException) {
                         throw cancelled
@@ -162,7 +222,9 @@ class AuthRepositoryImpl(
                     if (result.isSuccess) {
                         val dto = result.getOrThrow()
                         if (dto.accessToken.isNullOrBlank() || dto.refreshToken.isNullOrBlank()) {
-                            return@withContext Result.failure(ApiException(AppError.Unknown("Malformed login response: missing tokens")))
+                            return@withContext Result.failure(
+                                ApiException(AppError.Unknown("Malformed login response: missing tokens"))
+                            )
                         }
                         sessionMutex.withLock {
                             if (!tokenStore.saveTokensIfGenerationMatches(
@@ -188,12 +250,9 @@ class AuthRepositoryImpl(
                                 )
                             }
 
-                            if (!settingsDataStore.setSavedUserForGeneration(
-                                    expectedGeneration + 1,
-                                    gson.toJson(user)
-                                )
-                            )
+                            if (!storeSessionUserLocked(expectedGeneration + 1, rememberMe, user)) {
                                 throw CancellationException("Login session changed before profile commit")
+                            }
                             onSessionEstablished()
                             Result.success(user)
                         }
@@ -207,6 +266,52 @@ class AuthRepositoryImpl(
                 networkFailure(error)
             }
         }
+
+    private fun parseDummyJsonLoginError(response: Response<*>): ApiException {
+        val code = response.code()
+        val rawBody = runCatching { response.errorBody()?.string() }.getOrNull()
+        val jsonMessage = rawBody
+            ?.takeIf { it.isNotBlank() }
+            ?.let { body ->
+                runCatching {
+                    gson.fromJson(body, JsonObject::class.java)
+                        ?.get("message")
+                        ?.takeIf { !it.isJsonNull }
+                        ?.asString
+                        ?.trim()
+                }.getOrNull()
+            }
+            ?.takeIf { it.isNotBlank() }
+
+        return when {
+            code == 400 || code == 401 -> {
+                val mappedMessage = when {
+                    jsonMessage == null -> INVALID_CREDENTIALS_MESSAGE
+                    jsonMessage.equals("Invalid credentials", ignoreCase = true) ||
+                        jsonMessage.equals("Bad Request", ignoreCase = true) ||
+                        (jsonMessage.contains("invalid", ignoreCase = true) &&
+                            jsonMessage.contains("credential", ignoreCase = true)) -> {
+                        INVALID_CREDENTIALS_MESSAGE
+                    }
+                    else -> jsonMessage
+                }
+                ApiException(AppError.InvalidCredentials(mappedMessage))
+            }
+
+            code in 500..599 -> {
+                ApiException(AppError.Server(code, jsonMessage ?: "Lỗi hệ thống ($code)"))
+            }
+
+            else -> {
+                val statusMsg = response.message()
+                    .trim()
+                    .takeIf { it.isNotBlank() && !it.equals("Bad Request", ignoreCase = true) }
+                ApiException(
+                    AppError.Server(code, jsonMessage ?: statusMsg ?: "$INVALID_CREDENTIALS_MESSAGE ($code)")
+                )
+            }
+        }
+    }
 
     private fun networkFailure(error: Exception): Result<User> = Result.failure(
         when (error) {
@@ -222,10 +327,18 @@ class AuthRepositoryImpl(
     }
 
     override suspend fun getSavedUser(): User? {
+        val snapshot = tokenStore.snapshot()
+        if (!snapshot.rememberMe) {
+            return inMemoryUser.value
+                ?.takeIf {
+                    it.generation == snapshot.generation && !snapshot.accessToken.isNullOrBlank()
+                }
+                ?.user
+        }
         val json = settingsDataStore.getSavedUserJson() ?: return null
         return try {
             gson.fromJson(json, User::class.java)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -246,19 +359,16 @@ class AuthRepositoryImpl(
                     dummyJsonApi.getMe("Bearer $token", SessionRequest(expectedGeneration))
                 if (response.isSuccessful && response.body() != null) {
                     sessionMutex.withLock {
-                        if (expectedGeneration != tokenStore.getSessionGeneration()) throw CancellationException(
-                            "Session changed"
-                        )
+                        if (expectedGeneration != tokenStore.getSessionGeneration()) {
+                            throw CancellationException("Session changed")
+                        }
                         val user = resolveProfileRead(
                             readRevision,
                             userMapper.mapFromDummyJsonMe(response.body()!!)
                         )
-                        if (!settingsDataStore.setSavedUserForGeneration(
-                                expectedGeneration,
-                                gson.toJson(user)
-                            )
-                        )
+                        if (!storeSessionUserLocked(expectedGeneration, session.rememberMe, user)) {
                             throw CancellationException("Profile session changed before cache commit")
+                        }
                         Result.success(user)
                     }
                 } else {
@@ -275,16 +385,13 @@ class AuthRepositoryImpl(
             }
             if (result.isSuccess) {
                 sessionMutex.withLock {
-                    if (expectedGeneration != tokenStore.getSessionGeneration()) throw CancellationException(
-                        "Session changed"
-                    )
+                    if (expectedGeneration != tokenStore.getSessionGeneration()) {
+                        throw CancellationException("Session changed")
+                    }
                     val user = resolveProfileRead(readRevision, userMapper.map(result.getOrThrow()))
-                    if (!settingsDataStore.setSavedUserForGeneration(
-                            expectedGeneration,
-                            gson.toJson(user)
-                        )
-                    )
+                    if (!storeSessionUserLocked(expectedGeneration, session.rememberMe, user)) {
                         throw CancellationException("Profile session changed before cache commit")
+                    }
                     Result.success(user)
                 }
             } else {
@@ -295,12 +402,17 @@ class AuthRepositoryImpl(
         }
     }
 
-    /** Giữ local signature khi GET làm mới dữ liệu; read cũ trả cache đã ACK thay vì
-     * đưa URL/bio cũ trở lại UI. Chỉ gọi trong sessionMutex, không khóa lúc chờ HTTP. */
+    /**
+     * Giữ local signature khi GET làm mới dữ liệu; read cũ trả cache đã ACK thay vì
+     * đưa URL/bio cũ trở lại UI. Chỉ gọi trong sessionMutex, không khóa lúc chờ HTTP.
+     */
     private suspend fun resolveProfileRead(readRevision: Long, incoming: User): User {
         val cached = getSavedUser()?.takeIf { it.id == incoming.id }
-        return if (readRevision != profileRevision && cached != null) cached
-        else incoming.copy(avatarVersion = cached?.avatarVersion ?: 0L)
+        return if (readRevision != profileRevision && cached != null) {
+            cached
+        } else {
+            incoming.copy(avatarVersion = cached?.avatarVersion ?: 0L)
+        }
     }
 
     override suspend fun editProfile(
@@ -308,27 +420,33 @@ class AuthRepositoryImpl(
         bio: String,
         location: String
     ): Result<User> {
-        if (displayName.isBlank()) return Result.failure(IllegalArgumentException("PROFILE_NAME_REQUIRED"))
+        if (displayName.isBlank()) {
+            return Result.failure(IllegalArgumentException("PROFILE_NAME_REQUIRED"))
+        }
         return mutateProfile(false) { api, session ->
             api.edit(
                 ProfileEditRequest(
                     displayName.trim(),
                     bio,
                     location.trim()
-                ), session
+                ),
+                session
             )
         }
     }
 
     override suspend fun updateAvatar(file: File): Result<User> = withContext(dispatcher) {
-        if (!file.isFile || file.length() == 0L) return@withContext Result.failure(IOException("AVATAR_FILE_UNAVAILABLE"))
+        if (!file.isFile || file.length() == 0L) {
+            return@withContext Result.failure(IOException("AVATAR_FILE_UNAVAILABLE"))
+        }
         mutateProfile(true) { api, session ->
             api.avatar(
                 MultipartBody.Part.createFormData(
                     "avatar",
                     file.name,
                     file.asRequestBody("image/jpeg".toMediaType())
-                ), session
+                ),
+                session
             )
         }
     }
@@ -341,40 +459,40 @@ class AuthRepositoryImpl(
             try {
                 val api = profileApi
                     ?: throw UnsupportedOperationException("PROFILE_MUTATION_UNAVAILABLE")
-                val (generation, ownerId) = sessionMutex.withLock {
+                val (generation, ownerId, rememberMe) = sessionMutex.withLock {
                     val token = tokenStore.snapshot()
-                    if (settingsDataStore.getDataSource() != SettingsDataStore.SOURCE_MB_SERVER)
+                    if (settingsDataStore.getDataSource() != SettingsDataStore.SOURCE_MB_SERVER) {
                         throw UnsupportedOperationException("PROFILE_SOURCE_UNSUPPORTED")
-                    if (token.accessToken.isNullOrBlank()) throw CancellationException("Profile session unavailable")
+                    }
+                    if (token.accessToken.isNullOrBlank()) {
+                        throw CancellationException("Profile session unavailable")
+                    }
                     val own = getSavedUser() ?: throw IOException("PROFILE_OWNER_UNAVAILABLE")
                     ++profileRevision
-                    token.generation to own.id
+                    Triple(token.generation, own.id, token.rememberMe)
                 }
                 val response = safeApiCall(dispatcher = dispatcher, gson = gson) {
-                    request(
-                        api,
-                        SessionRequest(generation)
+                    request(api, SessionRequest(generation))
+                }
+                if (response.isFailure) {
+                    return@withLock Result.failure<User>(
+                        response.exceptionOrNull() ?: IOException("PROFILE_UPDATE_FAILED")
                     )
                 }
-                if (response.isFailure) return@withLock Result.failure<User>(
-                    response.exceptionOrNull() ?: IOException("PROFILE_UPDATE_FAILED")
-                )
                 sessionMutex.withLock {
-                    if (tokenStore.getSessionGeneration() != generation) throw CancellationException(
-                        "Profile session changed"
-                    )
+                    if (tokenStore.getSessionGeneration() != generation) {
+                        throw CancellationException("Profile session changed")
+                    }
                     val incoming = userMapper.map(response.getOrThrow())
                     if (incoming.id != ownerId) throw IOException("PROFILE_ID_MISMATCH")
                     val previous = getSavedUser()?.takeIf { it.id == ownerId }
                         ?: throw CancellationException("Profile owner changed")
-                    val updated =
-                        incoming.copy(avatarVersion = previous.avatarVersion + if (avatarChanged) 1L else 0L)
-                    if (!settingsDataStore.setSavedUserForGeneration(
-                            generation,
-                            gson.toJson(updated)
-                        )
+                    val updated = incoming.copy(
+                        avatarVersion = previous.avatarVersion + if (avatarChanged) 1L else 0L
                     )
+                    if (!storeSessionUserLocked(generation, rememberMe, updated)) {
                         throw CancellationException("Profile session changed before commit")
+                    }
                     ++profileRevision
                     Result.success(updated)
                 }
@@ -390,6 +508,7 @@ class AuthRepositoryImpl(
         val (oldSession, dataSource) = sessionMutex.withLock {
             val source = settingsDataStore.getDataSource()
             val old = tokenStore.snapshot()
+            inMemoryUser.value = null
             tokenStore.clear()
             invalidateFeedCache()
             settingsDataStore.setSavedUserJson(null)
@@ -404,7 +523,7 @@ class AuthRepositoryImpl(
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (ignored: Exception) {
+            } catch (_: Exception) {
             }
         }
         Result.success(Unit)

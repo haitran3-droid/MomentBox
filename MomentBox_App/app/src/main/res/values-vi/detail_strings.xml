@@ -1,4 +1,5 @@
 <resources>
+    <string name="detail_more_replies">Xem thêm phản hồi</string>
     <string name="detail_reply">Trả lời</string>
     <string name="detail_back">Quay lại</string>
     <string name="detail_title">Bài viết</string>

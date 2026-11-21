@@ -20,3 +20,13 @@ npm install
 npm start
 node test/smoke.js http://localhost:3000
 ```
+
+### Cấu hình URL khi build Android
+
+Bản debug mặc định dùng `http://10.0.2.2:3000/` cho Android Emulator. Khi dùng thiết bị thật với `adb reverse tcp:3000 tcp:3000`, chạy từ thư mục `MomentBox_App`:
+
+```powershell
+.\gradlew.bat :app:assembleDebug "-PmomentboxBaseUrl=http://127.0.0.1:3000/"
+```
+
+Bản release yêu cầu URL HTTPS thực tế của backend theo môi trường. Đặt biến môi trường `MOMENTBOX_RELEASE_BASE_URL` trong cấu hình build rồi chạy `.\gradlew.bat :app:assembleRelease`. Có thể ghi đè biến môi trường bằng Gradle property `momentboxReleaseBaseUrl`. URL phải có hostname, kết thúc bằng `/` và không chứa thông tin đăng nhập, query hoặc fragment. Build release sẽ dừng nếu URL thiếu hoặc sai định dạng.

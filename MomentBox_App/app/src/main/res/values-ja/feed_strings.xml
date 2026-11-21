@@ -13,9 +13,15 @@
     <plurals name="feed_mutual_count">
         <item quantity="other">共通の友達%1$d人</item>
     </plurals>
-    <plurals name="post_minutes_ago"><item quantity="other">%d分前</item></plurals>
-    <plurals name="post_hours_ago"><item quantity="other">%d時間前</item></plurals>
-    <plurals name="post_days_ago"><item quantity="other">%d日前</item></plurals>
+    <plurals name="post_minutes_ago">
+        <item quantity="other">%d分前</item>
+    </plurals>
+    <plurals name="post_hours_ago">
+        <item quantity="other">%d時間前</item>
+    </plurals>
+    <plurals name="post_days_ago">
+        <item quantity="other">%d日前</item>
+    </plurals>
     <string name="feed_voice_error_retry">音声を再生できません。再試行</string>
     <string name="feed_caption_expanded">展開済み</string>
     <string name="feed_caption_collapsed">折りたたみ済み</string>
@@ -26,4 +32,10 @@
     <string name="feed_post_deleted">投稿を削除しました</string>
     <string name="feed_delete_failed">投稿を削除できません</string>
     <string name="post_private">自分のみ</string>
+    <string name="feed_view_story">ストーリーを表示：%1$s</string>
+    <string name="feed_notifications">通知</string>
+    <string name="feed_share_text">MomentBoxで%1$sの投稿を見る：momentbox://post/%2$d</string>
+    <string name="feed_share_chooser">投稿を共有</string>
+    <string name="feed_link_copied">投稿のリンクをコピーしました</string>
+    <string name="feed_report_sent">管理者に報告を送信しました</string>
 </resources>

@@ -1,15 +1,13 @@
 package com.ntq.training.momentbox.feature.journal.stats
 
-import kotlin.math.abs
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.TextUtils
 import android.view.GestureDetector
 import android.view.Gravity
-import android.view.LayoutInflater
 import android.view.MotionEvent
-import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.activity.viewModels
@@ -27,14 +25,13 @@ import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.databinding.ActivityJournalStatsBinding
+import java.text.NumberFormat
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
+import kotlin.math.abs
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
-import java.time.LocalDate
-import java.time.YearMonth
-import java.time.ZoneId
 
 class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
     ActivityJournalStatsBinding::inflate
@@ -54,6 +51,8 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
         NumberFormat.getNumberInstance(resources.configuration.locales[0])
     }
 
+    private var isSyncingPeriodToggle = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
     }
@@ -66,6 +65,8 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
         }
     }
 
+    // Hai view vuốt đổi kỳ dùng GestureDetector onFling và tự chuyển click không phải vuốt sang performClick().
+    @SuppressLint("ClickableViewAccessibility")
     override fun initViews() {
         setupToolbar()
         setupPeriodToggle()
@@ -75,6 +76,7 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
             this,
             object : GestureDetector.SimpleOnGestureListener() {
                 override fun onDown(e: MotionEvent) = true
+
                 override fun onFling(
                     e1: MotionEvent?,
                     e2: MotionEvent,
@@ -82,18 +84,28 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
                     vy: Float
                 ): Boolean {
                     val dx = e2.x - (e1?.x ?: e2.x)
-                    if (abs(dx) > 80 * resources.displayMetrics.density && abs(
-                            vx
-                        ) > abs(vy)
-                    ) {
-                        if (dx < 0) viewModel.navigateNextPeriod() else viewModel.navigatePreviousPeriod()
+                    if (abs(dx) > 80 * resources.displayMetrics.density && abs(vx) > abs(vy)) {
+                        if (dx < 0) {
+                            viewModel.navigateNextPeriod()
+                        } else {
+                            viewModel.navigatePreviousPeriod()
+                        }
                         return true
                     }
                     return false
                 }
-            })
-        binding.tvPeriodRange.setOnTouchListener { _, event -> gestures.onTouchEvent(event) }
-        binding.lineChartView.setOnTouchListener { _, event -> gestures.onTouchEvent(event) }
+            }
+        )
+        binding.tvPeriodRange.setOnTouchListener { v, event ->
+            val handled = gestures.onTouchEvent(event)
+            if (event.actionMasked == MotionEvent.ACTION_UP && !handled) v.performClick()
+            handled
+        }
+        binding.lineChartView.setOnTouchListener { v, event ->
+            val handled = gestures.onTouchEvent(event)
+            if (event.actionMasked == MotionEvent.ACTION_UP && !handled) v.performClick()
+            handled
+        }
         binding.tvTrendDateRange.setOnClickListener {
             binding.layoutPeriodNavigation.isVisible = !binding.layoutPeriodNavigation.isVisible
         }
@@ -113,20 +125,30 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
         }
     }
 
+    private fun periodButtonId(period: StatsPeriod): Int = when (period) {
+        StatsPeriod.WEEK -> R.id.btnPeriodWeek
+        StatsPeriod.MONTH -> R.id.btnPeriodMonth
+        StatsPeriod.YEAR -> R.id.btnPeriodYear
+    }
+
     private fun setupPeriodToggle() {
-        val currentMonth = YearMonth.now().monthValue
-        binding.btnPeriodMonth.text = getString(R.string.stats_period_month, currentMonth)
+        val initialState = viewModel.uiState.value
+        binding.btnPeriodMonth.text =
+            getString(R.string.stats_period_month, initialState.anchorDate.monthValue)
+        binding.tgPeriod.check(periodButtonId(initialState.period))
 
         binding.tgPeriod.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (isChecked) {
-                when (checkedId) {
-                    R.id.btnPeriodWeek -> viewModel.selectPeriod(StatsPeriod.WEEK)
-                    R.id.btnPeriodMonth -> viewModel.selectPeriod(StatsPeriod.MONTH)
-                    R.id.btnPeriodYear -> viewModel.selectPeriod(StatsPeriod.YEAR)
-                }
+            if (!isChecked || isSyncingPeriodToggle) return@addOnButtonCheckedListener
+            val selectedPeriod = when (checkedId) {
+                R.id.btnPeriodWeek -> StatsPeriod.WEEK
+                R.id.btnPeriodMonth -> StatsPeriod.MONTH
+                R.id.btnPeriodYear -> StatsPeriod.YEAR
+                else -> return@addOnButtonCheckedListener
+            }
+            if (viewModel.uiState.value.period != selectedPeriod) {
+                viewModel.selectPeriod(selectedPeriod)
             }
         }
-        binding.tgPeriod.check(R.id.btnPeriodMonth)
     }
 
     private fun observeViewModel() {
@@ -136,13 +158,17 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
                     binding.btnPeriodMonth.text =
                         getString(R.string.stats_period_month, state.anchorDate.monthValue)
                     binding.btnNextPeriod.isEnabled = state.canNavigateNext
-                    binding.tgPeriod.check(
-                        when (state.period) {
-                            StatsPeriod.WEEK -> R.id.btnPeriodWeek
-                            StatsPeriod.MONTH -> R.id.btnPeriodMonth
-                            StatsPeriod.YEAR -> R.id.btnPeriodYear
+
+                    val targetButtonId = periodButtonId(state.period)
+                    if (binding.tgPeriod.checkedButtonId != targetButtonId) {
+                        isSyncingPeriodToggle = true
+                        try {
+                            binding.tgPeriod.check(targetButtonId)
+                        } finally {
+                            isSyncingPeriodToggle = false
                         }
-                    )
+                    }
+
                     if (state.error) {
                         listOf(
                             binding.tvEntriesCount,
@@ -162,14 +188,17 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
                             R.string.journal_storage_error,
                             Snackbar.LENGTH_INDEFINITE
                         )
-                            .setAction(R.string.journal_retry) { viewModel.retry() }.show()
+                            .setAction(R.string.journal_retry) { viewModel.retry() }
+                            .show()
                         return@collect
                     }
                     // Trong lúc chờ kỳ mới, giữ nguyên snapshot đang vẽ; không bind lại card/tag cũ thêm một lần.
                     if (state.isLoading) return@collect
                     val result = state.statsResult ?: return@collect
                     binding.tvPeriodRange.text = getString(
-                        R.string.journal_stats_range_year, result.dateRangeText, state.anchorDate.year
+                        R.string.journal_stats_range_year,
+                        result.dateRangeText,
+                        state.anchorDate.year
                     )
                     bindStatsResult(result)
                 }
@@ -220,8 +249,7 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
 
         // 6. Biểu đồ đường Xu hướng cảm xúc (Line Chart)
         val daysInPeriod =
-            ChronoUnit.DAYS.between(stats.periodStart, stats.periodEnd)
-                .toInt() + 1
+            ChronoUnit.DAYS.between(stats.periodStart, stats.periodEnd).toInt() + 1
         binding.tvTrendDateRange.text = stats.dateRangeText
         binding.lineChartView.setData(stats.trendPoints, daysInPeriod, stats.periodStart)
 
@@ -230,21 +258,20 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
         for ((index, tagItem) in stats.topTags.withIndex()) {
             binding.cgStatsTags.addView(
                 makeStatsTag(
-                    getString(
+                    label = getString(
                         R.string.stats_tag_item_format,
                         tagItem.tag,
                         tagItem.count
-                    ), selected = index == 0
+                    ),
+                    selected = index == 0
                 )
             )
         }
         if (stats.remainingTagsCount > 0) {
             binding.cgStatsTags.addView(
                 makeStatsTag(
-                    getString(
-                        R.string.stats_tag_more,
-                        stats.remainingTagsCount
-                    ), true
+                    label = getString(R.string.stats_tag_more, stats.remainingTagsCount),
+                    more = true
                 )
             )
         }
@@ -277,10 +304,12 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
             background = GradientDrawable().apply {
                 cornerRadius = 13 * density
                 setColor(getColor(if (selected) R.color.primary_container else R.color.surface))
-                if (!selected) setStroke(
-                    density.toInt().coerceAtLeast(1),
-                    getColor(R.color.outline)
-                )
+                if (!selected) {
+                    setStroke(
+                        density.toInt().coerceAtLeast(1),
+                        getColor(R.color.outline)
+                    )
+                }
             }
             layoutParams = ChipGroup.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -292,26 +321,39 @@ class JournalStatsActivity : BaseActivity<ActivityJournalStatsBinding>(
         if (insight.empty) return getString(R.string.journal_insight_empty)
         val day = DayOfWeek.of(insight.frequentDay)
             .getDisplayName(TextStyle.FULL, resources.configuration.locales[0])
-        return if (insight.improvementPct != null) getString(
-            R.string.journal_insight_weekend,
-            insight.improvementPct,
-            day
-        )
-        else resources.getQuantityString(R.plurals.journal_insight_habit, insight.count, day, insight.count)
+        return if (insight.improvementPct != null) {
+            getString(
+                R.string.journal_insight_weekend,
+                insight.improvementPct,
+                day
+            )
+        } else {
+            resources.getQuantityString(
+                R.plurals.journal_insight_habit,
+                insight.count,
+                day,
+                insight.count
+            )
+        }
     }
 
     private fun styledInsightText(insight: JournalInsight): CharSequence {
         if (insight.empty) return getText(R.string.journal_insight_empty)
         val day = DayOfWeek.of(insight.frequentDay)
             .getDisplayName(TextStyle.FULL, resources.configuration.locales[0])
-        return if (insight.improvementPct != null) TextUtils.expandTemplate(
-            getText(R.string.journal_insight_weekend_styled), insight.improvementPct.toString(), day
-        )
-        else TextUtils.expandTemplate(
-            getText(R.string.journal_insight_habit_styled),
-            day,
-            insight.count.toString()
-        )
+        return if (insight.improvementPct != null) {
+            TextUtils.expandTemplate(
+                getText(R.string.journal_insight_weekend_styled),
+                insight.improvementPct.toString(),
+                day
+            )
+        } else {
+            TextUtils.expandTemplate(
+                getText(R.string.journal_insight_habit_styled),
+                day,
+                insight.count.toString()
+            )
+        }
     }
 
     private fun shareStatsSummary() {

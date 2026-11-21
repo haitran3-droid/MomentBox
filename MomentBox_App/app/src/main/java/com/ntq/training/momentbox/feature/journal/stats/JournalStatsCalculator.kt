@@ -1,6 +1,7 @@
 package com.ntq.training.momentbox.feature.journal.stats
 
 import com.ntq.training.momentbox.data.local.db.JournalEntryWithDetails
+import com.ntq.training.momentbox.data.repository.JournalStatsSnapshot
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -8,8 +9,6 @@ import java.time.YearMonth
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
-import java.time.temporal.WeekFields
-import java.util.Locale
 import kotlin.math.roundToInt
 
 enum class StatsPeriod {
@@ -37,7 +36,12 @@ data class TagItem(
 )
 
 /** Dữ liệu insight thuần Kotlin; Activity chịu trách nhiệm chọn Resources theo locale. */
-data class JournalInsight(val empty: Boolean, val frequentDay: Int = 1, val count: Int = 0, val improvementPct: Int? = null)
+data class JournalInsight(
+    val empty: Boolean,
+    val frequentDay: Int = 1,
+    val count: Int = 0,
+    val improvementPct: Int? = null
+)
 
 data class JournalStatsResult(
     val period: StatsPeriod,
@@ -61,33 +65,19 @@ class JournalStatsCalculator(
 ) {
 
     /**
-     * Tính toán toàn bộ chỉ số cho một kỳ cụ thể ([period]) dựa trên danh sách bài viết hợp lệ.
+     * Tính toán toàn bộ chỉ số cho một kỳ cụ thể ([period]) dựa trên snapshot bài viết hợp lệ.
      */
     fun calculateStats(
-        allValidEntries: List<JournalEntryWithDetails>,
+        snapshot: JournalStatsSnapshot,
         period: StatsPeriod,
         anchorDate: LocalDate = LocalDate.now(zoneId),
         today: LocalDate = anchorDate
     ): JournalStatsResult {
         val (currentStart, fullEnd) = getPeriodDateRange(period, anchorDate)
         val currentEnd = minOf(fullEnd, today)
-        val (prevStart, prevEnd) = getPreviousPeriodDateRange(period, anchorDate)
-
-        // Phân tách bài viết thuộc kỳ hiện tại và kỳ trước
-        val currentPeriodEntries = mutableListOf<JournalEntryWithDetails>()
-        var prevPeriodEntriesCount = 0
-
-        for (item in allValidEntries) {
-            val date = Instant.ofEpochMilli(item.entry.createdAt).atZone(zoneId).toLocalDate()
-            if (!date.isBefore(currentStart) && !date.isAfter(currentEnd)) {
-                currentPeriodEntries.add(item)
-            } else if (!date.isBefore(prevStart) && !date.isAfter(prevEnd)) {
-                prevPeriodEntriesCount++
-            }
-        }
-
+        val currentPeriodEntries = snapshot.entries
         val totalEntries = currentPeriodEntries.size
-        val deltaEntries = totalEntries - prevPeriodEntriesCount
+        val deltaEntries = totalEntries - snapshot.previousCount
 
         // 1. Tính toán số từ và phút ghi âm
         var totalWords = 0
@@ -102,25 +92,30 @@ class JournalStatsCalculator(
         }
         val totalAudioMinutes = ((totalAudioMs + 30000L) / 60000L) // Làm tròn phút
 
-        // 2. Tính chuỗi ngày viết liên tục (Streak)
-        val streakDays = calculateStreak(allValidEntries, today)
-
-        // 3. Phân bố cảm xúc (1..5)
+        // 2. Phân bố cảm xúc (1..5)
         val moodCounts = IntArray(6) // index 1..5
         for (item in currentPeriodEntries) {
-            val m = item.entry.mood.coerceIn(1, 5)
-            moodCounts[m]++
+            val mood = item.entry.mood.coerceIn(1, 5)
+            moodCounts[mood]++
         }
         // Largest remainder bảo toàn tổng 100%; round độc lập có thể thành 101% (7/5/3/2/1).
         val percentages = IntArray(6)
         if (totalEntries > 0) {
-            for (mood in 1..5) percentages[mood] = (moodCounts[mood] * 100L / totalEntries).toInt()
-            val remainderOrder = (1..5).sortedWith(compareByDescending<Int> { moodCounts[it] * 100L % totalEntries }.thenBy { it })
-            repeat(100 - percentages.sum()) { percentages[remainderOrder[it]]++ }
+            for (mood in 1..5) {
+                percentages[mood] = (moodCounts[mood] * 100L / totalEntries).toInt()
+            }
+            val remainderOrder = (1..5).sortedWith(
+                compareByDescending<Int> { moodCounts[it] * 100L % totalEntries }.thenBy { it }
+            )
+            repeat(100 - percentages.sum()) {
+                percentages[remainderOrder[it]]++
+            }
         }
-        val moodDistribution = (1..5).map { mood -> MoodDistributionItem(mood, moodCounts[mood], percentages[mood]) }
+        val moodDistribution = (1..5).map { mood ->
+            MoodDistributionItem(mood, moodCounts[mood], percentages[mood])
+        }
 
-        // 4. Xu hướng cảm xúc theo ngày (Trend Points)
+        // 3. Xu hướng cảm xúc theo ngày (Trend Points)
         val dailyLatestMood = mutableMapOf<LocalDate, Pair<Long, Int>>() // Date -> (createdAt, mood)
         for (item in currentPeriodEntries) {
             val date = Instant.ofEpochMilli(item.entry.createdAt).atZone(zoneId).toLocalDate()
@@ -142,7 +137,7 @@ class JournalStatsCalculator(
                 )
             }
 
-        // 5. Top 3 nhãn phổ biến nhất
+        // 4. Top 3 nhãn phổ biến nhất
         val tagFrequency = mutableMapOf<String, Int>()
         for (item in currentPeriodEntries) {
             for (tagEntity in item.tags) {
@@ -153,23 +148,26 @@ class JournalStatsCalculator(
             }
         }
         val sortedTags = tagFrequency.entries
-            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+            .sortedWith(
+                compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key }
+            )
             .map { TagItem(it.key, it.value) }
 
         val top3Tags = sortedTags.take(3)
         val remainingTagsCount = (sortedTags.size - 3).coerceAtLeast(0)
 
-        // 6. Tạo câu thông tin thông minh (Smart Insight)
+        // 5. Tạo câu thông tin thông minh (Smart Insight)
         val insight = generateSmartInsight(currentPeriodEntries)
 
-        // 7. Nhãn khoảng ngày
-        val dateRangeText = "${currentStart.dayOfMonth}/${currentStart.monthValue} – ${currentEnd.dayOfMonth}/${currentEnd.monthValue}"
+        // 6. Nhãn khoảng ngày
+        val dateRangeText =
+            "${currentStart.dayOfMonth}/${currentStart.monthValue} – ${currentEnd.dayOfMonth}/${currentEnd.monthValue}"
 
         return JournalStatsResult(
             period = period,
             totalEntries = totalEntries,
             deltaEntriesVsPreviousPeriod = deltaEntries,
-            currentStreakDays = streakDays,
+            currentStreakDays = snapshot.streakDays,
             totalWords = totalWords,
             totalAudioMinutes = totalAudioMinutes,
             moodDistribution = moodDistribution,
@@ -178,28 +176,36 @@ class JournalStatsCalculator(
             remainingTagsCount = remainingTagsCount,
             insight = insight,
             dateRangeText = dateRangeText,
-            periodStart = currentStart, periodEnd = currentEnd
+            periodStart = currentStart,
+            periodEnd = currentEnd
         )
     }
 
-    private fun calculateStreak(allEntries: List<JournalEntryWithDetails>, anchorDate: LocalDate): Int {
-        if (allEntries.isEmpty()) return 0
-
-        val distinctDays = allEntries.map {
+    /**
+     * Tính chuỗi ngày viết liên tục hiện tại từ danh sách bài viết theo [zoneId].
+     * Nếu bài viết gần nhất trước [today] hơn 1 ngày (strictly before yesterday), chuỗi hiện tại là 0.
+     */
+    fun calculateCurrentStreak(
+        allEntries: List<JournalEntryWithDetails>,
+        today: LocalDate = LocalDate.now(zoneId)
+    ): Int {
+        val writtenDates = allEntries.map {
             Instant.ofEpochMilli(it.entry.createdAt).atZone(zoneId).toLocalDate()
-        }.filterNot { it.isAfter(anchorDate) }.toSet()
-
-        // [Intern]: BA yêu cầu lấy các ngày có bài distinct theo thứ tự giảm dần rồi đếm từ ngày có bài gần nhất tới khi đứt (F12)
-        val sortedDays = distinctDays.sortedDescending()
-        if (sortedDays.isEmpty()) return 0
-
-        var currentDay = sortedDays.first()
-        var streak = 0
-        while (distinctDays.contains(currentDay)) {
-            streak++
-            currentDay = currentDay.minusDays(1)
         }
-        return streak
+        return calculateCurrentStreak(writtenDates, today)
+    }
+
+    /**
+     * Tính chuỗi ngày viết liên tục dài nhất trong lịch sử từ danh sách bài viết theo [zoneId].
+     */
+    fun calculateLongestStreak(
+        allEntries: List<JournalEntryWithDetails>,
+        today: LocalDate = LocalDate.now(zoneId)
+    ): Int {
+        val writtenDates = allEntries.map {
+            Instant.ofEpochMilli(it.entry.createdAt).atZone(zoneId).toLocalDate()
+        }
+        return calculateLongestStreak(writtenDates, today)
     }
 
     private fun generateSmartInsight(entries: List<JournalEntryWithDetails>): JournalInsight {
@@ -252,37 +258,75 @@ class JournalStatsCalculator(
         return JournalInsight(false, mostFrequentDow, maxCount)
     }
 
-    private fun getPeriodDateRange(period: StatsPeriod, anchor: LocalDate): Pair<LocalDate, LocalDate> {
+    internal fun getPeriodDateRange(period: StatsPeriod, anchor: LocalDate): Pair<LocalDate, LocalDate> {
         return when (period) {
             StatsPeriod.WEEK -> {
                 val start = anchor.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 val end = anchor.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
                 Pair(start, end)
             }
+
             StatsPeriod.MONTH -> {
                 val ym = YearMonth.from(anchor)
                 Pair(ym.atDay(1), ym.atEndOfMonth())
             }
+
             StatsPeriod.YEAR -> {
                 Pair(LocalDate.of(anchor.year, 1, 1), LocalDate.of(anchor.year, 12, 31))
             }
         }
     }
 
-    private fun getPreviousPeriodDateRange(period: StatsPeriod, anchor: LocalDate): Pair<LocalDate, LocalDate> {
-        return when (period) {
-            StatsPeriod.WEEK -> {
-                val prevAnchor = anchor.minusWeeks(1)
-                getPeriodDateRange(StatsPeriod.WEEK, prevAnchor)
+    companion object {
+        /**
+         * Tính chuỗi ngày viết liên tục hiện tại.
+         * Nếu ngày có bài viết gần nhất nhỏ hơn `today.minusDays(1)` (hôm qua), chuỗi hiện tại phải về 0.
+         */
+        fun calculateCurrentStreak(
+            writtenDates: Collection<LocalDate>,
+            today: LocalDate
+        ): Int {
+            val validDates = writtenDates.filterNot { it.isAfter(today) }.toSet()
+            val latestDate = validDates.maxOrNull() ?: return 0
+            if (latestDate.isBefore(today.minusDays(1))) return 0
+
+            var day = latestDate
+            var streak = 0
+            while (day in validDates) {
+                streak++
+                day = day.minusDays(1)
             }
-            StatsPeriod.MONTH -> {
-                val prevAnchor = anchor.minusMonths(1)
-                getPeriodDateRange(StatsPeriod.MONTH, prevAnchor)
+            return streak
+        }
+
+        /**
+         * Tính chuỗi ngày viết liên tục dài nhất trong lịch sử (không bị reset khi đứt chuỗi hiện tại).
+         */
+        fun calculateLongestStreak(
+            writtenDates: Collection<LocalDate>,
+            today: LocalDate
+        ): Int {
+            val sortedDates = writtenDates
+                .asSequence()
+                .filterNot { it.isAfter(today) }
+                .distinct()
+                .sorted()
+                .toList()
+            if (sortedDates.isEmpty()) return 0
+
+            var longest = 1
+            var current = 1
+            for (i in 1 until sortedDates.size) {
+                if (sortedDates[i] == sortedDates[i - 1].plusDays(1)) {
+                    current++
+                    if (current > longest) {
+                        longest = current
+                    }
+                } else {
+                    current = 1
+                }
             }
-            StatsPeriod.YEAR -> {
-                val prevAnchor = anchor.minusYears(1)
-                getPeriodDateRange(StatsPeriod.YEAR, prevAnchor)
-            }
+            return longest
         }
     }
 }

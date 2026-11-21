@@ -1,6 +1,5 @@
 package com.ntq.training.momentbox.feature.editor
 
-import kotlin.math.ceil
 import android.Manifest
 import android.content.ClipData
 import android.content.pm.PackageManager
@@ -29,14 +28,17 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.OwnedImageFiles
 import com.ntq.training.momentbox.data.local.mediastore.GalleryExporter
 import com.ntq.training.momentbox.databinding.FragmentPhotoEditorBinding
+import kotlin.math.ceil
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -45,8 +47,8 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
     private val model: EditorViewModel by viewModels()
     private var exporting = false
     private var activeTool = "sticker"
-
     private var stickerCategory = 0
+    private var syncingControls = false
     private val legacyWrite =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) save() }
 
@@ -64,9 +66,11 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                         requireContext(),
                         Manifest.permission.WRITE_EXTERNAL_STORAGE,
                     ) != PackageManager.PERMISSION_GRANTED
-            )
+            ) {
                 legacyWrite.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            else save()
+            } else {
+                save()
+            }
         }
         requireActivity()
             .onBackPressedDispatcher
@@ -78,9 +82,8 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                     }
                 },
             )
-        childFragmentManager.setFragmentResultListener("editor_discard", viewLifecycleOwner) { _, _
-            ->
-            parentFragmentManager.popBackStack()
+        childFragmentManager.setFragmentResultListener("editor_discard", viewLifecycleOwner) { _, _ ->
+            exitWithoutSaving()
         }
         childFragmentManager.setFragmentResultListener("editor_text", viewLifecycleOwner) {
             _,
@@ -94,6 +97,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
         b.editorCanvas.onChanged = {
             model.persist()
             updateHistory()
+            syncControlsFromDocument()
         }
         val names =
             intArrayOf(
@@ -130,26 +134,21 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                     setPadding(0, (10 * dp).toInt(), 0, (6 * dp).toInt())
                     compoundDrawablePadding = (4 * dp).toInt()
                     minimumHeight = (69 * dp).toInt()
-                    // Font130%/nhãn dài: đo chữ thật để chip rộng hơn và cuộn ngang, không ép
-                    // thành2dòng.
+                    // Font 130%/nhãn dài: đo chữ thật để chip rộng hơn và cuộn ngang, không ép
+                    // thành 2 dòng.
                     setSingleLine(true)
                     minimumWidth =
                         maxOf(
                             (64 * dp).toInt(),
-                            ceil(paint.measureText(text.toString())).toInt() +
-                                (12 * dp).toInt(),
+                            ceil(paint.measureText(text.toString())).toInt() + (12 * dp).toInt(),
                         )
-                    // Trong HorizontalScrollView cần chiều rộng nội dung thật, weight có thể làm
-                    // con
-                    // tràn khỏi chiều rộng cha nhưng range cuộn vẫn0, khiến tool cuối không tới
-                    // được.
                     layoutParams =
                         LinearLayout.LayoutParams(
                                 ViewGroup.LayoutParams.WRAP_CONTENT,
                                 ViewGroup.LayoutParams.WRAP_CONTENT,
                             )
                             .apply { setMargins((4 * dp).toInt(), 0, (4 * dp).toInt(), 0) }
-                    setOnClickListener { showTool(tool) }
+                    setOnClickListener { showTool(tool, openDialog = true) }
                 }
             )
         }
@@ -161,12 +160,14 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                     override fun onStartTrackingTouch(s: SeekBar) {}
 
                     override fun onStopTrackingTouch(s: SeekBar) {
-                        apply(s.progress / 100f)
+                        if (!syncingControls) {
+                            apply(s.progress / 100f)
+                        }
                     }
                 }
             )
         }
-        adjustment(b.editorBrightness) { b.editorCanvas.adjust(brightness = it - 1) }
+        adjustment(b.editorBrightness) { b.editorCanvas.adjust(brightness = it - 1f) }
         adjustment(b.editorContrast) { b.editorCanvas.adjust(contrast = it) }
         adjustment(b.editorSaturation) { b.editorCanvas.adjust(saturation = it) }
         viewLifecycleOwner.lifecycleScope.launch {
@@ -176,25 +177,28 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                         if (history != null) {
                             b.editorCanvas.history = history
                             updateHistory()
+                            syncControlsFromDocument()
                         }
                     }
                 }
                 launch {
                     model.storageError.collect {
-                        if (it)
+                        if (it) {
                             Snackbar.make(view, R.string.m4_draft_error, Snackbar.LENGTH_INDEFINITE)
                                 .show()
+                        }
                     }
                 }
                 launch {
                     model.restoreError.collect {
-                        if (it)
+                        if (it) {
                             Snackbar.make(
                                     view,
                                     R.string.m4_editor_restore_error,
                                     Snackbar.LENGTH_INDEFINITE,
                                 )
                                 .show()
+                        }
                     }
                 }
             }
@@ -218,29 +222,72 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
         b.editorHint.isVisible = !prefs.getBoolean("gesture", false)
         if (b.editorHint.isVisible) prefs.edit { putBoolean("gesture", true) }
         stickerCategory = state?.getInt("category") ?: 0
-        showTool(state?.getString("tool") ?: "sticker")
+        // Do not auto-reopen EditorTextDialog on configuration change; FragmentManager already
+        // preserves any dialog that was open during rotation.
+        showTool(state?.getString("tool") ?: "sticker", openDialog = false)
     }
 
     private fun updateHistory() {
         binding?.let { b ->
             b.editorUndo.isEnabled = b.editorCanvas.history.undoCount > 0
             b.editorRedo.isEnabled = b.editorCanvas.history.canRedo
-            b.editorUndo.alpha = if (b.editorUndo.isEnabled) 1f else .4f
-            b.editorRedo.alpha = if (b.editorRedo.isEnabled) 1f else .4f
+            b.editorUndo.alpha = if (b.editorUndo.isEnabled) 1f else 0.4f
+            b.editorRedo.alpha = if (b.editorRedo.isEnabled) 1f else 0.4f
         }
     }
 
-    private fun showTool(tool: String) {
+    private fun syncControlsFromDocument() {
+        val b = binding ?: return
+        val doc = b.editorCanvas.history.document
+        syncingControls = true
+        try {
+            val brightnessProgress = ((doc.brightness + 1f) * 100f).roundToInt().coerceIn(0, 200)
+            val contrastProgress = (doc.contrast * 100f).roundToInt().coerceIn(0, 200)
+            val saturationProgress = (doc.saturation * 100f).roundToInt().coerceIn(0, 200)
+            if (b.editorBrightness.progress != brightnessProgress) {
+                b.editorBrightness.progress = brightnessProgress
+            }
+            if (b.editorContrast.progress != contrastProgress) {
+                b.editorContrast.progress = contrastProgress
+            }
+            if (b.editorSaturation.progress != saturationProgress) {
+                b.editorSaturation.progress = saturationProgress
+            }
+        } finally {
+            syncingControls = false
+        }
+        if (activeTool == "filter") {
+            val dp = resources.displayMetrics.density
+            for (i in 0 until b.editorTray.childCount) {
+                val chip = b.editorTray.getChildAt(i) as? TextView ?: continue
+                val selected = i == doc.filter
+                chip.isSelected = selected
+                chip.setTextColor(if (selected) 0xFF111111.toInt() else Color.WHITE)
+                chip.typeface =
+                    ResourcesCompat.getFont(
+                        requireContext(),
+                        if (selected) R.font.be_vietnam_pro_semibold
+                        else R.font.be_vietnam_pro_medium,
+                    )
+                chip.background =
+                    GradientDrawable().apply {
+                        setColor(if (selected) Color.WHITE else 0x24FFFFFF)
+                        cornerRadius = 12 * dp
+                    }
+            }
+        }
+    }
+
+    private fun showTool(tool: String, openDialog: Boolean = true) {
         val b = binding ?: return
         if (exporting) return
         activeTool = tool
-        // Pill44×32 chỉ bao icon, label có màu/weight riêng theo mockup, vẫn cuộn khi font lớn.
+        // Pill 44×32 chỉ bao icon, label có màu/weight riêng theo mockup, vẫn cuộn khi font lớn.
         val density = resources.displayMetrics.density
         for (i in 0 until b.editorTools.childCount) {
             val child = b.editorTools.getChildAt(i) as TextView
-
             val selected = child.tag == tool
-            child.alpha = if (selected) 1f else .75f
+            child.alpha = if (selected) 1f else 0.75f
             child.setTextColor(if (selected) 0xFFC4BCFF.toInt() else Color.WHITE)
             child.typeface =
                 ResourcesCompat.getFont(
@@ -261,17 +308,17 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
             icon.setTint(if (selected) 0xFFC4BCFF.toInt() else Color.WHITE)
             val compound =
                 LayerDrawable(
-                    arrayOf(
-                        pill,
-                        InsetDrawable(
-                            icon,
-                            (12 * density).toInt(),
-                            (6 * density).toInt(),
-                            (12 * density).toInt(),
-                            (6 * density).toInt(),
-                        ),
+                        arrayOf(
+                            pill,
+                            InsetDrawable(
+                                icon,
+                                (12 * density).toInt(),
+                                (6 * density).toInt(),
+                                (12 * density).toInt(),
+                                (6 * density).toInt(),
+                            ),
+                        )
                     )
-                )
                     .apply { setBounds(0, 0, (44 * density).toInt(), (32 * density).toInt()) }
             child.setCompoundDrawables(null, compound, null, null)
         }
@@ -292,9 +339,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                 val rowHeight =
                     maxOf(
                         (if (tool == "filter") 52 * dp else 42 * dp).toInt(),
-                        kotlin.math
-                            .ceil(paint.fontMetrics.bottom - paint.fontMetrics.top.toDouble())
-                            .toInt(),
+                        ceil(paint.fontMetrics.bottom - paint.fontMetrics.top.toDouble()).toInt(),
                     )
                 layoutParams =
                     GridLayout.LayoutParams().apply {
@@ -348,10 +393,7 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                             setTextColor(Color.WHITE)
                             textSize = 12f
                             typeface =
-                                ResourcesCompat.getFont(
-                                    context,
-                                    R.font.be_vietnam_pro_medium,
-                                )
+                                ResourcesCompat.getFont(context, R.font.be_vietnam_pro_medium)
                             setPadding((9 * dp).toInt(), 0, (9 * dp).toInt(), 0)
                             gravity = Gravity.CENTER
                             layoutParams =
@@ -391,8 +433,12 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                 }
             }
 
-            "text" ->
-                if (childFragmentManager.findFragmentByTag("editor-text") == null) {
+            "text" -> {
+                if (
+                    openDialog &&
+                        !childFragmentManager.isStateSaved &&
+                        childFragmentManager.findFragmentByTag("editor-text") == null
+                ) {
                     val selected =
                         b.editorCanvas.history.document.layers.firstOrNull {
                             it.id == b.editorCanvas.selectedId && it.kind == "text"
@@ -410,12 +456,25 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                         }
                         .show(childFragmentManager, "editor-text")
                 }
+            }
 
-            "filter" ->
+            "filter" -> {
                 resources.getStringArray(R.array.m4_filter_names).forEachIndexed { i, name ->
                     b.editorTray.addView(tile(name) { b.editorCanvas.adjust(filter = i) })
                 }
+            }
         }
+        syncControlsFromDocument()
+    }
+
+    private fun exitWithoutSaving() {
+        model.clearSession()
+        val croppedUri = arguments?.getString("uri")
+        val appContext = requireContext().applicationContext
+        CoroutineScope(Dispatchers.IO).launch {
+            OwnedImageFiles.deleteOwnedMediaUri(appContext, croppedUri)
+        }
+        parentFragmentManager.popBackStack()
     }
 
     private fun close() {
@@ -425,9 +484,12 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
             if (
                 !childFragmentManager.isStateSaved &&
                     childFragmentManager.findFragmentByTag("editor-discard") == null
-            )
+            ) {
                 EditorDiscardDialog().show(childFragmentManager, "editor-discard")
-        } else parentFragmentManager.popBackStack()
+            }
+        } else {
+            exitWithoutSaving()
+        }
     }
 
     private fun save() {
@@ -441,7 +503,6 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
                     withContext(Dispatchers.Default) { snapshot.render() }
-
                     val bitmap = snapshot.take()
                     val uri =
                         try {
@@ -449,6 +510,14 @@ class PhotoEditorFragment : Fragment(R.layout.fragment_photo_editor) {
                         } finally {
                             bitmap.recycle()
                         }
+                    model.clearSession()
+                    val croppedUri = arguments?.getString("uri")
+                    if (croppedUri != null && croppedUri != uri.toString()) {
+                        val appContext = requireContext().applicationContext
+                        withContext(NonCancellable + Dispatchers.IO) {
+                            OwnedImageFiles.deleteOwnedMediaUri(appContext, croppedUri)
+                        }
+                    }
                     parentFragmentManager.setFragmentResult(
                         "create_edited",
                         Bundle().apply {

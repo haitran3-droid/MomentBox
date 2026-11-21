@@ -63,6 +63,7 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         }
     }
     private lateinit var adapter: GalleryAdapter
+    private var syncingFilter = false
     private val permissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             refresh()
@@ -72,12 +73,14 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         ContextCompat.checkSelfPermission(requireContext(), p) == PackageManager.PERMISSION_GRANTED
 
     private fun canRead() =
-        if (Build.VERSION.SDK_INT >= 33)
+        if (Build.VERSION.SDK_INT >= 33) {
             granted(Manifest.permission.READ_MEDIA_IMAGES) ||
                 (!create.imagesOnly && granted(Manifest.permission.READ_MEDIA_VIDEO)) ||
                 (Build.VERSION.SDK_INT >= 34 &&
                     granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED))
-        else granted(Manifest.permission.READ_EXTERNAL_STORAGE)
+        } else {
+            granted(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
 
     private fun partial() =
         Build.VERSION.SDK_INT >= 34 &&
@@ -105,15 +108,18 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         }
         prefs.edit { putBoolean(primary, true) }
         val requested =
-            if (Build.VERSION.SDK_INT >= 33)
+            if (Build.VERSION.SDK_INT >= 33) {
                 buildList {
-                        add(Manifest.permission.READ_MEDIA_IMAGES)
-                        if (!create.imagesOnly) add(Manifest.permission.READ_MEDIA_VIDEO)
-                        if (Build.VERSION.SDK_INT >= 34)
-                            add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+                    add(Manifest.permission.READ_MEDIA_IMAGES)
+                    if (!create.imagesOnly) add(Manifest.permission.READ_MEDIA_VIDEO)
+                    if (Build.VERSION.SDK_INT >= 34) {
+                        add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
                     }
+                }
                     .toTypedArray()
-            else arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+            } else {
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
         prefs.edit { requested.forEach { putBoolean(it, true) } }
         permissions.launch(requested)
     }
@@ -128,8 +134,9 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
             granted(permission) ||
                 (Build.VERSION.SDK_INT >= 34 &&
                     granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED))
-        )
+        ) {
             return
+        }
         val prefs = requireContext().getSharedPreferences("m4-permissions", 0)
         if (
             prefs.getBoolean(permission, false) && !shouldShowRequestPermissionRationale(permission)
@@ -146,6 +153,40 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         permissions.launch(arrayOf(permission))
     }
 
+    private fun chipIdFor(filter: GalleryFilter): Int =
+        when (filter) {
+            GalleryFilter.PHOTO -> R.id.filter_photo
+            GalleryFilter.VIDEO -> if (create.imagesOnly) R.id.filter_all else R.id.filter_video
+            GalleryFilter.FAVORITE ->
+                if (Build.VERSION.SDK_INT >= 30) R.id.filter_favorite else R.id.filter_all
+            GalleryFilter.ALL -> R.id.filter_all
+        }
+
+    private fun renderFilterLabels(b: FragmentGalleryBinding) {
+        for (i in 0 until b.galleryFilters.childCount) {
+            val chip = b.galleryFilters.getChildAt(i) as Chip
+            chip.typeface =
+                ResourcesCompat.getFont(
+                    requireContext(),
+                    if (chip.isChecked) R.font.be_vietnam_pro_semibold
+                    else R.font.be_vietnam_pro_medium,
+                )
+        }
+    }
+
+    private fun syncFilterChip(b: FragmentGalleryBinding, filter: GalleryFilter) {
+        val targetId = chipIdFor(filter)
+        if (b.galleryFilters.checkedChipId != targetId) {
+            syncingFilter = true
+            try {
+                b.galleryFilters.check(targetId)
+            } finally {
+                syncingFilter = false
+            }
+        }
+        renderFilterLabels(b)
+    }
+
     @OptIn(FlowPreview::class)
     override fun onViewCreated(view: View, state: Bundle?) {
         val b = FragmentGalleryBinding.bind(view)
@@ -157,26 +198,22 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
             ) { item ->
                 val message =
                     when (create.toggle(item)) {
-                        SelectionChange.LIMIT -> resources.getQuantityString(
-                            R.plurals.m4_limit_remaining, create.maxItems, create.maxItems
-                        )
+                        SelectionChange.LIMIT ->
+                            resources.getQuantityString(
+                                R.plurals.m4_limit_remaining,
+                                create.maxItems,
+                                create.maxItems,
+                            )
                         SelectionChange.UNSUPPORTED_VIDEO -> getString(R.string.m4_video_invalid)
                         SelectionChange.INVALID -> getString(R.string.m4_unsupported)
                         else -> null
                     }
-                message?.let {
-                    Snackbar.make(
-                            b.root,
-                            it,
-                            Snackbar.LENGTH_LONG,
-                        )
-                        .show()
-                }
+                message?.let { Snackbar.make(b.root, it, Snackbar.LENGTH_LONG).show() }
             }
         b.galleryGrid.layoutManager = GridLayoutManager(requireContext(), 3)
         b.galleryGrid.adapter = adapter
-        // CSS grid có gap2dp nhưng không có viền trống ngoài cùng. Chia gap theo
-        // cột thay vì margin1dp quanh mọi ô để ảnh đầu/cuối sát mép màn hình.
+        // CSS grid có gap 2dp nhưng không có viền trống ngoài cùng. Chia gap theo
+        // cột thay vì margin 1dp quanh mọi ô để ảnh đầu/cuối sát mép màn hình.
         b.galleryGrid.addItemDecoration(
             object : RecyclerView.ItemDecoration() {
                 override fun getItemOffsets(
@@ -188,7 +225,6 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
                     val position = parent.getChildAdapterPosition(child)
                     if (position == RecyclerView.NO_POSITION) return
                     val gap = (2 * resources.displayMetrics.density).toInt()
-
                     val column = position % 3
                     out.set(column * gap / 3, 0, gap - (column + 1) * gap / 3, gap)
                 }
@@ -200,8 +236,9 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
                     if (
                         (rv.layoutManager as GridLayoutManager).findLastVisibleItemPosition() >=
                             adapter.itemCount - 12 && canRead()
-                    )
+                    ) {
                         model.next()
+                    }
                 }
             }
         )
@@ -225,27 +262,19 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         b.filterFavorite.isVisible = Build.VERSION.SDK_INT >= 30
         b.filterVideo.isVisible = !create.imagesOnly
         b.filterPhoto.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= 33) requestMissingType(Manifest.permission.READ_MEDIA_IMAGES)
+            if (Build.VERSION.SDK_INT >= 33) {
+                requestMissingType(Manifest.permission.READ_MEDIA_IMAGES)
+            }
         }
         b.filterVideo.setOnClickListener {
             if (Build.VERSION.SDK_INT >= 33 && !create.imagesOnly) {
                 requestMissingType(Manifest.permission.READ_MEDIA_VIDEO)
             }
         }
-        fun renderFilterLabels() {
-            for (i in 0 until b.galleryFilters.childCount) {
-                val chip = b.galleryFilters.getChildAt(i) as Chip
-                chip.typeface =
-                    ResourcesCompat.getFont(
-                        requireContext(),
-                        if (chip.isChecked) R.font.be_vietnam_pro_semibold
-                        else R.font.be_vietnam_pro_medium,
-                    )
-            }
-        }
-        renderFilterLabels()
+        syncFilterChip(b, model.filter)
         b.galleryFilters.setOnCheckedStateChangeListener { _, ids ->
-            renderFilterLabels()
+            renderFilterLabels(b)
+            if (syncingFilter) return@setOnCheckedStateChangeListener
             val filter =
                 when (ids.firstOrNull()) {
                     R.id.filter_photo -> GalleryFilter.PHOTO
@@ -253,13 +282,14 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
                     R.id.filter_favorite -> GalleryFilter.FAVORITE
                     else -> GalleryFilter.ALL
                 }
-            if (canRead()) model.refresh(create.imagesOnly, filter)
+            if (canRead() && filter != model.filter) {
+                model.refresh(create.imagesOnly, filter)
+            }
         }
         b.galleryStatus.setOnClickListener { refresh() }
-        parentFragmentManager.setFragmentResultListener("gallery_reset", viewLifecycleOwner) { _, _
-            ->
+        parentFragmentManager.setFragmentResultListener("gallery_reset", viewLifecycleOwner) { _, _ ->
+            syncFilterChip(b, GalleryFilter.ALL)
             model.refresh(create.imagesOnly, GalleryFilter.ALL, null)
-            b.galleryFilters.check(R.id.filter_all)
         }
         b.galleryAlbum.setOnClickListener {
             val albums = model.state.value.albums
@@ -303,17 +333,15 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
                         row.addView(image)
                         row.addView(
                             TextView(requireContext()).apply {
-                                text = getString(
-                                    R.string.gallery_album_count,
-                                    album.name.ifBlank { getString(R.string.m4_recent) },
-                                    album.count,
-                                )
+                                text =
+                                    getString(
+                                        R.string.gallery_album_count,
+                                        album.name.ifBlank { getString(R.string.m4_recent) },
+                                        album.count,
+                                    )
                                 setPadding((12 * dp).toInt(), 0, 0, 0)
                                 setTextColor(
-                                    ContextCompat.getColor(
-                                        context,
-                                        R.color.text_primary,
-                                    )
+                                    ContextCompat.getColor(context, R.color.text_primary)
                                 )
                                 typeface =
                                     ResourcesCompat.getFont(
@@ -333,14 +361,16 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    create.items.collect {
-                        adapter.selection(it)
-                        b.galleryNext.text = getString(R.string.m4_next, it.size)
-                        b.galleryNext.isEnabled = it.isNotEmpty()
+                    create.items.collect { items ->
+                        adapter.selection(items)
+                        b.galleryNext.text = getString(R.string.m4_next, items.size)
+                        b.galleryNext.isEnabled = items.isNotEmpty()
+                        b.galleryNext.alpha = if (items.isNotEmpty()) 1f else 0.45f
                     }
                 }
                 launch {
                     model.state.collect { s ->
+                        syncFilterChip(b, model.filter)
                         val owned =
                             create.items.value.filter {
                                 it.bucketId == null &&
@@ -350,16 +380,15 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
                                         ))
                             }
                         adapter.submit(
-                            if (model.album == null && model.filter != GalleryFilter.FAVORITE)
+                            if (model.album == null && model.filter != GalleryFilter.FAVORITE) {
                                 (owned
-                                        .filter {
-                                            model.filter != GalleryFilter.PHOTO || !it.isVideo
-                                        }
-                                        .filter {
-                                            model.filter != GalleryFilter.VIDEO || it.isVideo
-                                        } + s.items)
+                                    .filter { model.filter != GalleryFilter.PHOTO || !it.isVideo }
+                                    .filter { model.filter != GalleryFilter.VIDEO || it.isVideo } +
+                                    s.items)
                                     .distinctBy { it.id }
-                            else s.items
+                            } else {
+                                s.items
+                            }
                         )
                         b.galleryAlbum.text =
                             s.albums
@@ -392,8 +421,10 @@ class GalleryFragment : Fragment(R.layout.fragment_gallery) {
         val canRead = canRead()
         b.galleryPartial.isVisible = partial()
         b.galleryPermission.isVisible = !canRead
-        if (canRead) model.refresh(create.imagesOnly)
-        else {
+        syncFilterChip(b, model.filter)
+        if (canRead) {
+            model.refresh(create.imagesOnly)
+        } else {
             model.revoke()
             adapter.submit(emptyList())
             b.galleryStatus.isVisible = true

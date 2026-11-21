@@ -1,10 +1,5 @@
 package com.ntq.training.momentbox.feature.onboarding
-import com.ntq.training.momentbox.MomentBoxApp
-import com.ntq.training.momentbox.feature.auth.AuthActivity
-import com.ntq.training.momentbox.feature.language.LanguageDialogFragment
-import com.ntq.training.momentbox.R
-import java.util.Locale
-import kotlinx.coroutines.launch
+
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
@@ -15,13 +10,21 @@ import androidx.core.view.isGone
 import androidx.core.view.isInvisible
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager.widget.ViewPager
+import com.ntq.training.momentbox.MomentBoxApp
+import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.databinding.ActivityOnboardingBinding
+import com.ntq.training.momentbox.feature.auth.AuthActivity
+import com.ntq.training.momentbox.feature.language.LanguageDialogFragment
+import java.util.Locale
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 class OnboardingActivity : BaseActivity<ActivityOnboardingBinding>(ActivityOnboardingBinding::inflate) {
 
     private lateinit var pagerAdapter: OnboardingPagerAdapter
     private var currentPage: Int = 0
+    private var navigated: Boolean = false
 
     companion object {
         /** Khóa lưu vị trí trang hiện tại khi Activity bị tạo lại do xoay màn hình */
@@ -42,7 +45,11 @@ class OnboardingActivity : BaseActivity<ActivityOnboardingBinding>(ActivityOnboa
         binding.pageIndicator.setPageCount(pagerAdapter.count)
 
         binding.viewPagerOnboarding.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
-            override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {
+            override fun onPageScrolled(
+                position: Int,
+                positionOffset: Float,
+                positionOffsetPixels: Int
+            ) {
                 binding.pageIndicator.onPageScrolled(position, positionOffset)
             }
 
@@ -58,7 +65,8 @@ class OnboardingActivity : BaseActivity<ActivityOnboardingBinding>(ActivityOnboa
         updatePageUi(currentPage)
 
         binding.chipLanguage.setOnClickListener {
-            LanguageDialogFragment.newInstance().show(supportFragmentManager, LanguageDialogFragment.TAG)
+            LanguageDialogFragment.newInstance()
+                .show(supportFragmentManager, LanguageDialogFragment.TAG)
         }
 
         binding.btnSkip.setOnClickListener {
@@ -67,7 +75,10 @@ class OnboardingActivity : BaseActivity<ActivityOnboardingBinding>(ActivityOnboa
 
         binding.btnNext.setOnClickListener {
             if (binding.viewPagerOnboarding.currentItem < pagerAdapter.count - 1) {
-                binding.viewPagerOnboarding.setCurrentItem(binding.viewPagerOnboarding.currentItem + 1, true)
+                binding.viewPagerOnboarding.setCurrentItem(
+                    binding.viewPagerOnboarding.currentItem + 1,
+                    true
+                )
             } else {
                 completeOnboarding()
             }
@@ -76,7 +87,10 @@ class OnboardingActivity : BaseActivity<ActivityOnboardingBinding>(ActivityOnboa
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (binding.viewPagerOnboarding.currentItem > 0) {
-                    binding.viewPagerOnboarding.setCurrentItem(binding.viewPagerOnboarding.currentItem - 1, true)
+                    binding.viewPagerOnboarding.setCurrentItem(
+                        binding.viewPagerOnboarding.currentItem - 1,
+                        true
+                    )
                 } else {
                     finish()
                 }
@@ -114,13 +128,24 @@ class OnboardingActivity : BaseActivity<ActivityOnboardingBinding>(ActivityOnboa
     }
 
     private fun completeOnboarding() {
-        lifecycleScope.launch {
-            val app = MomentBoxApp.instance
-            app.settingsDataStore.setOnboardingDone(true)
+        if (navigated || isFinishing) return
+        navigated = true
 
-            val intent = Intent(this@OnboardingActivity, AuthActivity::class.java)
-            startActivity(intent)
-            finish()
+        lifecycleScope.launch {
+            try {
+                val app = MomentBoxApp.instance
+                app.settingsDataStore.setOnboardingDone(true)
+
+                val intent = Intent(this@OnboardingActivity, AuthActivity::class.java)
+                startActivity(intent)
+                finish()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (!isFinishing) {
+                    navigated = false
+                }
+            }
         }
     }
 

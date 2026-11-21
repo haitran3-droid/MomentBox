@@ -1,14 +1,15 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/playerRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_player_gradient"
-    android:orientation="vertical">
+    android:background="@drawable/bg_player_gradient">
 
     <LinearLayout
+        android:id="@+id/playerHeader"
         android:layout_width="match_parent"
         android:layout_height="56dp"
+        android:layout_alignParentTop="true"
         android:gravity="center_vertical"
         android:paddingStart="4dp"
         android:paddingEnd="8dp">
@@ -52,8 +53,8 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="match_parent"
+        android:layout_below="@id/playerHeader"
         android:gravity="center_vertical"
         android:padding="20dp">
 
@@ -111,4 +112,4 @@
                 layout="@layout/player_controls" />
         </androidx.core.widget.NestedScrollView>
     </LinearLayout>
-</LinearLayout>
+</RelativeLayout>

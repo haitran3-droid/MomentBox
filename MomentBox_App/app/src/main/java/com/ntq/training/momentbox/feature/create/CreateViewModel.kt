@@ -11,20 +11,24 @@ class CreateViewModel(private val saved: SavedStateHandle) : ViewModel() {
     private val gson = Gson()
     private val restored =
         runCatching {
-                gson
-                    .fromJson(saved.get<String>("media") ?: "[]", Array<SelectedMedia>::class.java)
-                    .toList()
-            }
+            gson
+                .fromJson(saved.get<String>("media") ?: "[]", Array<SelectedMedia>::class.java)
+                .toList()
+        }
             .getOrDefault(emptyList())
     private var selection =
         MediaSelection(restored, saved["imagesOnly"] ?: false, saved["maxItems"] ?: 10)
     private val _items = MutableStateFlow(selection.items)
     val items = _items.asStateFlow()
+
     val imagesOnly
         get() = saved.get<Boolean>("imagesOnly") ?: false
 
     val maxItems
         get() = (saved.get<Int>("maxItems") ?: 10).coerceIn(0, 10)
+
+    val pendingCameraCaptureId: String?
+        get() = saved.get<String>(KEY_PENDING_CAPTURE_ID)
 
     fun configure(imageOnly: Boolean, limit: Int = 10) {
         saved["imagesOnly"] = imageOnly
@@ -35,15 +39,66 @@ class CreateViewModel(private val saved: SavedStateHandle) : ViewModel() {
 
     fun toggle(item: SelectedMedia): SelectionChange =
         selection.toggle(item).also { change ->
-            if (change == SelectionChange.REMOVED)
+            if (change == SelectionChange.REMOVED) {
                 saved["processed"] =
                     ArrayList(
                         (saved.get<ArrayList<String>>("processed") ?: arrayListOf()).filterNot {
                             it == item.id
                         }
                     )
+            }
             publish()
         }
+
+    /**
+     * Adds a freshly captured camera media item. Photos are marked as pending-from-camera until
+     * confirmed via [commitCameraCapture], so pressing Back from Crop cleanly rolls them back.
+     */
+    fun beginCameraCapture(item: SelectedMedia): SelectionChange {
+        val change = toggle(item)
+        if (change == SelectionChange.ADDED && !item.isVideo) {
+            saved[KEY_PENDING_CAPTURE_ID] = item.id
+            saved[KEY_PENDING_CAPTURE_URI] = item.uri
+            saved[KEY_PENDING_CAPTURE_PREV_SUBMITTED] = hasSubmitted
+            submitted()
+        }
+        return change
+    }
+
+    /**
+     * Confirms a pending camera capture once editing completes. Returns the original capture URI
+     * so the caller can clean up the superseded intermediate file if needed.
+     */
+    fun commitCameraCapture(id: String): String? {
+        if (saved.get<String>(KEY_PENDING_CAPTURE_ID) != id) return null
+        val uri = saved.get<String>(KEY_PENDING_CAPTURE_URI)
+        clearPendingCaptureKeys()
+        return uri
+    }
+
+    /**
+     * Rolls back an unconfirmed camera capture when the user backs out of Crop back to Camera.
+     * Removes the item from selection (restoring `maxItems` capacity) and returns the abandoned
+     * capture URI so its temp file can be deleted.
+     */
+    fun rollbackPendingCameraCapture(): String? {
+        val id = saved.get<String>(KEY_PENDING_CAPTURE_ID) ?: return null
+        val uri = saved.get<String>(KEY_PENDING_CAPTURE_URI)
+        val previousSubmitted = saved.get<Boolean>(KEY_PENDING_CAPTURE_PREV_SUBMITTED) ?: false
+        clearPendingCaptureKeys()
+        val existing = items.value.firstOrNull { it.id == id }
+        if (existing != null) {
+            toggle(existing)
+        }
+        saved["submitted"] = previousSubmitted
+        return uri
+    }
+
+    private fun clearPendingCaptureKeys() {
+        saved.remove<String>(KEY_PENDING_CAPTURE_ID)
+        saved.remove<String>(KEY_PENDING_CAPTURE_URI)
+        saved.remove<Boolean>(KEY_PENDING_CAPTURE_PREV_SUBMITTED)
+    }
 
     fun setSelection(items: List<SelectedMedia>) {
         selection = MediaSelection(items, imagesOnly, maxItems)
@@ -99,7 +154,7 @@ class CreateViewModel(private val saved: SavedStateHandle) : ViewModel() {
         saved["processed"] =
             ArrayList(
                 ((saved.get<ArrayList<String>>("processed") ?: arrayListOf()) +
-                        items.filterNot { it.isVideo }.map { it.id })
+                    items.filterNot { it.isVideo }.map { it.id })
                     .distinct()
             )
         submitted()
@@ -114,12 +169,18 @@ class CreateViewModel(private val saved: SavedStateHandle) : ViewModel() {
     fun edited(id: String, uri: String) {
         selection.replace(id, uri)
         saved["processed"] =
-            ArrayList((saved.get<ArrayList<String>>("processed") ?: arrayListOf()) + id)
+            ArrayList(((saved.get<ArrayList<String>>("processed") ?: arrayListOf()) + id).distinct())
         publish()
     }
 
     private fun publish() {
         _items.value = selection.items
         saved["media"] = gson.toJson(selection.items)
+    }
+
+    companion object {
+        private const val KEY_PENDING_CAPTURE_ID = "pendingCameraCaptureId"
+        private const val KEY_PENDING_CAPTURE_URI = "pendingCameraCaptureUri"
+        private const val KEY_PENDING_CAPTURE_PREV_SUBMITTED = "pendingCameraCapturePrevSubmitted"
     }
 }

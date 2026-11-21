@@ -24,7 +24,7 @@ data class GalleryState(
 /** Một job tải tại một thời điểm, đổi quyền/album hủy trang cũ trước khi publish. */
 class GalleryViewModel(
     private val repository: MediaStoreRepository,
-    private val saved: SavedStateHandle = SavedStateHandle(),
+    private val saved: SavedStateHandle,
 ) : ViewModel() {
     private val _state = MutableStateFlow(GalleryState())
     val state = _state.asStateFlow()

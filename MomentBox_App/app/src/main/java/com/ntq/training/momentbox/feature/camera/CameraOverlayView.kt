@@ -13,27 +13,38 @@ import android.util.AttributeSet
 import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withClip
 import com.ntq.training.momentbox.R
 
 /** Khóa tampon khi vẽ: analyzer không ghi đè bitmap UI đang đọc. Đếm xử lý/vẽ riêng. */
 class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
     View(context, attrs) {
     private val lock = Any()
-
     private var frame: Bitmap? = null
     private val copyCanvas = Canvas()
     private val effects =
         PhotoFilter.entries.associateWith { ColorMatrixColorFilter(PhotoFilters.matrix(it)) }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val transform = Matrix()
-
     private val source = RectF()
-
     private val dest = RectF()
     private var angle = 0
-
     private var mirror = false
     var showFrames = true
+
+    /**
+     * Desired display width/height ratio inside the viewfinder when rendering filtered frames.
+     * `0f` fills the entire viewfinder (16:9 / video); `1f` fits a centered 1:1 square so the
+     * viewfinder matches the captured square FOV without over-zooming.
+     */
+    var targetAspectRatio = 0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
+
     var onThumbnail: ((Bitmap) -> Unit)? = null
     private var thumbnail: Bitmap? = null
     private val thumbnailCanvas = Canvas()
@@ -47,7 +58,6 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
         }
 
     var focusX = -1f
-
     var focusY = -1f
     var focusTap: PointF? = null
     var onFocusClick: ((Float, Float) -> Unit)? = null
@@ -62,13 +72,8 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
     }
 
     var exposureAvailable = false
-    var exposureFraction = .5f
-    private val sun by lazy {
-        ContextCompat.getDrawable(
-            context,
-            R.drawable.ic_m4_camera_sun,
-        )
-    }
+    var exposureFraction = 0.5f
+    private val sun by lazy { ContextCompat.getDrawable(context, R.drawable.ic_m4_camera_sun) }
     var processedFrames = 0L
         private set
 
@@ -95,9 +100,21 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
         super.onDraw(canvas)
         var thumbnailUpdate: Bitmap? = null
         if (showFrames) canvas.drawColor(Color.BLACK)
+        if (showFrames && targetAspectRatio > 0f && width > 0 && height > 0) {
+            val boxW = minOf(width.toFloat(), height.toFloat() * targetAspectRatio)
+            val boxH = boxW / targetAspectRatio
+            dest.set(
+                (width - boxW) / 2f,
+                (height - boxH) / 2f,
+                (width + boxW) / 2f,
+                (height + boxH) / 2f,
+            )
+        } else {
+            dest.set(0f, 0f, width.toFloat(), height.toFloat())
+        }
         synchronized(lock) {
             frame
-                ?.takeIf { showFrames }
+                ?.takeIf { showFrames && dest.width() > 0f && dest.height() > 0f }
                 ?.let { bitmap ->
                     transform.reset()
                     transform.postTranslate(-bitmap.width / 2f, -bitmap.height / 2f)
@@ -110,13 +127,13 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
                     )
                     val rotatedWidth = if (angle % 180 == 0) source.width() else source.height()
                     val rotatedHeight = if (angle % 180 == 0) source.height() else source.width()
-                    // Cùng FILL_CENTER với PreviewView: toàn vùng ngắm chỉ có một frame đã lọc.
-                    val scale = maxOf(width / rotatedWidth, height / rotatedHeight)
-                    dest.set(0f, 0f, width.toFloat(), height.toFloat())
+                    val scale = maxOf(dest.width() / rotatedWidth, dest.height() / rotatedHeight)
                     transform.postScale(if (mirror) -scale else scale, scale)
-                    transform.postTranslate(width / 2f, height / 2f)
+                    transform.postTranslate(dest.centerX(), dest.centerY())
                     paint.alpha = 255
-                    canvas.drawBitmap(bitmap, transform, paint)
+                    canvas.withClip(dest) {
+                        drawBitmap(bitmap, transform, paint)
+                    }
                     if (lastDisplayedSequence != processedFrames) {
                         lastDisplayedSequence = processedFrames
                         displayedFrames++
@@ -145,14 +162,12 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
                     }
                 }
         }
-        if (!showFrames) dest.set(0f, 0f, width.toFloat(), height.toFloat())
         paint.colorFilter = null
         paint.color = 0x47FFFFFF
         paint.strokeWidth = resources.displayMetrics.density / 2
         for (i in 1..2) {
-            val x = dest.left + dest.width() * i / 3
-
-            val y = dest.top + dest.height() * i / 3
+            val x = dest.left + dest.width() * i / 3f
+            val y = dest.top + dest.height() * i / 3f
             canvas.drawLine(x, dest.top, x, dest.bottom, paint)
             canvas.drawLine(dest.left, y, dest.right, y, paint)
         }
@@ -175,7 +190,6 @@ class CameraOverlayView @JvmOverloads constructor(context: Context, attrs: Attri
                     draw(canvas)
                 }
                 val top = focusY - 12 * dp
-
                 val bottom = top + 46 * dp
                 paint.color = 0x80FFD54F.toInt()
                 paint.strokeWidth = 2 * dp

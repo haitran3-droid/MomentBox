@@ -34,7 +34,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.getValue
 import kotlin.math.ln
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -69,26 +68,25 @@ class RecordingService : Service() {
 
         fun interruptForPlayback(context: Context) {
             val snapshot = state.value
-            if (snapshot.phase in listOf(
-                    RecordPhase.PREPARING,
-                    RecordPhase.RECORDING
-                )
-            ) context.startService(intent(context, INTERRUPT, snapshot.session))
+            if (snapshot.phase in listOf(RecordPhase.PREPARING, RecordPhase.RECORDING)) {
+                context.startService(intent(context, INTERRUPT, snapshot.session))
+            }
         }
 
         /** Chạy trên Main, chỉ đọc marker bằng IO, không khởi động lại mic sau process death. */
         suspend fun restoreInterrupted(context: Context): RecordingSnapshot? {
             if (
                 mutable.value.phase in
-                listOf(
-                    RecordPhase.PREPARING,
-                    RecordPhase.RECORDING,
-                    RecordPhase.PAUSED,
-                    RecordPhase.STOPPING,
-                    RecordPhase.SAVED,
-                )
-            )
+                    listOf(
+                        RecordPhase.PREPARING,
+                        RecordPhase.RECORDING,
+                        RecordPhase.PAUSED,
+                        RecordPhase.STOPPING,
+                        RecordPhase.SAVED,
+                    )
+            ) {
                 return null
+            }
             val pending =
                 try {
                     RecordingRecoveryStore(context).read()
@@ -99,22 +97,23 @@ class RecordingService : Service() {
                 }
             if (
                 pending == null ||
-                mutable.value.phase in
-                listOf(
-                    RecordPhase.PREPARING,
-                    RecordPhase.RECORDING,
-                    RecordPhase.PAUSED,
-                    RecordPhase.STOPPING,
-                    RecordPhase.SAVED,
-                )
-            )
+                    mutable.value.phase in
+                        listOf(
+                            RecordPhase.PREPARING,
+                            RecordPhase.RECORDING,
+                            RecordPhase.PAUSED,
+                            RecordPhase.STOPPING,
+                            RecordPhase.SAVED,
+                        )
+            ) {
                 return null
+            }
             return RecordingSnapshot(
-                pending.session,
-                RecordPhase.ERROR,
-                error = true,
-                interrupted = true,
-            )
+                    pending.session,
+                    RecordPhase.ERROR,
+                    error = true,
+                    interrupted = true,
+                )
                 .also { mutable.value = it }
         }
     }
@@ -155,13 +154,9 @@ class RecordingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        tick =
-            runCatching {
-                StaticPcmSound(this, "audio/sfx-tick.wav")
-            }
-                .getOrNull()
+        tick = runCatching { StaticPcmSound(this, "sfx-tick.wav") }.getOrNull()
         manager.registerAudioDeviceCallback(routes, Handler(Looper.getMainLooper()))
-        if (Build.VERSION.SDK_INT >= 26)
+        if (Build.VERSION.SDK_INT >= 26) {
             (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
                 .createNotificationChannel(
                     NotificationChannel(
@@ -170,21 +165,22 @@ class RecordingService : Service() {
                         NotificationManager.IMPORTANCE_LOW,
                     )
                 )
+        }
         scope.launch {
             for ((action, session) in commands) {
                 try {
                     if (
                         action == START &&
-                        mutable.value.phase !in
-                        listOf(
-                            RecordPhase.PREPARING,
-                            RecordPhase.RECORDING,
-                            RecordPhase.PAUSED,
-                            RecordPhase.STOPPING,
-                        )
-                    )
+                            mutable.value.phase !in
+                                listOf(
+                                    RecordPhase.PREPARING,
+                                    RecordPhase.RECORDING,
+                                    RecordPhase.PAUSED,
+                                    RecordPhase.STOPPING,
+                                )
+                    ) {
                         start(session)
-                    else if (session == mutable.value.session)
+                    } else if (session == mutable.value.session) {
                         when (action) {
                             INTERRUPT -> if (mutable.value.phase == RecordPhase.RECORDING) pause()
                             TOGGLE ->
@@ -194,6 +190,7 @@ class RecordingService : Service() {
                             SAVE -> finish(false)
                             CANCEL -> finish(true)
                         }
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -230,21 +227,26 @@ class RecordingService : Service() {
     }
 
     private fun acquireFocus(): Boolean {
-        if (!shared.acquireRecordingOwnership(owner) {
-                if (mutable.value.phase == RecordPhase.RECORDING) commands.trySend(
-                    INTERRUPT to mutable.value.session
-                )
-            }) return false
+        if (
+            !shared.acquireRecordingOwnership(owner) {
+                if (mutable.value.phase == RecordPhase.RECORDING) {
+                    commands.trySend(INTERRUPT to mutable.value.session)
+                }
+            }
+        ) {
+            return false
+        }
 
         val generation = ++focusGeneration
         val listener =
             AudioManager.OnAudioFocusChangeListener { change ->
                 if (
                     change < 0 &&
-                    generation == focusGeneration &&
-                    mutable.value.phase == RecordPhase.RECORDING
-                )
+                        generation == focusGeneration &&
+                        mutable.value.phase == RecordPhase.RECORDING
+                ) {
                     commands.trySend(INTERRUPT to mutable.value.session)
+                }
             }
         val granted =
             if (Build.VERSION.SDK_INT >= 26) {
@@ -275,8 +277,9 @@ class RecordingService : Service() {
 
     private fun releaseFocus() {
         focusGeneration++
-        if (Build.VERSION.SDK_INT >= 26) focusRequest?.let { manager.abandonAudioFocusRequest(it) }
-        else {
+        if (Build.VERSION.SDK_INT >= 26) {
+            focusRequest?.let { manager.abandonAudioFocusRequest(it) }
+        } else {
             @Suppress("DEPRECATION") legacyFocus?.let { manager.abandonAudioFocus(it) }
         }
         focusRequest = null
@@ -296,10 +299,7 @@ class RecordingService : Service() {
             File(
                 folder,
                 "rec_${
-                    SimpleDateFormat(
-                        "yyyyMMdd_HHmmss",
-                        Locale.ROOT
-                    ).format(Date())
+                    SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(Date())
                 }_${UUID.randomUUID()}.pending.m4a",
             )
         file = output
@@ -341,18 +341,20 @@ class RecordingService : Service() {
                             runCatching { recorder?.maxAmplitude ?: 0 }
                                 .getOrDefault(0)
                                 .coerceAtLeast(0)
-                        if (samples.size < 6000)
+                        if (samples.size < 6000) {
                             samples.add(
                                 (ln(1.0 + raw) / ln(32768.0) * 100).toInt().coerceIn(0, 100)
                             )
+                        }
                     }
-                    if (++ticks % 2 == 0)
+                    if (++ticks % 2 == 0) {
                         mutable.value =
                             mutable.value.copy(
                                 elapsedMs = clock.elapsed(now),
                                 waveform = samples.toList(),
                                 input = actualInput(),
                             )
+                    }
                     if (now - lastNotify >= 1000) {
                         lastNotify = now
                         notifyState()
@@ -390,23 +392,30 @@ class RecordingService : Service() {
 
     private suspend fun finish(cancel: Boolean) {
         if (mutable.value.phase !in listOf(RecordPhase.RECORDING, RecordPhase.PAUSED)) return
+        val activeSession = mutable.value.session
         mutable.value = mutable.value.copy(phase = RecordPhase.STOPPING)
         ticker?.cancel()
         ticker = null
         val output = file
         try {
-            withContext(Dispatchers.IO) {
-                recorder?.stop()
-                recorder?.release()
-                recorder = null
-            }
+            // MediaRecorder.stop() throws RuntimeException when stopped within ~0.5s before valid
+            // frames are written; always release the native recorder and clean up .pending.m4a.
+            val stopFailure =
+                withContext(Dispatchers.IO) {
+                    val activeRecorder = recorder
+                    recorder = null
+                    val stopResult = runCatching { activeRecorder?.stop() }
+                    runCatching { activeRecorder?.release() }
+                    stopResult.exceptionOrNull()
+                }
             releaseFocus()
             wake?.takeIf { it.isHeld }?.release()
             if (cancel) {
-                withContext(Dispatchers.IO) { output?.delete() }
-                RecordingRecoveryStore(this).clear()
-                mutable.value = RecordingSnapshot(mutable.value.session)
+                withContext(NonCancellable + Dispatchers.IO) { output?.delete() }
+                runCatching { RecordingRecoveryStore(this).clear() }
+                mutable.value = RecordingSnapshot(activeSession)
             } else {
+                if (stopFailure != null) throw stopFailure
                 check(output != null && output.length() > 0)
                 val duration =
                     withContext(Dispatchers.IO) {
@@ -434,8 +443,21 @@ class RecordingService : Service() {
                                 .toString(),
                     )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
-            fail()
+            if (cancel) {
+                withContext(NonCancellable) {
+                    withContext(Dispatchers.IO) { output?.delete() }
+                    runCatching { RecordingRecoveryStore(this@RecordingService).clear() }
+                }
+                releaseFocus()
+                wake?.takeIf { it.isHeld }?.release()
+                mutable.value = RecordingSnapshot(activeSession)
+            } else {
+                withContext(NonCancellable + Dispatchers.IO) { output?.delete() }
+                fail()
+            }
         } finally {
             file = null
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -445,13 +467,17 @@ class RecordingService : Service() {
 
     private suspend fun fail() {
         ticker?.cancel()
-        runCatching { recorder?.release() }
+        val activeRecorder = recorder
         recorder = null
+        val pendingFile = file
+        file = null
         withContext(NonCancellable) {
-            withContext(Dispatchers.IO) { file?.delete() }
+            withContext(Dispatchers.IO) {
+                runCatching { activeRecorder?.release() }
+                pendingFile?.delete()
+            }
             runCatching { RecordingRecoveryStore(this@RecordingService).clear() }
         }
-        file = null
         releaseFocus()
         wake?.takeIf { it.isHeld }?.release()
         mutable.value = mutable.value.copy(phase = RecordPhase.ERROR, error = true)
@@ -519,9 +545,10 @@ class RecordingService : Service() {
         releaseFocus()
         if (
             mutable.value.phase in
-            listOf(RecordPhase.RECORDING, RecordPhase.PAUSED, RecordPhase.PREPARING)
-        )
+                listOf(RecordPhase.RECORDING, RecordPhase.PAUSED, RecordPhase.PREPARING)
+        ) {
             mutable.value = mutable.value.copy(phase = RecordPhase.ERROR, error = true)
+        }
         scope.cancel()
         super.onDestroy()
     }

@@ -411,7 +411,6 @@ flowchart LR
 | [`docs/media/`](docs/media/) | Bộ ảnh chụp màn hình thật ([`screenshots/`](docs/media/screenshots/)) và 5 video demo chi tiết từng milestone ([`videos/`](docs/media/videos/)) nhúng trong README này. |
 | [`mockups/`](mockups/) | 26 mockup thiết kế chuẩn (720×1560), gồm bản sạch, `annotated/` (đánh số khớp BA), `pairs/` và `boards/` (7 board theo nhóm + `00_Tong-quan.png`). |
 | [`mockup-src/`](mockup-src/) | Mã nguồn HTML tạo bộ mockup (chỉnh `src/*.html` rồi chạy `node render.js` để xuất lại ảnh). |
-| [`reports/`](reports/) | Báo cáo kiểm thử & bàn giao QA ([`reports/Ban-giao-S20-S22b.md`](reports/Ban-giao-S20-S22b.md)). |
 | [`MomentBox_Tai-lieu-BA.docx`](MomentBox_Tai-lieu-BA.docx) | Tài liệu đặc tả nghiệp vụ & tiêu chí nghiệm thu bản đầy đủ (S01 → S23). |
 
 ---
@@ -527,4 +526,3 @@ node test/smoke.js http://localhost:3000
 
 - [Đặc tả REST API, Socket.IO & Media mẫu (`mock-server/README.md`)](mock-server/README.md)
 - [Tài liệu BA & Tiêu chí nghiệm thu chi tiết (`MomentBox_Tai-lieu-BA.docx`)](MomentBox_Tai-lieu-BA.docx)
-- [Báo cáo kiểm thử & bàn giao QA (`reports/Ban-giao-S20-S22b.md`)](reports/Ban-giao-S20-S22b.md)

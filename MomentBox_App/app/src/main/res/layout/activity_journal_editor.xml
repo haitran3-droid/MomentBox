@@ -547,6 +547,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
                     android:fontFamily="@font/be_vietnam_pro_semibold"
+                    android:fontFeatureSettings="tnum"
                     android:includeFontPadding="false"
                     android:textColor="@color/on_primary_container"
                     android:textSize="12sp"

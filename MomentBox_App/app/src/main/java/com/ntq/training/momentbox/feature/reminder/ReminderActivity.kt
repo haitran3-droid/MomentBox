@@ -50,6 +50,9 @@ class ReminderActivity : AppCompatActivity() {
                 intent.getLongExtra(DUE, 0)
             )
         }.getOrNull()
+
+        internal fun resolveWriteMood(selectedMood: Int?): Int =
+            selectedMood?.takeIf { it in 1..5 } ?: ReminderJournalRoute.MOOD_UNSELECTED
     }
 
     private lateinit var binding: ActivityReminderBinding
@@ -90,7 +93,8 @@ class ReminderActivity : AppCompatActivity() {
             insets
         }
         entry = event(intent)
-        pendingMood = savedInstanceState?.getInt("pendingMood", 0)?.takeIf { it in 1..5 }
+        pendingMood =
+            savedInstanceState?.getInt("pendingMood", -1)?.takeIf(ReminderJournalRoute::isValidMood)
         binding.root.visibility = View.INVISIBLE
         val expected = entry ?: run {
             finishAndRemoveTask()
@@ -105,7 +109,7 @@ class ReminderActivity : AppCompatActivity() {
         ).forEachIndexed { index, view ->
             view.setOnClickListener { requestWrite(index + 1) }
         }
-        binding.reminderWrite.setOnClickListener { requestWrite(pendingMood ?: 1) }
+        binding.reminderWrite.setOnClickListener { requestWrite(resolveWriteMood(pendingMood)) }
         binding.reminderSnooze.setOnClickListener {
             performAction { app.reminderScheduler.snooze(expected) }
         }

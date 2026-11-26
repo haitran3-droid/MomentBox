@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
 import com.ntq.training.momentbox.R
@@ -17,7 +18,13 @@ constructor(
     defStyleAttr: Int = 0,
 ) : View(context, attrs, defStyleAttr) {
 
-    private val paint =
+    private val playedPaint =
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = ContextCompat.getColor(context, R.color.primary)
+            style = Paint.Style.FILL
+        }
+
+    private val unplayedPaint =
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = ContextCompat.getColor(context, R.color.wave_unplayed)
             style = Paint.Style.FILL
@@ -27,13 +34,28 @@ constructor(
     private var displayedData: List<Int> = emptyList()
     private var cachedWidth = -1
     private var cachedMaxBars = -1
+    private var progress: Float = 0f
+
+    var onSeekListener: ((Float) -> Unit)? = null
 
     fun setWaveform(data: List<Int>?) {
-        waveformData = data.orEmpty()
+        val next = data.orEmpty()
+        if (waveformData == next) return
+        waveformData = next
         cachedWidth = -1
         cachedMaxBars = -1
         invalidate()
     }
+
+    fun setProgress(value: Float) {
+        val clamped = clampProgress(value)
+        if (progress != clamped) {
+            progress = clamped
+            invalidate()
+        }
+    }
+
+    fun getProgress(): Float = progress
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -44,8 +66,13 @@ constructor(
 
         val density = resources.displayMetrics.density
         if (waveformData.isEmpty()) {
-            // Chưa có payload phân tích: đường trung tính, không giả waveform giọng nói.
-            canvas.drawRect(0f, h / 2f, w, h / 2f + density, paint)
+            // Chưa có payload phân tích: đường trung tính, vẫn hiển thị phần đã phát.
+            val top = h / 2f
+            val bottom = top + density
+            canvas.drawRect(0f, top, w, bottom, unplayedPaint)
+            if (progress > 0f) {
+                canvas.drawRect(0f, top, w * progress, bottom, playedPaint)
+            }
             return
         }
 
@@ -72,6 +99,8 @@ constructor(
             val barHeight = max(minBarHeight, normalizedAmp * h)
             val top = (h - barHeight) / 2f
             val bottom = top + barHeight
+            val barCenterX = currentX + barWidth / 2f
+            val barPaint = if (isBarPlayed(barCenterX, w, progress)) playedPaint else unplayedPaint
 
             canvas.drawRoundRect(
                 currentX,
@@ -80,15 +109,56 @@ constructor(
                 bottom,
                 barCornerRadius,
                 barCornerRadius,
-                paint,
+                barPaint,
             )
             currentX += barWidth + gapWidth
         }
     }
 
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val seekListener = onSeekListener ?: return false
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN,
+            MotionEvent.ACTION_MOVE -> {
+                parent?.requestDisallowInterceptTouchEvent(true)
+                val ratio = touchRatio(event.x, width)
+                setProgress(ratio)
+                seekListener(ratio)
+                return true
+            }
+
+            MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_CANCEL -> {
+                parent?.requestDisallowInterceptTouchEvent(false)
+                if (event.actionMasked == MotionEvent.ACTION_UP) performClick()
+                return true
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
+    }
+
     companion object {
         internal const val MAX_VISIBLE_BARS = 100
         private const val MIN_SLOT_WIDTH_DP = 3.5f
+
+        internal fun clampProgress(value: Float): Float =
+            if (value.isFinite()) value.coerceIn(0f, 1f) else 0f
+
+        internal fun isBarPlayed(barCenterX: Float, totalWidth: Float, progress: Float): Boolean {
+            if (totalWidth <= 0f || !progress.isFinite() || progress <= 0f) return false
+            if (progress >= 1f) return true
+            return barCenterX <= totalWidth * progress
+        }
+
+        internal fun touchRatio(touchX: Float, totalWidth: Int): Float {
+            if (totalWidth <= 0 || !touchX.isFinite()) return 0f
+            return (touchX / totalWidth.toFloat()).coerceIn(0f, 1f)
+        }
 
         /**
          * Downsamples an amplitude series to at most [maxBars] bars using peak-per-bucket

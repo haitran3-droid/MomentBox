@@ -108,6 +108,7 @@
                         android:background="@drawable/bg_media_privacy"
                         app:drawableStartCompat="@drawable/ic_m4_public"
                         app:drawableEndCompat="@drawable/ic_m4_expand_more"
+                        app:drawableTint="@color/text_primary"
                         android:drawablePadding="5dp"
                         android:gravity="center"
                         android:paddingStart="10dp"
@@ -213,6 +214,7 @@
                     android:id="@+id/compose_voice_duration"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:fontFeatureSettings="tnum"
                     android:textColor="#2A1E8F"
                     android:textSize="12sp" />
 

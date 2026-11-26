@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -430,6 +431,47 @@ class JournalRegressionTest {
         assertEquals(2, restoredMap.size)
         assertEquals(1, restoredMap[5]?.mood)
         assertEquals(2, restoredMap[18]?.mood)
+    }
+
+    // === K18: S20 "VIET NGAY" OPENS S08 WITH UNSELECTED MOOD ===
+
+    @Test
+    fun editorStartedWithUnselectedMoodRequiresMoodSelectionBeforeSaving() = runTest {
+        val repo = FakeJournalRepository()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val viewModel = JournalEditorViewModel(
+                journalRepository = repo,
+                initialEntryId = -1L,
+                initialDateEpochMs = 1_700_000_000_000L,
+                initialMood = JournalEditorViewModel.MOOD_UNSELECTED,
+                ioDispatcher = dispatcher
+            )
+            runCurrent()
+
+            assertEquals(JournalEditorViewModel.MOOD_UNSELECTED, viewModel.uiState.value.mood)
+            viewModel.onTitleChanged("Ghi chú từ nhắc nhở")
+            assertFalse(viewModel.uiState.value.canSave)
+
+            viewModel.onMoodChanged(3)
+            assertEquals(3, viewModel.uiState.value.mood)
+            assertTrue(viewModel.uiState.value.canSave)
+            advanceUntilIdle()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun editorNormalizesInitialMoodPreservingUnselectedAndValidValues() {
+        assertEquals(
+            JournalEditorViewModel.MOOD_UNSELECTED,
+            JournalEditorViewModel.normalizeInitialMood(JournalEditorViewModel.MOOD_UNSELECTED)
+        )
+        assertEquals(4, JournalEditorViewModel.normalizeInitialMood(4))
+        assertEquals(1, JournalEditorViewModel.normalizeInitialMood(-1))
+        assertEquals(1, JournalEditorViewModel.normalizeInitialMood(9))
     }
 
     // === TEST HARNESS ===

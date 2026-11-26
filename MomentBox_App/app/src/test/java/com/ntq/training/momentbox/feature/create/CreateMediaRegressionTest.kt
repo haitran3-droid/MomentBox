@@ -1,11 +1,13 @@
 package com.ntq.training.momentbox.feature.create
 
 import androidx.lifecycle.SavedStateHandle
+import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.OwnedImageFiles
 import com.ntq.training.momentbox.data.repository.UploadPhase
 import com.ntq.training.momentbox.data.repository.UploadRepository
 import com.ntq.training.momentbox.data.repository.UploadState
 import com.ntq.training.momentbox.feature.camera.CameraFragment
+import com.ntq.training.momentbox.feature.compose.ComposeFragment
 import com.ntq.training.momentbox.feature.crop.CropOverlayView
 import com.ntq.training.momentbox.feature.crop.CropRect
 import com.ntq.training.momentbox.feature.journal.view.AudioWaveformView
@@ -210,6 +212,26 @@ class CreateMediaRegressionTest {
         assertEquals(
             15_250L,
             CameraFragment.normalizeCapturedVideoDuration(15_250L, hitDurationLimit = false),
+        )
+    }
+
+    @Test
+    fun composePrivacyPresentationMapsIconAndLabelForAllPrivacyModes() {
+        assertEquals(
+            R.drawable.ic_m4_public to R.string.m4_public,
+            ComposeFragment.privacyPresentation("public"),
+        )
+        assertEquals(
+            R.drawable.ic_group to R.string.m4_friends,
+            ComposeFragment.privacyPresentation("friends"),
+        )
+        assertEquals(
+            R.drawable.ic_lock to R.string.m4_private,
+            ComposeFragment.privacyPresentation("private"),
+        )
+        assertEquals(
+            R.drawable.ic_m4_public to R.string.m4_public,
+            ComposeFragment.privacyPresentation("unknown"),
         )
     }
 }

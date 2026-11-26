@@ -9,6 +9,8 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.animation.OvershootInterpolator
 import android.widget.ArrayAdapter
@@ -36,6 +38,7 @@ import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.base.BaseActivity
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.core.media.AudioPlaybackKind
+import com.ntq.training.momentbox.core.media.VoiceAttachmentProgress
 import com.ntq.training.momentbox.databinding.ActivityJournalEditorBinding
 import com.ntq.training.momentbox.feature.create.CreateInput
 import com.ntq.training.momentbox.feature.create.CreateMediaContract
@@ -56,6 +59,7 @@ class JournalEditorActivity :
         const val EXTRA_ENTRY_ID = "extra_entry_id"
         const val EXTRA_DATE_EPOCH_MS = "extra_date_epoch_ms"
         const val EXTRA_MOOD = "extra_mood"
+        const val MOOD_UNSELECTED = JournalEditorViewModel.MOOD_UNSELECTED
         const val EXTRA_AUDIO_URI = "extra_audio_uri"
         const val EXTRA_AUDIO_DURATION_MS = "extra_audio_duration_ms"
         const val EXTRA_AUDIO_WAVEFORM = "extra_audio_waveform"
@@ -101,9 +105,26 @@ class JournalEditorActivity :
     private var voicePlaybackPosition: Int = 0
     private var voicePreparing = false
     private var voiceGeneration = 0L
+    private var activeVoicePath: String? = null
+    private var activeVoiceMetadataDurationMs: Long = 0L
+    private var activeVoicePlayerDurationMs: Long = 0L
     private var editorForeground = false
     private var audioIntentConsumed = false
     private val voiceOwner = Any()
+    private val voiceProgressHandler = Handler(Looper.getMainLooper())
+    private val voiceProgressUpdater =
+        object : Runnable {
+            override fun run() {
+                val player = attachmentVoicePlayer ?: return
+                if (!isVoicePlaying) return
+                val playing = runCatching { player.isPlaying }.getOrDefault(false)
+                if (!playing) return
+                val currentPos = runCatching { player.currentPosition }.getOrNull() ?: return
+                voicePlaybackPosition = currentPos
+                renderVoiceAttachmentPlaybackUi()
+                voiceProgressHandler.postDelayed(this, VoiceAttachmentProgress.POLL_INTERVAL_MS)
+            }
+        }
     private val playbackAudio by lazy {
         AndroidPlaybackAudio.get(this)
     }
@@ -380,11 +401,59 @@ class JournalEditorActivity :
 
     private fun setupAudioAttachmentBar() {
         binding.btnAudioPlayPause.setOnClickListener { toggleVoiceAttachmentPlayback() }
+        binding.viewAudioWaveform.onSeekListener = { ratio -> seekVoiceAttachment(ratio) }
 
         binding.btnRemoveAudio.setOnClickListener {
             stopVoiceAttachmentPlayback()
             viewModel.removeAudioAttachment()
         }
+    }
+
+    private fun startVoiceProgressTicker() {
+        voiceProgressHandler.removeCallbacks(voiceProgressUpdater)
+        voiceProgressHandler.postDelayed(
+            voiceProgressUpdater,
+            VoiceAttachmentProgress.POLL_INTERVAL_MS,
+        )
+    }
+
+    private fun stopVoiceProgressTicker() {
+        voiceProgressHandler.removeCallbacks(voiceProgressUpdater)
+    }
+
+    private fun renderVoiceAttachmentPlaybackUi() {
+        val state =
+            VoiceAttachmentProgress.computeDisplayState(
+                isPlaying = isVoicePlaying,
+                positionMs = voicePlaybackPosition.toLong(),
+                playerDurationMs = activeVoicePlayerDurationMs,
+                metadataDurationMs = activeVoiceMetadataDurationMs,
+            )
+        binding.viewAudioWaveform.setProgress(state.progress)
+        binding.tvAudioDuration.text =
+            VoiceAttachmentProgress.formatDuration(state.displayedTimeMs, Locale.getDefault())
+        binding.btnAudioPlayPause.setImageResource(
+            if (state.isPlaying) R.drawable.ic_journal_pause else R.drawable.ic_journal_play_arrow
+        )
+        binding.btnAudioPlayPause.contentDescription =
+            getString(
+                if (state.isPlaying) R.string.journal_audio_pause else R.string.journal_audio_play
+            )
+    }
+
+    private fun seekVoiceAttachment(ratio: Float) {
+        val durationMs =
+            VoiceAttachmentProgress.resolveDurationMs(
+                playerDurationMs = activeVoicePlayerDurationMs,
+                metadataDurationMs = activeVoiceMetadataDurationMs,
+            )
+        if (durationMs <= 0L) return
+        val targetPosition = VoiceAttachmentProgress.computeSeekPositionMs(ratio, durationMs)
+        voicePlaybackPosition = targetPosition
+        if (!voicePreparing) {
+            runCatching { attachmentVoicePlayer?.seekTo(targetPosition) }
+        }
+        renderVoiceAttachmentPlaybackUi()
     }
 
     private fun toggleVoiceAttachmentPlayback() {
@@ -416,11 +485,25 @@ class JournalEditorActivity :
         if (ambientController.isPlaying()) {
             ambientController.pause()
         }
-        attachmentVoicePlayer?.apply {
-            seekTo(voicePlaybackPosition)
-            start()
+        val player = attachmentVoicePlayer ?: return
+        runCatching {
+            val durationMs =
+                VoiceAttachmentProgress.resolveDurationMs(
+                    playerDurationMs = activeVoicePlayerDurationMs,
+                    metadataDurationMs = activeVoiceMetadataDurationMs,
+                )
+            val seekPos =
+                if (durationMs > 0L) voicePlaybackPosition.coerceIn(0, durationMs.toInt())
+                else voicePlaybackPosition.coerceAtLeast(0)
+            player.seekTo(seekPos)
+            player.start()
             isVoicePlaying = true
-            binding.btnAudioPlayPause.setImageResource(R.drawable.ic_journal_pause)
+            renderVoiceAttachmentPlaybackUi()
+            startVoiceProgressTicker()
+        }.onFailure {
+            val path = activeVoicePath
+            stopVoiceAttachmentPlayback()
+            if (path != null) startVoiceAttachmentPlayback(path)
         }
     }
 
@@ -428,14 +511,20 @@ class JournalEditorActivity :
         val file = File(path)
         if (!file.exists()) return
 
+        val initialPosition = voicePlaybackPosition
         stopVoiceAttachmentPlayback()
+        voicePlaybackPosition = initialPosition
         try {
             // [Intern]: Tạm dừng ambient khi phát ghi âm theo BA 11.4
             if (ambientController.isPlaying()) {
                 ambientController.pause()
             }
 
-            if (!editorForeground || !acquireVoiceFocus()) return
+            if (!editorForeground || !acquireVoiceFocus()) {
+                voicePlaybackPosition = 0
+                renderVoiceAttachmentPlaybackUi()
+                return
+            }
             val expected = ++voiceGeneration
             voicePreparing = true
             attachmentVoicePlayer = MediaPlayer()
@@ -449,20 +538,37 @@ class JournalEditorActivity :
                     )
                         return@setOnPreparedListener
                     voicePreparing = false
-                    player.seekTo(voicePlaybackPosition)
+                    activeVoicePlayerDurationMs =
+                        runCatching { player.duration.toLong() }
+                            .getOrDefault(0L)
+                            .takeIf { it > 0L } ?: activeVoiceMetadataDurationMs
+                    val startPos =
+                        if (activeVoicePlayerDurationMs > 0L) {
+                            voicePlaybackPosition.coerceIn(0, activeVoicePlayerDurationMs.toInt())
+                        } else {
+                            voicePlaybackPosition.coerceAtLeast(0)
+                        }
+                    voicePlaybackPosition = startPos
+                    if (startPos > 0) {
+                        player.seekTo(startPos)
+                    }
                     player.start()
                     isVoicePlaying = true
-                    binding.btnAudioPlayPause.setImageResource(R.drawable.ic_journal_pause)
+                    renderVoiceAttachmentPlaybackUi()
+                    startVoiceProgressTicker()
                 }
-                setOnCompletionListener {
+                setOnCompletionListener { player ->
+                    if (expected != voiceGeneration || player !== attachmentVoicePlayer) {
+                        return@setOnCompletionListener
+                    }
                     // Clip đã kết thúc: trả quyền focus ngay, không giữ âm thanh ngoài app tới lúc
                     // đóng editor.
-                    playbackAudio.release(voiceOwner)
-                    isVoicePlaying = false
-                    voicePlaybackPosition = 0
-                    binding.btnAudioPlayPause.setImageResource(R.drawable.ic_journal_play_arrow)
+                    stopVoiceAttachmentPlayback()
                 }
-                setOnErrorListener { _, _, _ ->
+                setOnErrorListener { player, _, _ ->
+                    if (expected != voiceGeneration || player !== attachmentVoicePlayer) {
+                        return@setOnErrorListener true
+                    }
                     stopVoiceAttachmentPlayback()
                     Snackbar.make(binding.root, R.string.editor_save_error, Snackbar.LENGTH_LONG)
                         .show()
@@ -483,20 +589,24 @@ class JournalEditorActivity :
             stopVoiceAttachmentPlayback()
             return
         }
+        stopVoiceProgressTicker()
         playbackAudio.release(voiceOwner)
         attachmentVoicePlayer?.let { player ->
-            if (player.isPlaying) {
-                player.pause()
-                voicePlaybackPosition = player.currentPosition
+            runCatching {
+                if (player.isPlaying) {
+                    voicePlaybackPosition = player.currentPosition
+                    player.pause()
+                }
             }
         }
         isVoicePlaying = false
-        binding.btnAudioPlayPause.setImageResource(R.drawable.ic_journal_play_arrow)
+        renderVoiceAttachmentPlaybackUi()
     }
 
     private fun stopVoiceAttachmentPlayback() {
         voiceGeneration++
         voicePreparing = false
+        stopVoiceProgressTicker()
         playbackAudio.release(voiceOwner)
         try {
             attachmentVoicePlayer?.let { player ->
@@ -508,8 +618,9 @@ class JournalEditorActivity :
         } catch (_: Exception) {}
         attachmentVoicePlayer = null
         voicePlaybackPosition = 0
+        activeVoicePlayerDurationMs = 0L
         isVoicePlaying = false
-        binding.btnAudioPlayPause.setImageResource(R.drawable.ic_journal_play_arrow)
+        renderVoiceAttachmentPlaybackUi()
     }
 
     private fun setupAmbientBar() {
@@ -770,12 +881,18 @@ class JournalEditorActivity :
         val audio = state.attachments.find { it.type.equals("audio", ignoreCase = true) }
         binding.layoutAudioAttachment.isVisible = audio != null
         if (audio != null) {
-            val seconds = (audio.durationMs / 1000) % 60
-            val minutes = (audio.durationMs / 1000) / 60
-            binding.tvAudioDuration.text =
-                String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+            if (activeVoicePath != null && activeVoicePath != audio.localPath) {
+                stopVoiceAttachmentPlayback()
+            }
+            activeVoicePath = audio.localPath
+            activeVoiceMetadataDurationMs = audio.durationMs
             // [Intern]: Nối dữ liệu sóng âm waveform từ tệp đính kèm vào View hiển thị (F22)
             binding.viewAudioWaveform.setWaveform(audio.waveform)
+            renderVoiceAttachmentPlaybackUi()
+        } else if (activeVoicePath != null || attachmentVoicePlayer != null || isVoicePlaying) {
+            activeVoicePath = null
+            activeVoiceMetadataDurationMs = 0L
+            stopVoiceAttachmentPlayback()
         }
 
         // Tags

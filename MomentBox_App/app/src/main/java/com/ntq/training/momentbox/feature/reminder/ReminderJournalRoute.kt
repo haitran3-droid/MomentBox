@@ -5,24 +5,28 @@ import java.time.Instant
 import java.time.ZoneId
 
 object ReminderJournalRoute {
+    const val MOOD_UNSELECTED = 0
     private const val MOOD = "m5_reminder_write_mood"
     private const val DATE = "m5_reminder_write_date"
 
     data class Entry(val mood: Int, val date: Long)
 
+    fun isValidMood(mood: Int): Boolean = mood == MOOD_UNSELECTED || mood in 1..5
+
     fun put(intent: Intent, mood: Int, date: Long): Intent {
-        require(mood in 1..5 && date > 0)
+        require(isValidMood(mood) && date > 0)
         return intent.putExtra(MOOD, mood).putExtra(DATE, date)
     }
 
     fun read(intent: Intent): Entry? = runCatching {
-        val mood = intent.getIntExtra(MOOD, 0)
+        if (!intent.hasExtra(MOOD) || !intent.hasExtra(DATE)) return@runCatching null
+        val mood = intent.getIntExtra(MOOD, -1)
         val date = intent.getLongExtra(DATE, 0)
         val now = Instant.now()
         val start =
             now.atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay(ZoneId.systemDefault())
                 .toInstant().toEpochMilli()
-        if (mood !in 1..5 || date < start || date > now.toEpochMilli() + 60000) null else Entry(
+        if (!isValidMood(mood) || date < start || date > now.toEpochMilli() + 60000) null else Entry(
             mood,
             date
         )

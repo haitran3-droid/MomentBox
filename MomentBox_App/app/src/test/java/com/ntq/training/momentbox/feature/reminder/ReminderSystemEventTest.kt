@@ -3,7 +3,9 @@ package com.ntq.training.momentbox.feature.reminder
 import android.app.AlarmManager
 import android.content.Intent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReminderSystemEventTest {
@@ -25,5 +27,21 @@ class ReminderSystemEventTest {
         )
         assertNull(ReminderSystemEvent.fromAction("BOOT_COMPLETED"))
         assertNull(ReminderSystemEvent.fromAction(null))
+    }
+
+    @Test
+    fun reminderWriteRouteAllowsUnselectedMoodAndPreservesSelectedMood() {
+        assertTrue(ReminderJournalRoute.isValidMood(ReminderJournalRoute.MOOD_UNSELECTED))
+        for (mood in 1..5) {
+            assertTrue(ReminderJournalRoute.isValidMood(mood))
+        }
+        assertFalse(ReminderJournalRoute.isValidMood(-1))
+        assertFalse(ReminderJournalRoute.isValidMood(6))
+
+        assertEquals(
+            ReminderJournalRoute.MOOD_UNSELECTED,
+            ReminderActivity.resolveWriteMood(null),
+        )
+        assertEquals(4, ReminderActivity.resolveWriteMood(4))
     }
 }

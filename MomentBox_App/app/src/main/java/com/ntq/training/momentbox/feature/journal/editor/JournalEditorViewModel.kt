@@ -84,7 +84,7 @@ class JournalEditorViewModel(
         JournalEditorUiState(
             entryId = initialEntryId.takeIf { it > 0L },
             dateEpochMs = initialDateEpochMs,
-            mood = initialMood.takeIf { it in 1..5 } ?: 1,
+            mood = normalizeInitialMood(initialMood),
             isLoading = true
         )
     )
@@ -625,6 +625,15 @@ class JournalEditorViewModel(
         text.trim().split("\\s+".toRegex()).count { it.isNotBlank() }
 
     companion object {
+        const val MOOD_UNSELECTED = 0
+
+        internal fun normalizeInitialMood(rawMood: Int): Int =
+            when {
+                rawMood == MOOD_UNSELECTED -> MOOD_UNSELECTED
+                rawMood in 1..5 -> rawMood
+                else -> 1
+            }
+
         fun provideFactory(
             journalRepository: JournalRepository,
             entryId: Long = -1L,

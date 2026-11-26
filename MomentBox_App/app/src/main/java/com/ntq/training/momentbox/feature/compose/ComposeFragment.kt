@@ -5,11 +5,16 @@ import android.content.Intent
 import android.graphics.Rect
 import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Spannable
 import android.text.style.ForegroundColorSpan
 import android.view.TouchDelegate
 import android.view.View
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -32,6 +37,7 @@ import com.ntq.training.momentbox.MomentBoxApp
 import com.ntq.training.momentbox.R
 import com.ntq.training.momentbox.core.media.AndroidPlaybackAudio
 import com.ntq.training.momentbox.core.media.AudioPlaybackKind
+import com.ntq.training.momentbox.core.media.VoiceAttachmentProgress
 import com.ntq.training.momentbox.core.ui.MediaImageModel
 import com.ntq.training.momentbox.data.repository.UploadPhase
 import com.ntq.training.momentbox.databinding.FragmentComposeBinding
@@ -52,6 +58,28 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
     private val create: CreateViewModel by activityViewModels()
     private var rendering = false
     private var player: MediaPlayer? = null
+    private var isVoicePlaying = false
+    private var voicePreparing = false
+    private var voiceGeneration = 0L
+    private var voicePlaybackPosition = 0
+    private var activeVoiceUri: String? = null
+    private var activeVoiceMetadataDurationMs = 0L
+    private var activeVoicePlayerDurationMs = 0L
+    private var renderedPrivacy: String? = null
+    private val voiceProgressHandler = Handler(Looper.getMainLooper())
+    private val voiceProgressUpdater =
+        object : Runnable {
+            override fun run() {
+                val activePlayer = player ?: return
+                if (!isVoicePlaying) return
+                val playing = runCatching { activePlayer.isPlaying }.getOrDefault(false)
+                if (!playing) return
+                val currentPos = runCatching { activePlayer.currentPosition }.getOrNull() ?: return
+                voicePlaybackPosition = currentPos
+                renderVoiceUi()
+                voiceProgressHandler.postDelayed(this, VoiceAttachmentProgress.POLL_INTERVAL_MS)
+            }
+        }
     private val owner = Any()
     private val shared by lazy { AndroidPlaybackAudio.get(requireContext()) }
     private val recorder =
@@ -192,7 +220,8 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
         b.composeRecord.setOnClickListener {
             if (!model.upload.postingBlocked) recorder.launch(Unit)
         }
-        b.composeVoicePlay.setOnClickListener { playVoice() }
+        b.composeVoicePlay.setOnClickListener { toggleVoice() }
+        b.composeVoiceWaveform.onSeekListener = { ratio -> seekVoice(ratio) }
         b.composeVoiceRemove.setOnClickListener {
             stopVoice()
             model.update { it.copy(voice = null) }
@@ -324,33 +353,29 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
                                 NumberFormat.getIntegerInstance(resources.configuration.locales[0])
                                     .format(2200),
                             )
-                        b.composePrivacy.setText(
-                            when (draft.privacy) {
-                                "friends" -> R.string.m4_friends
-                                "private" -> R.string.m4_private
-                                else -> R.string.m4_public
-                            }
-                        )
+                        renderPrivacyChip(b, draft.privacy)
                         b.composeLocation.setText(R.string.m4_location)
                         b.composeLocationValue.text = draft.location
                         b.composeComments.isChecked = draft.allowComments
                         b.composeJournal.isChecked = draft.saveToJournal
                         b.composeJournal.isEnabled = !draft.hasVideo && !model.upload.postingBlocked
                         b.composeVideoPolicy.isVisible = draft.hasVideo
-                        b.composeRecord.isVisible = draft.voice == null
-                        b.composeVoiceWaveform.setWaveform(draft.voice?.waveform.orEmpty())
-                        b.composeVoiceBar.isVisible = draft.voice != null
-                        b.composeVoiceDuration.text =
-                            draft.voice
-                                ?.let {
-                                    String.format(
-                                        Locale.ROOT,
-                                        "%d:%02d",
-                                        it.durationMs / 60000,
-                                        it.durationMs / 1000 % 60,
-                                    )
-                                }
-                                .orEmpty()
+                        val voice = draft.voice
+                        b.composeRecord.isVisible = voice == null
+                        b.composeVoiceBar.isVisible = voice != null
+                        if (voice != null) {
+                            if (activeVoiceUri != null && activeVoiceUri != voice.uri) {
+                                stopVoice()
+                            }
+                            activeVoiceUri = voice.uri
+                            activeVoiceMetadataDurationMs = voice.durationMs
+                            b.composeVoiceWaveform.setWaveform(voice.waveform)
+                            renderVoiceUi()
+                        } else if (activeVoiceUri != null || player != null || isVoicePlaying) {
+                            activeVoiceUri = null
+                            activeVoiceMetadataDurationMs = 0L
+                            stopVoice()
+                        }
                         adapter.submitMedia(draft.media)
                         b.composePost.isEnabled =
                             draft.canPost && !model.upload.postingBlocked && !model.restoring.value
@@ -478,31 +503,165 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
         }
     }
 
-    private fun playVoice() {
-        if (player != null) {
-            stopVoice()
-            return
+    private fun startVoiceProgressTicker() {
+        voiceProgressHandler.removeCallbacks(voiceProgressUpdater)
+        voiceProgressHandler.postDelayed(
+            voiceProgressUpdater,
+            VoiceAttachmentProgress.POLL_INTERVAL_MS,
+        )
+    }
+
+    private fun stopVoiceProgressTicker() {
+        voiceProgressHandler.removeCallbacks(voiceProgressUpdater)
+    }
+
+    private fun renderVoiceUi() {
+        val b = binding ?: return
+        val state =
+            VoiceAttachmentProgress.computeDisplayState(
+                isPlaying = isVoicePlaying,
+                positionMs = voicePlaybackPosition.toLong(),
+                playerDurationMs = activeVoicePlayerDurationMs,
+                metadataDurationMs = activeVoiceMetadataDurationMs,
+            )
+        b.composeVoiceWaveform.setProgress(state.progress)
+        b.composeVoiceDuration.text =
+            VoiceAttachmentProgress.formatDuration(state.displayedTimeMs, Locale.ROOT)
+        b.composeVoicePlay.setImageResource(
+            if (state.isPlaying) R.drawable.ic_journal_pause else R.drawable.ic_journal_play_arrow
+        )
+        b.composeVoicePlay.contentDescription =
+            getString(
+                if (state.isPlaying) R.string.journal_audio_pause else R.string.journal_audio_play
+            )
+    }
+
+    private fun seekVoice(ratio: Float) {
+        val durationMs =
+            VoiceAttachmentProgress.resolveDurationMs(
+                playerDurationMs = activeVoicePlayerDurationMs,
+                metadataDurationMs = activeVoiceMetadataDurationMs,
+            )
+        if (durationMs <= 0L) return
+        val targetPosition = VoiceAttachmentProgress.computeSeekPositionMs(ratio, durationMs)
+        voicePlaybackPosition = targetPosition
+        if (!voicePreparing) {
+            runCatching { player?.seekTo(targetPosition) }
         }
-        val voice = model.draft.value.voice ?: return
+        renderVoiceUi()
+    }
+
+    private fun toggleVoice() {
+        if (voicePreparing) {
+            stopVoice()
+        } else if (isVoicePlaying) {
+            pauseVoice()
+        } else if (player != null) {
+            resumeVoice()
+        } else {
+            startVoice()
+        }
+    }
+
+    private fun resumeVoice() {
+        if (voicePreparing) return
         if (
             !shared.acquire(
                 owner,
-                { requireActivity().runOnUiThread { stopVoice() } },
+                { voiceProgressHandler.post { stopVoice() } },
                 kind = AudioPlaybackKind.VOICE,
             )
         ) {
             return
         }
+        val activePlayer = player ?: return
+        runCatching {
+            val durationMs =
+                VoiceAttachmentProgress.resolveDurationMs(
+                    playerDurationMs = activeVoicePlayerDurationMs,
+                    metadataDurationMs = activeVoiceMetadataDurationMs,
+                )
+            val seekPos =
+                if (durationMs > 0L) voicePlaybackPosition.coerceIn(0, durationMs.toInt())
+                else voicePlaybackPosition.coerceAtLeast(0)
+            activePlayer.seekTo(seekPos)
+            activePlayer.start()
+            isVoicePlaying = true
+            renderVoiceUi()
+            startVoiceProgressTicker()
+        }.onFailure {
+            stopVoice()
+            startVoice()
+        }
+    }
+
+    private fun startVoice() {
+        val voice = model.draft.value.voice ?: return
+        val initialPosition = voicePlaybackPosition
+        stopVoice()
+        voicePlaybackPosition = initialPosition
+        if (
+            !shared.acquire(
+                owner,
+                { voiceProgressHandler.post { stopVoice() } },
+                kind = AudioPlaybackKind.VOICE,
+            )
+        ) {
+            voicePlaybackPosition = 0
+            renderVoiceUi()
+            return
+        }
+        val expected = ++voiceGeneration
+        voicePreparing = true
         try {
             player =
                 MediaPlayer().apply {
                     setDataSource(requireContext(), voice.uri.toUri())
-                    setOnCompletionListener { stopVoice() }
-                    setOnErrorListener { _, _, _ ->
-                        stopVoice()
+                    setOnCompletionListener { completed ->
+                        if (expected == voiceGeneration && completed === player) {
+                            stopVoice()
+                        }
+                    }
+                    setOnErrorListener { failed, _, _ ->
+                        if (expected == voiceGeneration && failed === player) {
+                            stopVoice()
+                        }
                         true
                     }
-                    setOnPreparedListener { it.start() }
+                    setOnPreparedListener { prepared ->
+                        if (
+                            expected != voiceGeneration ||
+                                prepared !== player ||
+                                !isAdded ||
+                                !viewLifecycleOwner.lifecycle.currentState.isAtLeast(
+                                    Lifecycle.State.STARTED
+                                )
+                        ) {
+                            return@setOnPreparedListener
+                        }
+                        voicePreparing = false
+                        activeVoicePlayerDurationMs =
+                            runCatching { prepared.duration.toLong() }
+                                .getOrDefault(0L)
+                                .takeIf { it > 0L } ?: activeVoiceMetadataDurationMs
+                        val startPos =
+                            if (activeVoicePlayerDurationMs > 0L) {
+                                voicePlaybackPosition.coerceIn(
+                                    0,
+                                    activeVoicePlayerDurationMs.toInt(),
+                                )
+                            } else {
+                                voicePlaybackPosition.coerceAtLeast(0)
+                            }
+                        voicePlaybackPosition = startPos
+                        if (startPos > 0) {
+                            prepared.seekTo(startPos)
+                        }
+                        prepared.start()
+                        isVoicePlaying = true
+                        renderVoiceUi()
+                        startVoiceProgressTicker()
+                    }
                     prepareAsync()
                 }
         } catch (_: Exception) {
@@ -510,10 +669,43 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
         }
     }
 
-    private fun stopVoice() {
-        player?.release()
-        player = null
+    private fun pauseVoice() {
+        if (voicePreparing) {
+            stopVoice()
+            return
+        }
+        stopVoiceProgressTicker()
         shared.release(owner)
+        player?.let { activePlayer ->
+            runCatching {
+                if (activePlayer.isPlaying) {
+                    voicePlaybackPosition = activePlayer.currentPosition
+                    activePlayer.pause()
+                }
+            }
+        }
+        isVoicePlaying = false
+        renderVoiceUi()
+    }
+
+    private fun stopVoice() {
+        voiceGeneration++
+        voicePreparing = false
+        stopVoiceProgressTicker()
+        runCatching {
+            player?.let { activePlayer ->
+                if (activePlayer.isPlaying) {
+                    activePlayer.stop()
+                }
+                activePlayer.release()
+            }
+        }
+        player = null
+        voicePlaybackPosition = 0
+        activeVoicePlayerDurationMs = 0L
+        isVoicePlaying = false
+        shared.release(owner)
+        renderVoiceUi()
     }
 
     override fun onStop() {
@@ -521,12 +713,45 @@ class ComposeFragment : Fragment(R.layout.fragment_compose) {
         super.onStop()
     }
 
+    private fun renderPrivacyChip(b: FragmentComposeBinding, privacy: String) {
+        if (renderedPrivacy == privacy) return
+        renderedPrivacy = privacy
+        val (iconRes, labelRes) = privacyPresentation(privacy)
+        b.composePrivacy.setText(labelRes)
+        val iconSize = (14 * resources.displayMetrics.density).toInt()
+        val tint = ContextCompat.getColor(requireContext(), R.color.text_primary)
+        val startIcon =
+            AppCompatResources.getDrawable(requireContext(), iconRes)?.mutate()?.apply {
+                setBounds(0, 0, iconSize, iconSize)
+                DrawableCompat.setTint(this, tint)
+            }
+        val endIcon =
+            AppCompatResources.getDrawable(requireContext(), R.drawable.ic_m4_expand_more)
+                ?.mutate()
+                ?.apply {
+                    setBounds(0, 0, iconSize, iconSize)
+                    DrawableCompat.setTint(this, tint)
+                }
+        b.composePrivacy.setCompoundDrawablesRelative(startIcon, null, endIcon, null)
+    }
+
     override fun onDestroyView() {
+        stopVoice()
+        renderedPrivacy = null
         binding?.let {
             Glide.with(this).clear(it.composeAvatarImage)
             it.composeMedia.adapter = null
         }
         binding = null
         super.onDestroyView()
+    }
+
+    companion object {
+        internal fun privacyPresentation(privacy: String): Pair<Int, Int> =
+            when (privacy) {
+                "friends" -> R.drawable.ic_group to R.string.m4_friends
+                "private" -> R.drawable.ic_lock to R.string.m4_private
+                else -> R.drawable.ic_m4_public to R.string.m4_public
+            }
     }
 }

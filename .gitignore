@@ -46,3 +46,6 @@ local.properties
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Demo outputs
+outputs/demo-mentor-momentbox-20261126/

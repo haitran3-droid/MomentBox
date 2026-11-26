@@ -17,7 +17,7 @@
   </tr>
 </table>
 
-> Toàn bộ ảnh chụp màn hình và 5 video demo bên dưới được ghi trực tiếp từ ứng dụng thật chạy trên **Realme RMX3350** (Android thật có camera & micro phần cứng), riêng bố cục 2 cột `sw600dp` được chụp trên **AVD Pixel 7 Pro** (`822dp`).
+> Toàn bộ ảnh chụp màn hình và 5 video demo bên dưới được ghi trực tiếp ngày **26/11/2026** từ ứng dụng thật chạy trên **Realme RMX3350** (Android 13, có camera & micro phần cứng), kết hợp **AVD Pixel 6a** (Android 14) cho luồng chat realtime 2 thiết bị và bố cục 2 cột `layout-sw600dp` (`960×660dp`, `sw660dp`).
 
 ---
 
@@ -84,8 +84,8 @@ flowchart LR
 ### Milestone 1 — Nền tảng & Xác thực (S01 → S03)
 
 - **Phạm vi:** `SplashActivity` (SplashScreen API, đọc song song `config` + `DataStore`), `OnboardingActivity` (`ViewPager` + `PagerAdapter` tự viết, `PageIndicatorView` co giãn theo `positionOffset`, đổi ngôn ngữ giữ đúng trang), `AuthActivity` (validate inline, `KEY_PASSWORD_VISIBLE` + `saveEnabled="false"`, chạm ngoài ẩn bàn phím, đăng nhập Demo, `TokenAuthenticator` đồng bộ chống gọi refresh trùng).
-- **Video demo chi tiết:** [▶ Xem video demo Milestone 1 (`m1_foundation_auth.mp4` · ~10.7 MB)](docs/media/videos/m1_foundation_auth.mp4)
-  - *Nội dung trong video:* Khởi động sạch app (S01 Splash) → vuốt S02 Onboarding xem `PageIndicatorView` → đổi ngôn ngữ Tiếng Việt ↔ English giữ nguyên trang 2 → qua S03 Đăng nhập kiểm tra validate email → bấm Tài khoản demo đăng nhập vào thẳng Bảng tin S04.
+- **Video demo chi tiết:** [▶ Xem video demo Milestone 1 (`m1_foundation_auth.mp4` · ~10.5 MB)](docs/media/videos/m1_foundation_auth.mp4)
+  - *Nội dung trong video:* Khởi động sạch app (S01 Splash) → vuốt S02 Onboarding xem `PageIndicatorView` → đổi ngôn ngữ Tiếng Việt ↔ English ↔ Tiếng Việt giữ nguyên trang 2 → hoàn tất onboarding sang S03, mở lại app đi thẳng S03 → kiểm tra validate inline email/mật khẩu → bấm Tài khoản demo đăng nhập Nguyễn Minh Anh vào thẳng Bảng tin S04.
 
 <table>
   <tr>
@@ -99,8 +99,8 @@ flowchart LR
 ### Milestone 2 — Bảng tin, Bình luận & Video (S04, S04b, S05, S06)
 
 - **Phạm vi:** `FeedFragment` (`RecyclerView` 7 `viewType`, `ListAdapter` + `DiffUtil` + payload cập nhật tim không nháy ảnh, `RecycledViewPool` dùng chung cho list ngang Story & Gợi ý, 1 `ExoPlayer` auto-play + 1 `MediaPlayer` voice), `PostDetailActivity` (so sánh Layout A `NestedScrollView` vs Layout B `ConcatAdapter`, phân trang bình luận + phản hồi, chống gửi trùng `clientId` khi retry, `mergeServerPage` chống race condition), `VideoPlayerActivity` (Media3 ExoPlayer MP4/HLS, `layout-land` riêng, Replay & bàn giao vị trí về Feed).
-- **Video demo chi tiết:** [▶ Xem video demo Milestone 2 (`m2_feed_comments_video.mp4` · ~21.1 MB)](docs/media/videos/m2_feed_comments_video.mp4)
-  - *Nội dung trong video:* Lướt thanh Story, bấm Like/Bookmark trên Bảng tin S04 → cuộn qua các kiểu bài viết → mở S06 VideoPlayer chuyển toàn màn hình xoay ngang, tua nhanh +10s rồi quay lại Feed → mở S05 Chi tiết bài viết, gửi bình luận Tiếng Việt có dấu và kiểm tra cập nhật tức thời.
+- **Video demo chi tiết:** [▶ Xem video demo Milestone 2 (`m2_feed_comments_video.mp4` · ~27.4 MB)](docs/media/videos/m2_feed_comments_video.mp4)
+  - *Nội dung trong video:* Lướt thanh Story, bấm Like/Bookmark trên Bảng tin S04 → chuyển tab Nhật ký rồi quay lại giữ nguyên trạng thái → mở S05 Chi tiết bài viết, đổi sắp xếp *Mới nhất*, gửi bình luận & phản hồi tiếng Anh (`Nice photo! Love it! #MB1250` và `@Nguyễn Minh Anh Epic vibe! Count me in!`) → mở S06 VideoPlayer (HLS `.m3u8`) chuyển toàn màn hình xoay ngang `layout-land`, chọn tốc độ & tua nhanh +10s rồi quay lại Feed → phát bài Thoại trên Feed và đổi tốc độ phát (`1x / 1.5x / 2x`).
 
 <table>
   <tr>
@@ -115,8 +115,8 @@ flowchart LR
 ### Milestone 3 — Nhật ký cá nhân & Thống kê (S07, S07b, S08, S09)
 
 - **Phạm vi:** Offline hoàn toàn trên Room (`journal_entries`, `journal_attachments`, `journal_tags`, `FTS4`), `MoodCalendarView` tự vẽ Canvas + `onSaveInstanceState`, `S07b` Lọc/Sắp xếp chạy SQL kèm đếm trước `SELECT COUNT(*)`, `S08` Soạn nhật ký (tự lưu nháp JSON vào DataStore + hộp thoại khôi phục nháp, `@Transaction`, âm thanh nền `AudioTrack MODE_STREAM`, đính kèm ghi âm thật), `S09` `JournalStatsCalculator` thuần Kotlin trên `Dispatchers.Default` + `DonutChartView` & `LineChartView` (`0` cấp phát trong `onDraw`).
-- **Video demo chi tiết:** [▶ Xem video demo Milestone 3 (`m3_journal_stats.mp4` · ~10.9 MB)](docs/media/videos/m3_journal_stats.mp4)
-  - *Nội dung trong video:* Mở S08 viết nhật ký *"Chiều mưa Đà Lạt"* (chọn cảm xúc Tuyệt vời, bật âm thanh nền *Tiếng mưa* `MODE_STREAM`, ghi âm giọng nói đính kèm, lưu) → về S07 thấy lịch cảm xúc & danh sách tự cập nhật qua Room `Flow` → mở S07b Lọc/Sắp xếp → mở S09 Thống kê xem biểu đồ Canvas.
+- **Video demo chi tiết:** [▶ Xem video demo Milestone 3 (`m3_journal_stats.mp4` · ~24.5 MB)](docs/media/videos/m3_journal_stats.mp4)
+  - *Nội dung trong video:* Mở S08 kiểm tra chặn lưu bài trống, viết nhật ký `Dalat Trip MB1250` (chọn cảm xúc *Tuyệt vời*, kiểm tra tự lưu nháp & khôi phục nháp, đính kèm ảnh từ `MomentBoxDemo`, ghi âm giọng nói thật 28 giây và phát lại xem thanh sóng tiến độ & bộ đếm giây trực tiếp, bật âm thanh nền *Tiếng mưa* `MODE_STREAM`, lưu) → về S07 thấy lịch cảm xúc 3 ngày liên tiếp (`24–26/11/2026`), thử ghim bài, vuốt xóa + Hoàn tác trong 5s, tìm kiếm `Dalat`, lọc S07b (`Có ảnh: 3`, `Có ảnh + Có ghi âm: 1`) → mở S09 Thống kê xem biểu đồ `DonutChartView` & `LineChartView`.
 
 <table>
   <tr>
@@ -131,8 +131,8 @@ flowchart LR
 ### Milestone 4 — Media & Tạo bài viết (S10 → S15)
 
 - **Phạm vi:** `CreateActivity` quản lý back stack Fragment + Fragment Result API: **S10** Gallery tự viết trên `MediaStore` + `ContentObserver` (`callbackFlow`), **S11** CameraX + bộ lọc realtime `ImageAnalysis` tái sử dụng Bitmap + `AudioTrack MODE_STATIC`, **S12** `CropOverlayView` dùng `Matrix` nghịch đảo & khóa tỷ lệ `1:1`/`4:5`/`16:9`/`3:4` khi kéo cạnh + giải mã `inSampleSize`, **S13** `StickerCanvasView` multi-touch (`pointerId`) + Drag & Drop framework + Undo/Redo đồng bộ SeekBar + lưu `MediaStore` (`IS_PENDING`), **S14** `RecordingService` Started + Bound Foreground Service (`microphone`) + `AudioDeviceCallback` nhận diện phần cứng `RMX3350`, **S15** Compose upload multipart `ProgressRequestBody` + chống đăng trùng `clientId` + đồng thời lưu vào Nhật ký.
-- **Video demo chi tiết:** [▶ Xem video demo Milestone 4 (`m4_media_create_post.mp4` · ~24.6 MB)](docs/media/videos/m4_media_create_post.mp4)
-  - *Nội dung trong video:* Mở S11 CameraX đổi bộ lọc màu realtime trên camera thật → mở S10 Gallery chuyển album `MomentBoxDemo` chọn ảnh → S12 Crop khóa tỷ lệ `1:1` kéo cạnh → S13 Editor gắn sticker + Undo/Redo + lưu → S15 Compose viết bài chỉnh chu Tiếng Việt có dấu + hashtag + vị trí Phú Quốc + bật *Lưu vào Nhật ký* → đăng lên đầu Bảng tin → mở S14 Ghi âm bằng micro thật `RMX3350` xem waveform trực tiếp.
+- **Video demo chi tiết:** [▶ Xem video demo Milestone 4 (`m4_media_create_post.mp4` · ~26.2 MB)](docs/media/videos/m4_media_create_post.mp4)
+  - *Nội dung trong video:* Mở S11 CameraX đổi bộ lọc realtime (*Ấm*, *Đen trắng*) & chạm lấy nét trên camera thật RMX3350 → mở S10 Gallery chuyển album `MomentBoxDemo` chọn/bỏ chọn đổi thứ tự 2 ảnh (`Tiếp (2)`) → S12 Crop khóa tỷ lệ `1:1` + xoay 90° + lật ngang → S13 Editor vẽ nét, Undo/Redo, chỉnh Sáng/Tương phản/Bão hòa & lưu → S15 Compose viết `Calm light in Dalat! #DemoMB #MB1250` + chip quyền riêng tư *Công khai* + bật *Đồng thời lưu vào Nhật ký* → đăng lên đầu Bảng tin & đồng bộ sang Nhật ký → mở S14 Ghi âm bằng micro thật `RMX3350` thử tạm dừng/tiếp tục (`00:04.4 → 00:07.0`).
 
 <table>
   <tr>
@@ -152,20 +152,20 @@ flowchart LR
 ### Milestone 5 — Realtime Chat, AIDL `:player`, Reminder, Profile, Settings & DevTools (S16 → S23)
 
 - **Phạm vi:** **S16–S17** Socket.IO (`RealtimeSocket`, `CloseAwareWebSocketFactory`, `generation` fence, Direct Reply fallback REST, thích ứng 2 cột `layout-sw600dp`), **S18** `PlayerService` chạy tiến trình riêng `android:process=":player"` giao tiếp AIDL (`oneway` callback, `RemoteCallbackList`, `enforceOwner()`, bắt tay AudioFocus bằng `nonce`), **S19–S20** 5 kênh thông báo & Daily Reminder (`ReminderScheduler` dùng `Mutex`, `EXACT`/`INEXACT` fallback, `ReminderRescheduleReceiver` dùng `goAsync()`, bảo toàn lịch khi đổi ngôn ngữ), **S21** Profile `ViewPager2` + `QuarterBlurTransformation`, **S22–S22b** Dark Mode, đa ngôn ngữ (`vi`/`en`/`ja`), Export JSON (`ExportInstantAdapter`), `LogoutCoordinator` cấp Application, **S23** `DevToolsActivity` & `LeakLabActivity` cách ly 100% trong `src/debug/`.
-- **Video demo chi tiết:** [▶ Xem video demo Milestone 5 (`m5_realtime_player_settings.mp4` · ~19.8 MB)](docs/media/videos/m5_realtime_player_settings.mp4)
-  - *Nội dung trong video:* S16–S17 Chat realtime gửi tin cho bot *Lan Anh* nhận phản hồi ngay + trạng thái `✓✓` → mở S18 Music Player phát bản ghi âm nhật ký qua process `:player` (`AIDL bound`) → mở S21 Profile vuốt 3 tab `ViewPager2` (bài mới đăng từ M4 hiển thị đầu lưới) → vào S22 Settings bật **Dark Mode**, đổi ngôn ngữ **Tiếng Việt ↔ English** tức thời → mở **S23 Developer tools** xem Network Log, trạng thái Socket.IO, Glide cache và Leak Lab.
+- **Video demo chi tiết:** [▶ Xem video demo Milestone 5 (`m5_realtime_player_settings.mp4` · ~17.0 MB)](docs/media/videos/m5_realtime_player_settings.mp4)
+  - *Nội dung trong video:* S16–S17 Chat realtime 2 thiết bị (RMX3350 Minh Anh ↔ AVD Pixel 6a Hà Trang: badge chưa đọc `3 → 4`, trạng thái đã xem `✓✓`, bong bóng báo lỗi `#fail` kèm thử gửi lại) → mở S18 Player từ biểu tượng mic trên nhật ký `Dalat Trip MB1250` phát bản ghi âm qua process riêng `:player` (`AIDL bound · focus=GAIN`, 2 PID độc lập) → mở S21 Profile vuốt 3 tab `ViewPager2` (bài mới đăng M4 hiển thị đầu lưới) → vào S22 Settings bật **Dark Mode**, đổi ngôn ngữ **Tiếng Việt ↔ English ↔ Tiếng Việt**, xuất nhật ký JSON (`momentbox_journal_20261126.json`) → mở **S23 Developer tools** kích hoạt giả lập `401 → refresh → 200`, xem Network Log, trạng thái Socket.IO, Glide cache và Leak Lab.
 
 <table>
   <tr>
     <td align="center"><img src="docs/media/screenshots/m5_chat_list.png" width="210" alt="S16 Danh sách tin nhắn"/><br/><sub><b>S16 · Chat Realtime (Socket.IO)</b></sub></td>
-    <td align="center"><img src="docs/media/screenshots/m5_chat_room.png" width="210" alt="S17 Phòng chat"/><br/><sub><b>S17 · Phòng chat & Bot phản hồi</b></sub></td>
+    <td align="center"><img src="docs/media/screenshots/m5_chat_room.png" width="210" alt="S17 Phòng chat"/><br/><sub><b>S17 · Phòng chat 2 thiết bị &amp; lỗi `#fail`</b></sub></td>
     <td align="center"><img src="docs/media/screenshots/m5_player.png" width="210" alt="S18 Player AIDL"/><br/><sub><b>S18 · Player (`:player` · AIDL bound)</b></sub></td>
     <td align="center"><img src="docs/media/screenshots/m5_profile.png" width="210" alt="S21 Trang cá nhân"/><br/><sub><b>S21 · Profile (`ViewPager2` + Blur)</b></sub></td>
   </tr>
   <tr>
     <td align="center"><img src="docs/media/screenshots/m5_settings_dark.png" width="220" alt="S22 Settings Dark Mode"/><br/><sub><b>S22 · Cài đặt (Dark Mode)</b></sub></td>
     <td align="center"><img src="docs/media/screenshots/m5_devtools.png" width="220" alt="S23 DevTools"/><br/><sub><b>S23 · Developer Tools (`src/debug/`)</b></sub></td>
-    <td align="center" colspan="2"><img src="docs/media/screenshots/m5_chat_sw600dp.png" width="290" alt="S16+S17 sw600dp 2-pane"/><br/><sub><b>S16 + S17 · Bố cục 2 cột `layout-sw600dp` (AVD `822dp`)</b></sub></td>
+    <td align="center" colspan="2"><img src="docs/media/screenshots/m5_chat_sw600dp.png" width="290" alt="S16+S17 sw600dp 2-pane"/><br/><sub><b>S16 + S17 · Bố cục 2 cột `layout-sw600dp` (Pixel 6a · `960×660dp`)</b></sub></td>
   </tr>
 </table>
 
@@ -173,18 +173,18 @@ flowchart LR
 
 ## 4. Kết quả nghiệm thu chi tiết theo Tài liệu BA
 
-Đối chiếu trực tiếp toàn bộ tiêu chí trong [MomentBox_Tai-lieu-BA.docx](MomentBox_Tai-lieu-BA.docx) với mã nguồn trên nhánh `main` (`c9ec0da`).
+Đối chiếu trực tiếp toàn bộ tiêu chí trong [MomentBox_Tai-lieu-BA.docx](MomentBox_Tai-lieu-BA.docx) với mã nguồn hiện tại trên nhánh `main` (cập nhật kiểm chứng ngày **26/11/2026**, bản `v1.0.0 (versionCode 12)` sau commit `1f85df9`).
 
 ### 4.1 Tổng hợp tiến độ 5 Milestone (S01 → S23)
 
 | Milestone | Màn hình | Số tiêu chí BA | Kết quả | Bằng chứng kiểm chứng chính |
 |---|---|---:|---|---|
-| **M1 · Nền tảng & Xác thực** | S01, S02, S03 | 12 / 12 | ✅ **Đạt 100%** | `LoginViewModelRegressionTest`, `DebugLogPrivacyTest`, `MentorRotationAndEdgeCaseTest`, demo Realme |
-| **M2 · Bảng tin & Media** | S04, S04b, S05, S06 | 15 / 15 | ✅ **Đạt 100%** | `FeedDummyJsonRegressionTest`, `FeedPostOrderTest`, `comment-retry.cjs`, `MentorRotationAndEdgeCaseTest`, demo Realme |
-| **M3 · Nhật ký cá nhân** | S07, S07b, S08, S09 | 14 / 14 | ✅ **Đạt 100%** | `JournalRegressionTest`, `M3JournalDeviceTest`, `MentorRotationAndEdgeCaseTest`, Lint `DrawAllocation = 0` |
-| **M4 · Media & Tạo bài** | S10, S11, S12, S13, S14, S15 | 22 / 22 | ✅ **Đạt 100%** | `CreateMediaRegressionTest`, `CreateControlsTest`, `ComposeMediaAdapterTest`, `PostRetryTest`, `post-retry.cjs`, demo Realme |
-| **M5 · Realtime, IPC & Nền** | S16, S17, S18, S19, S20, S21, S22, S22b, S23 | 33 / 33 | ✅ **Đạt 100%** | `ChatPlayerReminderRegressionTest`, `PlayerFocusPolicyTest`, `PlayerQueueTest`, `ReminderSystemEventTest`, `ReminderNotificationDeviceTest`, `JournalExportCodecTest`, `ProfileOfflineLogoutRegressionTest`, `HistoryLoadingTest`, `M5PlatformContractTest`, Release DEX Audit |
-| **Tổng cộng (Mục 6–12 BA)** | **26 màn hình / biến thể** | **96 / 96** | ✅ **100% Đạt** | **80/80 unit test · 37/37 Realme instrumentation test · 51/51 mock-server test · 0 Release debug symbols** |
+| **M1 · Nền tảng & Xác thực** | S01, S02, S03 | 12 / 12 | ✅ **Đạt 100%** | `LoginViewModelRegressionTest`, `DebugLogPrivacyTest`, `MentorRotationAndEdgeCaseTest`, demo RMX3350 & Pixel 6a |
+| **M2 · Bảng tin & Media** | S04, S04b, S05, S06 | 15 / 15 | ✅ **Đạt 100%** | `FeedDummyJsonRegressionTest`, `FeedPostOrderTest`, `comment-retry.cjs`, `MentorRotationAndEdgeCaseTest`, demo RMX3350 |
+| **M3 · Nhật ký cá nhân** | S07, S07b, S08, S09 | 14 / 14 | ✅ **Đạt 100%** | `JournalRegressionTest`, `VoiceAttachmentPlaybackTest`, `JournalVoicePlaybackDeviceTest`, `M3JournalDeviceTest`, Lint `DrawAllocation = 0` |
+| **M4 · Media & Tạo bài** | S10, S11, S12, S13, S14, S15 | 22 / 22 | ✅ **Đạt 100%** | `CreateMediaRegressionTest`, `CreateControlsTest`, `ComposeMediaAdapterTest`, `PostRetryTest`, `post-retry.cjs`, demo RMX3350 |
+| **M5 · Realtime, IPC & Nền** | S16, S17, S18, S19, S20, S21, S22, S22b, S23 | 33 / 33 | ✅ **Đạt 100%** | `ChatPlayerReminderRegressionTest`, `PlayerFocusPolicyTest`, `PlayerQueueTest`, `ReminderSystemEventTest`, `ReminderWriteMoodDeviceTest`, `ReminderNotificationDeviceTest`, `JournalExportCodecTest`, `ProfileOfflineLogoutRegressionTest`, `HistoryLoadingTest`, `M5PlatformContractTest`, Release DEX Audit |
+| **Tổng cộng (Mục 6–12 BA)** | **26 màn hình / biến thể** | **96 / 96** | ✅ **100% Đạt** | **90/90 unit test · 51/51 mock-server test · 0 Lint errors · 0 Release debug symbols · kiểm thử live 2 thiết bị (26/11/2026)** |
 
 ---
 
@@ -321,7 +321,7 @@ flowchart LR
 - ✅ **Banner kết nối hiện đúng số lần thử, tự ẩn & bù tin bị lỡ khi reconnect**: `SocketUi` + `SocketPhase` + bù lịch sử qua REST (`HistoryLoadingTest.kt`).
 - ✅ **Bấm thông báo hội thoại đang mở không tạo Activity mới**: `ChatActivity` khai báo `launchMode="singleTop"` + xử lý `onNewIntent`.
 - ✅ **Mở/đóng màn nhiều lần không nhận trùng tin**: Hủy đăng ký collector/listener chuẩn vòng đời.
-- ✅ **Tablet hiển thị 2 cột**: [`layout-sw600dp/fragment_chat.xml`](MomentBox_App/app/src/main/res/layout-sw600dp/fragment_chat.xml) kiểm chứng trực quan trên AVD `822dp` (`m5_chat_sw600dp.png`).
+- ✅ **Tablet hiển thị 2 cột**: [`layout-sw600dp/fragment_chat.xml`](MomentBox_App/app/src/main/res/layout-sw600dp/fragment_chat.xml) kiểm chứng trực quan trên AVD Pixel 6a chế độ tablet `960×660dp` (`m5_chat_sw600dp.png`).
 
 #### S18 · Trình phát âm thanh (`PlayerService` + AIDL)
 - ✅ **Chạy process riêng `:player`, kill process chính nhạc vẫn phát**: `android:process=":player"` + `foregroundServiceType="mediaPlayback"`, 5 file `.aidl`, `enforceOwner()` kiểm `Binder.getCallingUid()`, `RemoteCallbackList` + `oneway` callback (`M5PlatformContractTest.kt`).
@@ -494,21 +494,20 @@ cd MomentBox_App
 
 # 4. Kiểm thử Mock Server (regression + smoke test)
 cd ..\mock-server
-node --test
-node test/smoke.js http://localhost:3000
+node --test test/comment-retry.cjs test/logout-config.cjs test/m5-following.cjs test/m5-profile.cjs test/m5-send.cjs test/post-retry.cjs
+node test/smoke.js http://127.0.0.1:3000
 ```
 
-### Kết quả kiểm chứng trên nhánh `main` (commit `c9ec0da`)
+### Kết quả kiểm chứng mới nhất (ngày 26/11/2026 · `v1.0.0` / `versionCode 12`)
 
 | Hạng mục kiểm chứng | Phạm vi / Thiết bị | Kết quả thực tế |
 |---|---|---|
-| **Kotlin Compiler Warnings** | `compileDebugKotlin`, `compileReleaseKotlin`, `compileDebugUnitTestKotlin`, `compileDebugAndroidTestKotlin` | **0 cảnh báo** |
-| **Android Lint (`:app:lintDebug`)** | Toàn bộ mã nguồn, XML layout & tài nguyên | Giảm từ **183 → 40** (40 thông báo còn lại 100% là gợi ý nâng phiên bản AGP/SDK/thư viện cố định theo BA; **0** cảnh báo Overdraw / `DrawAllocation` / `NotifyDataSetChanged` / layout / logic) |
-| **Local Unit Tests** | `:app:testDebugUnitTest` | **80 / 80 PASS** |
-| **Instrumentation Tests** | `:app:connectedDebugAndroidTest` trên **Realme RMX3350** | **37 / 37 PASS** (`64.63s` — gồm `MentorRotationAndEdgeCaseTest`, `ReminderNotificationDeviceTest`, `M5PlatformContractTest`, `M3JournalDeviceTest`, `HistoryLoadingTest`, `CreateControlsTest`, `ComposeMediaAdapterTest`) |
-| **Mock Server Tests** | `node --test` & `node test/smoke.js` | **17 / 17 PASS** + **34 / 34 PASS** |
-| **Release Security Audit (S23)** | Quét Manifest & 3 file DEX trong `app-release-unsigned.apk` | **0** dấu vết `DevToolsActivity`, `LeakLabActivity`, `LeakCanary` |
-| **Độ ổn định Runtime & RAM** | `logcat` + LeakCanary trong phiên chạy thực tế trên Realme RMX3350 | **0** crash, **0** `APPLICATION LEAKS` |
+| **Android Lint (`:app:lintDebug`)** | Toàn bộ mã nguồn, XML layout & tài nguyên | **0 errors · 40 warnings** (40 cảnh báo 100% là gợi ý nâng phiên bản AGP/SDK/thư viện cố định theo BA: `GradleDependency: 27`, `NewerVersionAvailable: 11`, `OldTargetApi: 1`, `AndroidGradlePluginVersion: 1`; **0** Overdraw / `DrawAllocation` / `NotifyDataSetChanged` / layout / logic) |
+| **Local Unit Tests** | `:app:testDebugUnitTest` (18 file test) | **90 / 90 PASS** (bao gồm `VoiceAttachmentPlaybackTest`, `JournalRegressionTest`, `CreateMediaRegressionTest`, `ReminderSystemEventTest`) |
+| **Instrumentation Tests** | Thiết bị thật **Realme RMX3350** (`src/androidTest/`) | **3 / 3 PASS** cho các ca thiết bị mới bổ sung (`JournalVoicePlaybackDeviceTest`, `ReminderWriteMoodDeviceTest` kiểm chứng `K18`); bộ hồi quy thiết bị trước đó trên RMX3350 đạt **37 / 37 PASS** (tổng 40 ca trong `src/androidTest/`) |
+| **Mock Server Tests** | `node --test` (6 suite) & `node test/smoke.js` | **17 / 17 PASS** + **34 / 34 PASS** (**51 / 51 PASS**) |
+| **Release Security Audit (S23)** | Quét `AndroidManifest.xml` & toàn bộ `classes*.dex` trong `app-release-unsigned.apk` (`10.34 MB`) | **0** dấu vết `DevToolsActivity`, `LeakLabActivity`, `LeakCanary` |
+| **Kiểm thử kịch bản live (M1–M5)** | **Realme RMX3350** (Minh Anh) + **AVD Pixel 6a** (Hà Trang) · phiên `MB1250` | **30 / 30 Đạt** toàn bộ ca demo trực tiếp `D01–D30` (bao gồm hẹn giờ nhắc màn khóa `D24` lúc `14:52:02` và bỏ nhắc `D25` lúc `14:36` tự dời sang ngày hôm sau), thay mới toàn bộ 21 ảnh & 5 video (26/11/2026); 0 crash runtime |
 
 ---
 

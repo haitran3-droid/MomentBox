@@ -25,7 +25,7 @@
 
 1. [Kiến trúc hệ thống](#1-kiến-trúc-hệ-thống)
 2. [Công nghệ sử dụng](#2-công-nghệ-sử-dụng)
-3. [Demo chi tiết 5 Milestone (Ảnh thật & Video MP4)](#3-demo-chi-tiết-5-milestone-ảnh-thật--video-mp4)
+3. [Demo chi tiết 5 Milestone (Ảnh thật & Video YouTube)](#3-demo-chi-tiết-5-milestone-ảnh-thật--video-youtube)
 4. [Kết quả nghiệm thu chi tiết theo Tài liệu BA](#4-kết-quả-nghiệm-thu-chi-tiết-theo-tài-liệu-ba)
 5. [Cấu trúc Repository](#5-cấu-trúc-repository)
 6. [Hướng dẫn Cài đặt & Chạy ứng dụng](#6-hướng-dẫn-cài-đặt--chạy-ứng-dụng)
@@ -75,16 +75,14 @@ flowchart LR
 
 ---
 
-## 3. Demo chi tiết 5 Milestone (Ảnh thật & Video MP4)
+## 3. Demo chi tiết 5 Milestone (Ảnh thật & Video YouTube)
 
-> **Lưu ý về cách xem video `.mp4`:**
-> - Khi xem trên **máy cục bộ / IDE**, bấm trực tiếp các liên kết `.mp4` bên dưới để phát ngay.
-> - Khi xem trên **GitHub web**, bấm vào liên kết `.mp4` (hoặc tải nhanh) để mở trang phát video của GitHub.
+> **Cách xem video demo:** Bấm nút **YouTube** ở từng Milestone để xem trực tuyến ngay trên trình duyệt (không cần tải về).
 
 ### Milestone 1 — Nền tảng & Xác thực (S01 → S03)
 
 - **Phạm vi:** `SplashActivity` (SplashScreen API, đọc song song `config` + `DataStore`), `OnboardingActivity` (`ViewPager` + `PagerAdapter` tự viết, `PageIndicatorView` co giãn theo `positionOffset`, đổi ngôn ngữ giữ đúng trang), `AuthActivity` (validate inline, `KEY_PASSWORD_VISIBLE` + `saveEnabled="false"`, chạm ngoài ẩn bàn phím, đăng nhập Demo, `TokenAuthenticator` đồng bộ chống gọi refresh trùng).
-- **Video demo chi tiết:** [▶ Xem video demo Milestone 1 (`m1_foundation_auth.mp4` · ~10.5 MB)](docs/media/videos/m1_foundation_auth.mp4)
+- **Video demo chi tiết:** [![Xem video demo Milestone 1 trên YouTube](https://img.shields.io/badge/YouTube-Xem%20video%20demo%20Milestone%201-FF0000?style=flat&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=NQhp4vfBxmc)
   - *Nội dung trong video:* Khởi động sạch app (S01 Splash) → vuốt S02 Onboarding xem `PageIndicatorView` → đổi ngôn ngữ Tiếng Việt ↔ English ↔ Tiếng Việt giữ nguyên trang 2 → hoàn tất onboarding sang S03, mở lại app đi thẳng S03 → kiểm tra validate inline email/mật khẩu → bấm Tài khoản demo đăng nhập Nguyễn Minh Anh vào thẳng Bảng tin S04.
 
 <table>
@@ -99,7 +97,7 @@ flowchart LR
 ### Milestone 2 — Bảng tin, Bình luận & Video (S04, S04b, S05, S06)
 
 - **Phạm vi:** `FeedFragment` (`RecyclerView` 7 `viewType`, `ListAdapter` + `DiffUtil` + payload cập nhật tim không nháy ảnh, `RecycledViewPool` dùng chung cho list ngang Story & Gợi ý, 1 `ExoPlayer` auto-play + 1 `MediaPlayer` voice), `PostDetailActivity` (so sánh Layout A `NestedScrollView` vs Layout B `ConcatAdapter`, phân trang bình luận + phản hồi, chống gửi trùng `clientId` khi retry, `mergeServerPage` chống race condition), `VideoPlayerActivity` (Media3 ExoPlayer MP4/HLS, `layout-land` riêng, Replay & bàn giao vị trí về Feed).
-- **Video demo chi tiết:** [▶ Xem video demo Milestone 2 (`m2_feed_comments_video.mp4` · ~27.4 MB)](docs/media/videos/m2_feed_comments_video.mp4)
+- **Video demo chi tiết:** [![Xem video demo Milestone 2 trên YouTube](https://img.shields.io/badge/YouTube-Xem%20video%20demo%20Milestone%202-FF0000?style=flat&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=aUk7dGmkJ0s)
   - *Nội dung trong video:* Lướt thanh Story, bấm Like/Bookmark trên Bảng tin S04 → chuyển tab Nhật ký rồi quay lại giữ nguyên trạng thái → mở S05 Chi tiết bài viết, đổi sắp xếp *Mới nhất*, gửi bình luận & phản hồi tiếng Anh (`Nice photo! Love it! #MB1250` và `@Nguyễn Minh Anh Epic vibe! Count me in!`) → mở S06 VideoPlayer (HLS `.m3u8`) chuyển toàn màn hình xoay ngang `layout-land`, chọn tốc độ & tua nhanh +10s rồi quay lại Feed → phát bài Thoại trên Feed và đổi tốc độ phát (`1x / 1.5x / 2x`).
 
 <table>
@@ -115,7 +113,7 @@ flowchart LR
 ### Milestone 3 — Nhật ký cá nhân & Thống kê (S07, S07b, S08, S09)
 
 - **Phạm vi:** Offline hoàn toàn trên Room (`journal_entries`, `journal_attachments`, `journal_tags`, `FTS4`), `MoodCalendarView` tự vẽ Canvas + `onSaveInstanceState`, `S07b` Lọc/Sắp xếp chạy SQL kèm đếm trước `SELECT COUNT(*)`, `S08` Soạn nhật ký (tự lưu nháp JSON vào DataStore + hộp thoại khôi phục nháp, `@Transaction`, âm thanh nền `AudioTrack MODE_STREAM`, đính kèm ghi âm thật), `S09` `JournalStatsCalculator` thuần Kotlin trên `Dispatchers.Default` + `DonutChartView` & `LineChartView` (`0` cấp phát trong `onDraw`).
-- **Video demo chi tiết:** [▶ Xem video demo Milestone 3 (`m3_journal_stats.mp4` · ~24.5 MB)](docs/media/videos/m3_journal_stats.mp4)
+- **Video demo chi tiết:** [![Xem video demo Milestone 3 trên YouTube](https://img.shields.io/badge/YouTube-Xem%20video%20demo%20Milestone%203-FF0000?style=flat&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=HpAapzusMYE)
   - *Nội dung trong video:* Mở S08 kiểm tra chặn lưu bài trống, viết nhật ký `Dalat Trip MB1250` (chọn cảm xúc *Tuyệt vời*, kiểm tra tự lưu nháp & khôi phục nháp, đính kèm ảnh từ `MomentBoxDemo`, ghi âm giọng nói thật 28 giây và phát lại xem thanh sóng tiến độ & bộ đếm giây trực tiếp, bật âm thanh nền *Tiếng mưa* `MODE_STREAM`, lưu) → về S07 thấy lịch cảm xúc 3 ngày liên tiếp (`24–26/11/2026`), thử ghim bài, vuốt xóa + Hoàn tác trong 5s, tìm kiếm `Dalat`, lọc S07b (`Có ảnh: 3`, `Có ảnh + Có ghi âm: 1`) → mở S09 Thống kê xem biểu đồ `DonutChartView` & `LineChartView`.
 
 <table>
@@ -131,7 +129,7 @@ flowchart LR
 ### Milestone 4 — Media & Tạo bài viết (S10 → S15)
 
 - **Phạm vi:** `CreateActivity` quản lý back stack Fragment + Fragment Result API: **S10** Gallery tự viết trên `MediaStore` + `ContentObserver` (`callbackFlow`), **S11** CameraX + bộ lọc realtime `ImageAnalysis` tái sử dụng Bitmap + `AudioTrack MODE_STATIC`, **S12** `CropOverlayView` dùng `Matrix` nghịch đảo & khóa tỷ lệ `1:1`/`4:5`/`16:9`/`3:4` khi kéo cạnh + giải mã `inSampleSize`, **S13** `StickerCanvasView` multi-touch (`pointerId`) + Drag & Drop framework + Undo/Redo đồng bộ SeekBar + lưu `MediaStore` (`IS_PENDING`), **S14** `RecordingService` Started + Bound Foreground Service (`microphone`) + `AudioDeviceCallback` nhận diện phần cứng `RMX3350`, **S15** Compose upload multipart `ProgressRequestBody` + chống đăng trùng `clientId` + đồng thời lưu vào Nhật ký.
-- **Video demo chi tiết:** [▶ Xem video demo Milestone 4 (`m4_media_create_post.mp4` · ~26.2 MB)](docs/media/videos/m4_media_create_post.mp4)
+- **Video demo chi tiết:** [![Xem video demo Milestone 4 trên YouTube](https://img.shields.io/badge/YouTube-Xem%20video%20demo%20Milestone%204-FF0000?style=flat&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=ZYFtP_t0qkY)
   - *Nội dung trong video:* Mở S11 CameraX đổi bộ lọc realtime (*Ấm*, *Đen trắng*) & chạm lấy nét trên camera thật RMX3350 → mở S10 Gallery chuyển album `MomentBoxDemo` chọn/bỏ chọn đổi thứ tự 2 ảnh (`Tiếp (2)`) → S12 Crop khóa tỷ lệ `1:1` + xoay 90° + lật ngang → S13 Editor vẽ nét, Undo/Redo, chỉnh Sáng/Tương phản/Bão hòa & lưu → S15 Compose viết `Calm light in Dalat! #DemoMB #MB1250` + chip quyền riêng tư *Công khai* + bật *Đồng thời lưu vào Nhật ký* → đăng lên đầu Bảng tin & đồng bộ sang Nhật ký → mở S14 Ghi âm bằng micro thật `RMX3350` thử tạm dừng/tiếp tục (`00:04.4 → 00:07.0`).
 
 <table>
@@ -152,7 +150,7 @@ flowchart LR
 ### Milestone 5 — Realtime Chat, AIDL `:player`, Reminder, Profile, Settings & DevTools (S16 → S23)
 
 - **Phạm vi:** **S16–S17** Socket.IO (`RealtimeSocket`, `CloseAwareWebSocketFactory`, `generation` fence, Direct Reply fallback REST, thích ứng 2 cột `layout-sw600dp`), **S18** `PlayerService` chạy tiến trình riêng `android:process=":player"` giao tiếp AIDL (`oneway` callback, `RemoteCallbackList`, `enforceOwner()`, bắt tay AudioFocus bằng `nonce`), **S19–S20** 5 kênh thông báo & Daily Reminder (`ReminderScheduler` dùng `Mutex`, `EXACT`/`INEXACT` fallback, `ReminderRescheduleReceiver` dùng `goAsync()`, bảo toàn lịch khi đổi ngôn ngữ), **S21** Profile `ViewPager2` + `QuarterBlurTransformation`, **S22–S22b** Dark Mode, đa ngôn ngữ (`vi`/`en`/`ja`), Export JSON (`ExportInstantAdapter`), `LogoutCoordinator` cấp Application, **S23** `DevToolsActivity` & `LeakLabActivity` cách ly 100% trong `src/debug/`.
-- **Video demo chi tiết:** [▶ Xem video demo Milestone 5 (`m5_realtime_player_settings.mp4` · ~17.0 MB)](docs/media/videos/m5_realtime_player_settings.mp4)
+- **Video demo chi tiết:** [![Xem video demo Milestone 5 trên YouTube](https://img.shields.io/badge/YouTube-Xem%20video%20demo%20Milestone%205-FF0000?style=flat&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=TeUrmXBtDQI)
   - *Nội dung trong video:* S16–S17 Chat realtime 2 thiết bị (RMX3350 Minh Anh ↔ AVD Pixel 6a Hà Trang: badge chưa đọc `3 → 4`, trạng thái đã xem `✓✓`, bong bóng báo lỗi `#fail` kèm thử gửi lại) → mở S18 Player từ biểu tượng mic trên nhật ký `Dalat Trip MB1250` phát bản ghi âm qua process riêng `:player` (`AIDL bound · focus=GAIN`, 2 PID độc lập) → mở S21 Profile vuốt 3 tab `ViewPager2` (bài mới đăng M4 hiển thị đầu lưới) → vào S22 Settings bật **Dark Mode**, đổi ngôn ngữ **Tiếng Việt ↔ English ↔ Tiếng Việt**, xuất nhật ký JSON (`momentbox_journal_20261126.json`) → mở **S23 Developer tools** kích hoạt giả lập `401 → refresh → 200`, xem Network Log, trạng thái Socket.IO, Glide cache và Leak Lab.
 
 <table>
@@ -408,7 +406,7 @@ flowchart LR
 |---|---|
 | [`MomentBox_App/`](MomentBox_App/) | Mã nguồn ứng dụng Android (Kotlin + XML + ViewBinding): `app/src/main/java/.../` (`core/`, `data/`, `domain/`, `feature/`), `app/src/main/aidl/` (5 file AIDL cho `:player`), `app/src/debug/` (`DevToolsActivity`, `LeakLabActivity`, `DebugGlideModule`, debug `network_security_config.xml`), `app/src/test/` (Unit tests) và `app/src/androidTest/` (Instrumented tests). |
 | [`mock-server/`](mock-server/) | Backend giả lập miễn phí (Node.js + Express + Socket.IO 4 + Multer + tự sinh file WAV mẫu), kèm bộ test tự động. Xem chi tiết API & Socket events tại [`mock-server/README.md`](mock-server/README.md). |
-| [`docs/media/`](docs/media/) | Bộ ảnh chụp màn hình thật ([`screenshots/`](docs/media/screenshots/)) và 5 video demo chi tiết từng milestone ([`videos/`](docs/media/videos/)) nhúng trong README này. |
+| [`docs/media/`](docs/media/) | Bộ 21 ảnh chụp màn hình thật ([`screenshots/`](docs/media/screenshots/)) nhúng trong README này (5 video demo được phát trực tuyến qua YouTube). |
 | [`mockups/`](mockups/) | 26 mockup thiết kế chuẩn (720×1560), gồm bản sạch, `annotated/` (đánh số khớp BA), `pairs/` và `boards/` (7 board theo nhóm + `00_Tong-quan.png`). |
 | [`mockup-src/`](mockup-src/) | Mã nguồn HTML tạo bộ mockup (chỉnh `src/*.html` rồi chạy `node render.js` để xuất lại ảnh). |
 | [`MomentBox_Tai-lieu-BA.docx`](MomentBox_Tai-lieu-BA.docx) | Tài liệu đặc tả nghiệp vụ & tiêu chí nghiệm thu bản đầy đủ (S01 → S23). |

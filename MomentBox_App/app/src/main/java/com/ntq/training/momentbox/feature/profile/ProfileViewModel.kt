@@ -3,6 +3,7 @@ package com.ntq.training.momentbox.feature.profile
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -293,7 +294,7 @@ class ProfileViewModel(
             var copied: File? = null
             try {
                 withContext(Dispatchers.IO) {
-                    require(uri.scheme == "content" && uri.authority == application.packageName + ".media")
+                    require(isAllowedAvatarUri(uri.scheme, uri.authority, application.packageName))
                     copied = File.createTempFile("m5-avatar-", ".jpg", application.cacheDir)
                     application.contentResolver.openInputStream(uri).use { input ->
                         requireNotNull(input)
@@ -400,5 +401,14 @@ class ProfileViewModel(
                 }
             }
         }
+    }
+
+    companion object {
+        internal fun isAllowedAvatarUri(
+            scheme: String?,
+            authority: String?,
+            packageName: String
+        ): Boolean = scheme == "content" &&
+            (authority == "$packageName.media" || authority == MediaStore.AUTHORITY)
     }
 }

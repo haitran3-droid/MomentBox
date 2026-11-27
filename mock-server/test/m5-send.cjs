@@ -80,3 +80,56 @@ test('reading a group message preserves unread state for other recipients', asyn
   writer.disconnect();
  }
 });
+
+test('uploaded chat media URLs resolve to each recipient host over socket and REST', async () => {
+ const port = new URL(origin).port;
+ const receiverHost = `10.0.2.2:${port}`;
+ const receiverBase = `http://${receiverHost}`;
+ const receiverSocket = io(origin, {
+  auth: { token: b.accessToken },
+  transports: ['websocket'],
+  reconnection: false,
+  extraHeaders: { 'x-forwarded-host': receiverHost },
+ });
+ try {
+  await new Promise((resolve, reject) => {
+   receiverSocket.once('connect', resolve);
+   receiverSocket.once('connect_error', reject);
+  });
+  const payload = {
+   clientId: '5b2cb9b9-d296-41ba-a034-410ff57a8c06',
+   conversationId: room,
+   type: 'voice',
+   mediaUrl: `${origin}/uploads/cross-host-voice.m4a`,
+   durationMs: 4200,
+  };
+  const received = new Promise((resolve, reject) => {
+   const timer = setTimeout(() => reject(new Error('Missing message:new on receiver socket')), 2000);
+   receiverSocket.on('message:new', event => {
+    if (event?.message?.clientId === payload.clientId) {
+     clearTimeout(timer);
+     resolve(event.message);
+    }
+   });
+  });
+
+  const ack = await emit(payload);
+  assert.equal(ack.ok, true);
+  assert.equal(ack.message.mediaUrl, `${origin}/uploads/cross-host-voice.m4a`);
+
+  const pushed = await received;
+  assert.equal(pushed.mediaUrl, `${receiverBase}/uploads/cross-host-voice.m4a`);
+
+  const restRes = await fetch(`${origin}/v1/conversations/${room}/messages?limit=20`, {
+   headers: {
+    Authorization: `Bearer ${b.accessToken}`,
+    'X-Forwarded-Host': receiverHost,
+   },
+  });
+  const restBody = await restRes.json();
+  const fetched = restBody.data.find(m => m.id === ack.message.id);
+  assert.equal(fetched.mediaUrl, `${receiverBase}/uploads/cross-host-voice.m4a`);
+ } finally {
+  receiverSocket.disconnect();
+ }
+});

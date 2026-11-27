@@ -61,6 +61,11 @@ class RecordingService : Service() {
         private const val CHANNEL = "momentbox.recording"
         private const val NOTICE = 14001
 
+        internal fun formatDuration(elapsedMs: Long): String {
+            val totalSec = (elapsedMs / 1000L).coerceAtLeast(0L)
+            return String.format(Locale.ROOT, "%02d:%02d", totalSec / 60L, totalSec % 60L)
+        }
+
         fun intent(context: Context, action: String, session: String) =
             Intent(context, RecordingService::class.java)
                 .setAction(action)
@@ -149,7 +154,6 @@ class RecordingService : Service() {
             }
         }
     private var tick: StaticPcmSound? = null
-    private var lastNotify = 0L
     private var wake: PowerManager.WakeLock? = null
 
     override fun onCreate() {
@@ -330,22 +334,29 @@ class RecordingService : Service() {
             (getSystemService(POWER_SERVICE) as PowerManager)
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MomentBox:Recording")
                 .apply { acquire(310_000) }
+        startTicker(session)
+        notifyState()
+    }
+
+    private fun startTicker(session: String) {
+        stopTicker()
+        // Không gọi notifyState() theo chu kỳ: Chronometer tự đếm trong SystemUI khi RECORDING,
+        // còn khi PAUSED phải giữ nguyên thông báo để không làm nhóm thông báo bị re-layout liên tục.
         ticker =
             scope.launch {
                 var ticks = 0
                 while (isActive) {
                     delay(50)
+                    if (mutable.value.phase != RecordPhase.RECORDING) continue
                     val now = SystemClock.elapsedRealtime()
-                    if (mutable.value.phase == RecordPhase.RECORDING) {
-                        val raw =
-                            runCatching { recorder?.maxAmplitude ?: 0 }
-                                .getOrDefault(0)
-                                .coerceAtLeast(0)
-                        if (samples.size < 6000) {
-                            samples.add(
-                                (ln(1.0 + raw) / ln(32768.0) * 100).toInt().coerceIn(0, 100)
-                            )
-                        }
+                    val raw =
+                        runCatching { recorder?.maxAmplitude ?: 0 }
+                            .getOrDefault(0)
+                            .coerceAtLeast(0)
+                    if (samples.size < 6000) {
+                        samples.add(
+                            (ln(1.0 + raw) / ln(32768.0) * 100).toInt().coerceIn(0, 100)
+                        )
                     }
                     if (++ticks % 2 == 0) {
                         mutable.value =
@@ -355,20 +366,21 @@ class RecordingService : Service() {
                                 input = actualInput(),
                             )
                     }
-                    if (now - lastNotify >= 1000) {
-                        lastNotify = now
-                        notifyState()
-                    }
-                    if (mutable.value.phase == RecordPhase.RECORDING && clock.atLimit(now)) {
+                    if (clock.atLimit(now)) {
                         commands.send(SAVE to session)
                         break
                     }
                 }
             }
-        notifyState()
+    }
+
+    private fun stopTicker() {
+        ticker?.cancel()
+        ticker = null
     }
 
     private suspend fun pause() {
+        stopTicker()
         withContext(Dispatchers.IO) { recorder?.pause() }
         clock.pause(SystemClock.elapsedRealtime())
         mutable.value =
@@ -387,6 +399,7 @@ class RecordingService : Service() {
         clock.resume(SystemClock.elapsedRealtime())
         mutable.value = mutable.value.copy(phase = RecordPhase.RECORDING)
         wake?.acquire(310_000)
+        startTicker(mutable.value.session)
         notifyState()
     }
 
@@ -493,7 +506,7 @@ class RecordingService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    private fun notification(s: RecordingSnapshot): Notification {
+    internal fun notification(s: RecordingSnapshot): Notification {
         val content =
             PendingIntent.getActivity(
                 this,
@@ -503,19 +516,29 @@ class RecordingService : Service() {
                     .setData("momentbox://record/${s.session}".toUri()),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
+        val isRecording = s.phase == RecordPhase.RECORDING
+        val contentText =
+            if (s.phase == RecordPhase.PAUSED) {
+                "${getString(R.string.m4_paused)} · ${formatDuration(s.elapsedMs)}"
+            } else {
+                getString(R.string.m4_recording)
+            }
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_journal_mic)
             .setContentTitle(getString(R.string.m4_record_title))
-            .setContentText(
-                getString(
-                    if (s.phase == RecordPhase.PAUSED) R.string.m4_paused else R.string.m4_recording
-                )
-            )
+            .setContentText(contentText)
             .setContentIntent(content)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setWhen(System.currentTimeMillis() - s.elapsedMs)
-            .setUsesChronometer(s.phase == RecordPhase.RECORDING)
+            .setShowWhen(isRecording)
+            .apply {
+                if (isRecording) {
+                    setWhen(System.currentTimeMillis() - s.elapsedMs)
+                    setUsesChronometer(true)
+                } else {
+                    setUsesChronometer(false)
+                }
+            }
             .addAction(
                 0,
                 getString(

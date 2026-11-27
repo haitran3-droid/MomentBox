@@ -4,6 +4,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.pow
 
 internal class PcmEnvelope(private val durationUs: Long, private val bars: Int = 30) {
     private val peaks = FloatArray(bars)
@@ -45,5 +46,19 @@ internal class PcmEnvelope(private val durationUs: Long, private val bars: Int =
         }
     }
 
-    fun values(): List<Float> = peaks.toList()
+    fun values(): List<Float> {
+        val maxPeak = peaks.maxOrNull() ?: 0f
+        if (maxPeak <= SILENCE_THRESHOLD) return peaks.toList()
+        val scale = max(maxPeak, MIN_NORMALIZE_PEAK)
+        return peaks.map { peak ->
+            if (peak <= 0f) 0f
+            else (peak / scale).coerceIn(0f, 1f).pow(PERCEPTUAL_EXPONENT)
+        }
+    }
+
+    private companion object {
+        const val SILENCE_THRESHOLD = 0.002f
+        const val MIN_NORMALIZE_PEAK = 0.015f
+        const val PERCEPTUAL_EXPONENT = 0.75f
+    }
 }

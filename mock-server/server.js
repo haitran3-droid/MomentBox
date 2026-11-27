@@ -59,8 +59,20 @@ const ok = (res, data, meta) => res.json(meta ? { success: true, data, meta } : 
 const fail = (req, res, status, code, details) =>
   res.status(status).json({ success: false, error: { code, message: (MSG[code] || MSG.INTERNAL)[lang(req)], ...(details && { details }) } });
 
-const baseOf = req => `${req.protocol}://${req.get('host')}`;
+const baseOf = req => `${req.protocol}://${req.get('x-forwarded-host') || req.get('host')}`;
 const absUrl = (base, u) => (u && u.startsWith('/') ? base + u : u);
+function normalizeStoredMediaUrl(rawUrl, senderBase) {
+  try {
+    const parsed = new URL(rawUrl);
+    const isLocalPath = parsed.pathname.startsWith('/uploads/') || parsed.pathname.startsWith('/media/');
+    if (!isLocalPath) return rawUrl;
+    const listeningPort = String(server.address()?.port || PORT);
+    const sameOrigin = Boolean(senderBase && parsed.origin === senderBase);
+    const samePort = parsed.port === listeningPort;
+    if (sameOrigin || samePort) return parsed.pathname + parsed.search;
+  } catch (_) {}
+  return rawUrl;
+}
 const nextId = list => list.reduce((m, x) => Math.max(m, x.id), 0) + 1;
 const byNewest = (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt);
 
@@ -539,7 +551,7 @@ app.get('/v1/conversations/:id/messages', auth, (req, res) => {
 
 // S17/S19: một nghiệp vụ ghi tin cho cả Socket lẫn REST. Dedupe ở server,
 // không chỉ ở RecyclerView; khóa gồm owner/phòng/clientId và chỉ sống trong RAM.
-function acceptMessage(uid, conversationId, payload) {
+function acceptMessage(uid, conversationId, payload, senderBase) {
   const conv = db.conversations.find(c => c.id === +conversationId);
   if (!conv || !conv.memberIds.includes(uid)) return { status: 403, code: 'FORBIDDEN' };
   const clientId = typeof payload.clientId === 'string' ? payload.clientId : '';
@@ -553,17 +565,26 @@ function acceptMessage(uid, conversationId, payload) {
   if (payload.durationMs != null && (!Number.isFinite(payload.durationMs) || payload.durationMs < 0)) return { status: 400, code: 'VALIDATION_ERROR' };
   if (content.includes('#fail')) return { status: 422, code: 'SIMULATED_FAILURE' };
   const message = { id: nextId(db.messages), clientId, conversationId: conv.id, senderId: uid,
-    type, content, mediaUrl: type === 'text' ? null : payload.mediaUrl,
+    type, content, mediaUrl: type === 'text' ? null : normalizeStoredMediaUrl(payload.mediaUrl, senderBase),
     durationMs: type === 'voice' ? payload.durationMs || null : null, status: 'sent', createdAt: new Date().toISOString() };
   // Không await giữa lookup và insert: hai transport chạy cùng event loop không thể chèn đua.
   db.messages.push(message);
   return { conv, message, created: true, slow: content.includes('#slow') };
 }
+function emitRoomMessage(room, message, fallbackBase, excludeSocket) {
+  const ids = io.sockets.adapter.rooms.get(room);
+  if (!ids) return;
+  for (const id of ids) {
+    if (excludeSocket && id === excludeSocket.id) continue;
+    const peer = io.sockets.sockets.get(id);
+    if (!peer) continue;
+    peer.emit('message:new', { message: messageDto(socketBase(peer) || fallbackBase, message, peer.data.userId) });
+  }
+}
 function publishMessage(result, uid, base, senderSocket) {
   if (!result.created) return;
   const { conv, message } = result;
-  const target = senderSocket ? senderSocket.to('conv:' + conv.id) : io.to('conv:' + conv.id);
-  target.emit('message:new', { message: messageDto(base, message) });
+  emitRoomMessage('conv:' + conv.id, message, base, senderSocket);
   if (conv.memberIds.some(id => id !== uid && online.has(id)) && message.status === 'sent') {
     message.status = 'delivered';
     io.to('user:' + uid).emit('message:status', { conversationId: conv.id, messageId: message.id, clientId: message.clientId, status: 'delivered' });
@@ -571,9 +592,10 @@ function publishMessage(result, uid, base, senderSocket) {
   botReply(conv, uid, message, base);
 }
 app.post('/v1/conversations/:id/messages', auth, (req, res) => {
-  const result = acceptMessage(req.user.id, req.params.id, req.body || {});
+  const base = baseOf(req);
+  const result = acceptMessage(req.user.id, req.params.id, req.body || {}, base);
   if (result.code) return fail(req, res, result.status, result.code);
-  const deliver = () => { publishMessage(result, req.user.id, baseOf(req)); ok(res, messageDto(baseOf(req), result.message, req.user.id)); };
+  const deliver = () => { publishMessage(result, req.user.id, base); ok(res, messageDto(base, result.message, req.user.id)); };
   result.slow ? setTimeout(deliver, 8000) : deliver();
 });
 
@@ -669,7 +691,7 @@ function botReply(conv, senderId, msg, base) {
     io.to('conv:' + conv.id).emit('typing', { conversationId: conv.id, userId: bot.id, isTyping: false });
     const reply = { id: nextId(db.messages), clientId: null, conversationId: conv.id, senderId: bot.id, type: 'text', content: text, mediaUrl: null, durationMs: null, status: 'delivered', createdAt: new Date().toISOString() };
     db.messages.push(reply);
-    io.to('conv:' + conv.id).emit('message:new', { message: messageDto(base, reply) });
+    emitRoomMessage('conv:' + conv.id, reply, base, null);
   }, 2200 + (msg.id % 3) * 600);
 }
 
@@ -690,7 +712,7 @@ io.on('connection', socket => {
   // Test hooks: content containing "#fail" -> ack error; "#slow" -> ack after 8s (longer than a 5s client timeout)
   socket.on('message:send', (payload = {}, ack) => {
     const reply = typeof ack === 'function' ? ack : () => {};
-    const result = acceptMessage(uid, payload.conversationId, payload);
+    const result = acceptMessage(uid, payload.conversationId, payload, base);
     if (result.code) return reply({ ok: false, error: { code: result.code } });
     const deliver = () => {
       publishMessage(result, uid, base, socket);

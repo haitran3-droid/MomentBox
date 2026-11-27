@@ -17,7 +17,7 @@
   </tr>
 </table>
 
-> Toàn bộ ảnh chụp màn hình và 5 video demo bên dưới được ghi trực tiếp ngày **26/11/2026** từ ứng dụng thật chạy trên **Realme RMX3350** (Android 13, có camera & micro phần cứng), kết hợp **AVD Pixel 6a** (Android 14) cho luồng chat realtime 2 thiết bị và bố cục 2 cột `layout-sw600dp` (`960×660dp`, `sw660dp`).
+> Toàn bộ ảnh chụp màn hình và 5 video demo bên dưới được ghi trực tiếp ngày **26–27/11/2026** từ ứng dụng thật chạy trên **Realme RMX3350** (Android 13, có camera & micro phần cứng), kết hợp **AVD Pixel 6a** (Android 14) cho luồng chat realtime 2 thiết bị và bố cục 2 cột `layout-sw600dp` (`960×660dp`, `sw660dp`).
 
 ---
 
@@ -155,15 +155,18 @@ flowchart LR
 
 <table>
   <tr>
-    <td align="center"><img src="docs/media/screenshots/m5_chat_list.png" width="210" alt="S16 Danh sách tin nhắn"/><br/><sub><b>S16 · Chat Realtime (Socket.IO)</b></sub></td>
-    <td align="center"><img src="docs/media/screenshots/m5_chat_room.png" width="210" alt="S17 Phòng chat"/><br/><sub><b>S17 · Phòng chat 2 thiết bị &amp; lỗi `#fail`</b></sub></td>
-    <td align="center"><img src="docs/media/screenshots/m5_player.png" width="210" alt="S18 Player AIDL"/><br/><sub><b>S18 · Player (`:player` · AIDL bound)</b></sub></td>
-    <td align="center"><img src="docs/media/screenshots/m5_profile.png" width="210" alt="S21 Trang cá nhân"/><br/><sub><b>S21 · Profile (`ViewPager2` + Blur)</b></sub></td>
+    <td align="center"><img src="docs/media/screenshots/m5_chat_list.png" width="220" alt="S16 Danh sách tin nhắn"/><br/><sub><b>S16 · Chat Realtime (Socket.IO)</b></sub></td>
+    <td align="center"><img src="docs/media/screenshots/m5_chat_room.png" width="220" alt="S17 Phòng chat"/><br/><sub><b>S17 · Phòng chat 2 thiết bị &amp; lỗi `#fail`</b></sub></td>
+    <td align="center"><img src="docs/media/screenshots/m5_player.png" width="220" alt="S18 Player AIDL"/><br/><sub><b>S18 · Player (`:player` · AIDL bound)</b></sub></td>
   </tr>
   <tr>
+    <td align="center"><img src="docs/media/screenshots/m5_reminder.png" width="220" alt="S20 Nhắc viết nhật ký"/><br/><sub><b>S20 · Nhắc viết nhật ký (Full-screen)</b></sub></td>
+    <td align="center"><img src="docs/media/screenshots/m5_profile.png" width="220" alt="S21 Trang cá nhân"/><br/><sub><b>S21 · Profile (`ViewPager2` + Blur)</b></sub></td>
     <td align="center"><img src="docs/media/screenshots/m5_settings_dark.png" width="220" alt="S22 Settings Dark Mode"/><br/><sub><b>S22 · Cài đặt (Dark Mode)</b></sub></td>
+  </tr>
+  <tr>
     <td align="center"><img src="docs/media/screenshots/m5_devtools.png" width="220" alt="S23 DevTools"/><br/><sub><b>S23 · Developer Tools (`src/debug/`)</b></sub></td>
-    <td align="center" colspan="2"><img src="docs/media/screenshots/m5_chat_sw600dp.png" width="290" alt="S16+S17 sw600dp 2-pane"/><br/><sub><b>S16 + S17 · Bố cục 2 cột `layout-sw600dp` (Pixel 6a · `960×660dp`)</b></sub></td>
+    <td align="center" colspan="2"><img src="docs/media/screenshots/m5_chat_sw600dp.png" width="440" alt="S16+S17 sw600dp 2-pane"/><br/><sub><b>S16 + S17 · Bố cục 2 cột `layout-sw600dp` (Pixel 6a · `960×660dp`)</b></sub></td>
   </tr>
 </table>
 
@@ -333,7 +336,7 @@ flowchart LR
 - ✅ **Bấm thông báo chat khi app bị kill mở đúng hội thoại, Back về Main**: Dựng back stack bằng `TaskStackBuilder` (`Main → Chat`).
 
 #### S20 · Nhắc viết nhật ký (full-screen)
-- ✅ **Màn khóa hiện full-screen đúng giờ (kèm fallback `INEXACT` nếu thiếu `SCHEDULE_EXACT_ALARM`)**: `ReminderScheduler` tuần tự hóa bằng `Mutex`, `ReminderRingingService` + `ReminderActivity` (`ReminderNotificationDeviceTest.kt`).
+- ✅ **Màn khóa hiện full-screen đúng giờ (kèm fallback `INEXACT` nếu thiếu `SCHEDULE_EXACT_ALARM`)**: `ReminderScheduler` tuần tự hóa bằng `Mutex`, `ReminderRingingService` + `ReminderActivity` (`ReminderNotificationDeviceTest.kt`, `m5_reminder.png`).
 - ✅ **Khởi động lại máy / đổi giờ / đổi múi giờ vẫn giữ lịch**: `ReminderRescheduleReceiver` dùng `goAsync()` (`ReminderSystemEventTest.kt`), đồng thời bảo toàn lịch sau khi đổi ngôn ngữ app.
 - ✅ **`ReminderActivity` không nằm trong Recents và không trộn vào task chính**: `launchMode="singleInstance"`, `excludeFromRecents="true"`, `taskAffinity="${applicationId}.reminder"`.
 - ✅ **Hôm nay đã viết nhật ký thì không nhắc**: Kiểm tra Room trong `ReminderAlarmReceiver` trước khi phát chuông và tự lên lịch ngày kế tiếp.
@@ -406,7 +409,7 @@ flowchart LR
 |---|---|
 | [`MomentBox_App/`](MomentBox_App/) | Mã nguồn ứng dụng Android (Kotlin + XML + ViewBinding): `app/src/main/java/.../` (`core/`, `data/`, `domain/`, `feature/`), `app/src/main/aidl/` (5 file AIDL cho `:player`), `app/src/debug/` (`DevToolsActivity`, `LeakLabActivity`, `DebugGlideModule`, debug `network_security_config.xml`), `app/src/test/` (Unit tests) và `app/src/androidTest/` (Instrumented tests). |
 | [`mock-server/`](mock-server/) | Backend giả lập miễn phí (Node.js + Express + Socket.IO 4 + Multer + tự sinh file WAV mẫu), kèm bộ test tự động. Xem chi tiết API & Socket events tại [`mock-server/README.md`](mock-server/README.md). |
-| [`docs/media/`](docs/media/) | Bộ 21 ảnh chụp màn hình thật ([`screenshots/`](docs/media/screenshots/)) nhúng trong README này (5 video demo được phát trực tuyến qua YouTube). |
+| [`docs/media/`](docs/media/) | Bộ 22 ảnh chụp màn hình thật ([`screenshots/`](docs/media/screenshots/)) nhúng trong README này (5 video demo được phát trực tuyến qua YouTube). |
 | [`mockups/`](mockups/) | 26 mockup thiết kế chuẩn (720×1560), gồm bản sạch, `annotated/` (đánh số khớp BA), `pairs/` và `boards/` (7 board theo nhóm + `00_Tong-quan.png`). |
 | [`mockup-src/`](mockup-src/) | Mã nguồn HTML tạo bộ mockup (chỉnh `src/*.html` rồi chạy `node render.js` để xuất lại ảnh). |
 | [`MomentBox_Tai-lieu-BA.docx`](MomentBox_Tai-lieu-BA.docx) | Tài liệu đặc tả nghiệp vụ & tiêu chí nghiệm thu bản đầy đủ (S01 → S23). |
@@ -505,7 +508,7 @@ node test/smoke.js http://127.0.0.1:3000
 | **Instrumentation Tests** | Thiết bị thật **Realme RMX3350** (`src/androidTest/`) | **3 / 3 PASS** cho các ca thiết bị mới bổ sung (`JournalVoicePlaybackDeviceTest`, `ReminderWriteMoodDeviceTest` kiểm chứng `K18`); bộ hồi quy thiết bị trước đó trên RMX3350 đạt **37 / 37 PASS** (tổng 40 ca trong `src/androidTest/`) |
 | **Mock Server Tests** | `node --test` (6 suite) & `node test/smoke.js` | **17 / 17 PASS** + **34 / 34 PASS** (**51 / 51 PASS**) |
 | **Release Security Audit (S23)** | Quét `AndroidManifest.xml` & toàn bộ `classes*.dex` trong `app-release-unsigned.apk` (`10.34 MB`) | **0** dấu vết `DevToolsActivity`, `LeakLabActivity`, `LeakCanary` |
-| **Kiểm thử kịch bản live (M1–M5)** | **Realme RMX3350** (Minh Anh) + **AVD Pixel 6a** (Hà Trang) · phiên `MB1250` | **30 / 30 Đạt** toàn bộ ca demo trực tiếp `D01–D30` (bao gồm hẹn giờ nhắc màn khóa `D24` lúc `14:52:02` và bỏ nhắc `D25` lúc `14:36` tự dời sang ngày hôm sau), thay mới toàn bộ 21 ảnh & 5 video (26/11/2026); 0 crash runtime |
+| **Kiểm thử kịch bản live (M1–M5)** | **Realme RMX3350** (Minh Anh) + **AVD Pixel 6a** (Hà Trang) · phiên `MB1250` | **30 / 30 Đạt** toàn bộ ca demo trực tiếp `D01–D30` (bao gồm hẹn giờ nhắc màn khóa `D24` lúc `14:52:02` và bỏ nhắc `D25` lúc `14:36` tự dời sang ngày hôm sau), bộ 22 ảnh chụp màn hình & 5 video demo (26–27/11/2026); 0 crash runtime |
 
 ---
 

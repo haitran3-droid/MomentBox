@@ -176,4 +176,68 @@ class CommentsAdapterTest {
             )
         }
     }
+
+    @Test
+    fun replyHeartActionAndTextButtonTriggerLikeWhenConfirmed() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            val context = ContextThemeWrapper(instrumentation.targetContext, R.style.Theme_MomentBox)
+            val parent = FrameLayout(context)
+            val author = Author(2, "author", "Author", null)
+            val confirmedReply = Comment(
+                id = 201,
+                postId = 10,
+                parentId = 10,
+                author = author,
+                content = "@Author hello",
+                likeCount = 0,
+                isLiked = false,
+                createdAt = "2026-01-01T00:00:00Z"
+            )
+            val pendingReply = Comment(
+                id = -1,
+                postId = 10,
+                parentId = 10,
+                author = author,
+                content = "Sending...",
+                createdAt = "",
+                isSending = true
+            )
+            val thread = Comment(
+                id = 10,
+                postId = 10,
+                author = author,
+                content = "Parent",
+                createdAt = "2026-01-01T00:00:00Z",
+                replyCount = 1,
+                replies = listOf(confirmedReply, pendingReply),
+                isRepliesExpanded = true,
+                nextReplyPage = null
+            )
+            val likedIds = mutableListOf<Long>()
+            val adapter = CommentsAdapter(
+                onLikeClick = { likedIds += it.id },
+                onReplyClick = {},
+                onExpandRepliesClick = {}
+            )
+            adapter.submitCommentsList(listOf(thread))
+
+            val confirmedHolder = adapter.onCreateViewHolder(parent, adapter.getItemViewType(1)) as CommentsAdapter.ReplyCommentViewHolder
+            adapter.onBindViewHolder(confirmedHolder, 1)
+            val heartContainer = confirmedHolder.binding.btnReplyLikeAction
+
+            assertTrue(confirmedHolder.binding.ivReplyLike.parent === heartContainer)
+            assertTrue(heartContainer.isEnabled)
+            assertTrue(heartContainer.performClick())
+            assertTrue(confirmedHolder.binding.btnLikeReply.performClick())
+            assertEquals(listOf(confirmedReply.id, confirmedReply.id), likedIds)
+
+            val pendingHolder = adapter.onCreateViewHolder(parent, adapter.getItemViewType(2)) as CommentsAdapter.ReplyCommentViewHolder
+            adapter.onBindViewHolder(pendingHolder, 2)
+            val pendingHeartContainer = pendingHolder.binding.btnReplyLikeAction
+
+            assertFalse(pendingHeartContainer.isEnabled)
+            assertFalse(pendingHolder.binding.btnLikeReply.isEnabled)
+        }
+    }
 }

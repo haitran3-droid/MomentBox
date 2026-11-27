@@ -235,7 +235,9 @@ class CommentsAdapter(
                 tvReplyLikeCount.text = root.context.getString(R.string.ui_integer_count, reply.likeCount)
 
                 btnLikeReply.setOnClickListener { onLikeClick(reply) }
+                btnReplyLikeAction.setOnClickListener { onLikeClick(reply) }
                 btnLikeReply.isEnabled = reply.id > 0
+                btnReplyLikeAction.isEnabled = reply.id > 0
             }
         }
     }

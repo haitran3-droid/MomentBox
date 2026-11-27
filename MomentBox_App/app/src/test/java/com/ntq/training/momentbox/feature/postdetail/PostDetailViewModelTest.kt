@@ -65,6 +65,54 @@ class PostDetailViewModelTest {
     }
 
     @Test
+    fun toggleLikeOnReplyUpdatesReplyOnlyAndRollsBackOnFailure() = runTest {
+        val repo = FakeFeed()
+        val parent = comment.copy(id = 1, replyCount = 1, likeCount = 0, isLiked = false)
+        val reply = comment.copy(id = 20, parentId = 1, content = "@Demo hello", likeCount = 0, isLiked = false)
+        repo.pages = { _, parentId ->
+            if (parentId == null) Result.success(listOf(parent))
+            else Result.success(listOf(reply))
+        }
+        val likeServer = CompletableDeferred<Result<Boolean>>()
+        repo.likeResult = { likeServer.await() }
+
+        withViewModel(repo) { viewModel ->
+            runCurrent()
+            viewModel.expandReplies(parent)
+            runCurrent()
+
+            val loadedReply = viewModel.comments.value.single().replies.single()
+            viewModel.toggleLikeComment(loadedReply)
+            // Optimistic update affects only the reply, leaving parent unchanged.
+            assertFalse(viewModel.comments.value.single().isLiked)
+            assertEquals(0, viewModel.comments.value.single().likeCount)
+            assertTrue(viewModel.comments.value.single().replies.single().isLiked)
+            assertEquals(1, viewModel.comments.value.single().replies.single().likeCount)
+
+            likeServer.complete(Result.success(true))
+            runCurrent()
+            assertEquals(listOf(20L), repo.likedCommentIds)
+            assertEquals(listOf(false), repo.likes)
+            assertTrue(viewModel.comments.value.single().replies.single().isLiked)
+            assertEquals(1, viewModel.comments.value.single().replies.single().likeCount)
+
+            // Failed unlike rolls back reply state cleanly.
+            repo.likeResult = { Result.failure(IllegalStateException("offline")) }
+            viewModel.toggleLikeComment(viewModel.comments.value.single().replies.single())
+            runCurrent()
+            assertTrue(viewModel.comments.value.single().replies.single().isLiked)
+            assertEquals(1, viewModel.comments.value.single().replies.single().likeCount)
+
+            // Successful unlike decrements reply count back to 0.
+            repo.likeResult = { Result.success(false) }
+            viewModel.toggleLikeComment(viewModel.comments.value.single().replies.single())
+            runCurrent()
+            assertFalse(viewModel.comments.value.single().replies.single().isLiked)
+            assertEquals(0, viewModel.comments.value.single().replies.single().likeCount)
+        }
+    }
+
+    @Test
     fun collapsingRepliesDuringLoadKeepsThemCollapsed() = runTest {
         val repo = FakeFeed()
         val replies = CompletableDeferred<Result<List<Comment>>>()
@@ -1095,6 +1143,7 @@ class PostDetailViewModelTest {
         var failSubmission = false
         val rootPages = mutableListOf<Int>()
         val likes = mutableListOf<Boolean>()
+        val likedCommentIds = mutableListOf<Long>()
         var pages: suspend (Int, Long?) -> Result<List<Comment>> = { _, _ -> Result.success(listOf(comment)) }
         var sortedPages: (suspend (Int, String, Long?) -> Result<List<Comment>>)? = null
         var submitResult: (suspend (String, Long?) -> Result<Comment>)? = null
@@ -1115,6 +1164,7 @@ class PostDetailViewModelTest {
         }
 
         override suspend fun toggleLikeComment(commentId: Long, currentLiked: Boolean): Result<Boolean> {
+            likedCommentIds += commentId
             likes += currentLiked
             return likeResult()
         }

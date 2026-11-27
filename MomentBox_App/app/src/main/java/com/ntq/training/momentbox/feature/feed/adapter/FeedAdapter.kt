@@ -323,7 +323,7 @@ class FeedAdapter(
                     .circleCrop()
                     .into(ivAuthorAvatar)
 
-                val imageUrls = post.media.map { it.url }
+                val imageUrls = post.media.filter { it.isImage }.map { it.url }
 
                 // Bỏ callback của bài cũ trước khi thay adapter vì ViewPager có thể phát sự kiện reset ngay.
                 pageCallback?.let { vpPostPhotos.unregisterOnPageChangeCallback(it) }
@@ -501,7 +501,7 @@ class FeedAdapter(
                 bindCaption(post)
                 updateMuteDisplay()
 
-                val videoMedia = post.media.firstOrNull()
+                val videoMedia = post.primaryVideo ?: post.media.firstOrNull()
                 // Giữ poster riêng với URL phát. Khi server có thumbnail, không tải video chỉ để vẽ ảnh bìa.
                 val thumbnailUrl = videoMedia?.thumbnailUrl ?: videoMedia?.url
                 Glide.with(ivVideoThumbnail.context)
@@ -681,7 +681,7 @@ class FeedAdapter(
 
             private fun updatePlaybackDisplay(post: Post, state: VoicePlaybackState) {
                 val isActivePost = state.postId == post.id
-                val metadataDurationMs = (post.media.firstOrNull()?.durationMs ?: 0L).toInt()
+                val metadataDurationMs = (post.primaryAudio?.durationMs ?: 0L).toInt()
                 val effectiveDurationMs = if (isActivePost && state.durationMs > 0) {
                     state.durationMs
                 } else {

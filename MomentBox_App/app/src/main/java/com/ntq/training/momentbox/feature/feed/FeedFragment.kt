@@ -179,7 +179,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                             holder.bindPlaybackProgress(
                                 videoPlayerManager.getCurrentPosition(post.id),
                                 videoPlayerManager.getDuration(post.id)
-                                    ?: post.media.firstOrNull()?.durationMs,
+                                    ?: post.primaryVideo?.durationMs,
                             )
                         }
                     }
@@ -235,7 +235,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
                 onVideoMuteToggle = { post, playerView ->
                     videoPlayerManager.attachPlayer(
                         playerView,
-                        post.media.firstOrNull()?.url.orEmpty(),
+                        post.primaryVideo?.url.orEmpty(),
                         post.id,
                         poster = (playerView.parent as? View)?.findViewById(R.id.ivVideoThumbnail),
                     )
@@ -506,8 +506,9 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
         if (currentState.postId == post.id && (currentState.isPlaying || currentState.isLoading)) {
             voicePlayerManager.pauseVoice()
         } else {
-            val audioUrl = post.media.firstOrNull()?.url ?: ""
-            val durationSec = ((post.media.firstOrNull()?.durationMs ?: 0L) / 1000).toInt()
+            val audioMedia = post.primaryAudio
+            val audioUrl = audioMedia?.url.orEmpty()
+            val durationSec = ((audioMedia?.durationMs ?: 0L) / 1000).toInt()
             voicePlayerManager.playVoice(post.id, audioUrl, durationSec)
         }
     }
@@ -561,7 +562,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
             val item = (feedAdapter.currentList.getOrNull(pos) as? FeedItem.PostItem)?.post
             if (item != null) {
                 currentPlayingVideoPostId = item.id
-                val videoUrl = item.media.firstOrNull()?.url ?: ""
+                val videoUrl = item.primaryVideo?.url.orEmpty()
                 videoPlayerManager.attachPlayer(
                     bestViewHolder.binding.playerView,
                     videoUrl,
@@ -594,7 +595,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>(FragmentFeedBinding::infl
         val currentPos = videoPlayerManager.getCurrentPosition(post.id)
         val intendedPlay = videoPlayerManager.userPlaybackIntent(post.id)
         videoPlayerManager.pause() // Tạm dừng feed video trước khi chuyển sang fullscreen (F15)
-        val videoUrl = post.media.firstOrNull()?.url ?: ""
+        val videoUrl = post.primaryVideo?.url.orEmpty()
         val intent =
             Intent(requireContext(), VideoPlayerActivity::class.java).apply {
                 putExtra(VideoPlayerActivity.EXTRA_VIDEO_URL, videoUrl)

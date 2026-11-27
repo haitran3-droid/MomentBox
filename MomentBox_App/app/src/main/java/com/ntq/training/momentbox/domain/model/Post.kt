@@ -20,4 +20,6 @@ data class Post(
     val isVideoPost: Boolean get() = type.equals("VIDEO", ignoreCase = true)
     val isVoicePost: Boolean get() = type.equals("VOICE", ignoreCase = true)
     val isTextPost: Boolean get() = type.equals("TEXT", ignoreCase = true) || (!isPhotoPost && !isVideoPost && !isVoicePost)
+    val primaryAudio: MediaItem? get() = media.firstOrNull { it.isAudio }
+    val primaryVideo: MediaItem? get() = media.firstOrNull { it.isVideo }
 }
